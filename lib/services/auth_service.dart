@@ -110,4 +110,10 @@ class AuthService {
     final biliJct = prefs.getString('bili_jct') ?? '';
     return 'SESSDATA=$sessData; bili_jct=$biliJct'; 
   }
+
+  // 获取 CSRF Token (bili_jct)
+  Future<String> getCsrfToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('bili_jct') ?? '';
+  }
 }

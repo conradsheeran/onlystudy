@@ -142,7 +142,6 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
                       : ListView.builder(
                           controller: _scrollController,
                           padding: const EdgeInsets.all(12),
-                          // +1 for the loading indicator
                           itemCount: _videos.length + (_hasMore ? 1 : 0),
                           itemBuilder: (context, index) {
                             if (index == _videos.length) {
@@ -161,8 +160,7 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => VideoPlayerScreen(
-                                      bvid: video.bvid,
-                                      title: video.title,
+                                      video: video,
                                     ),
                                   ),
                                 );

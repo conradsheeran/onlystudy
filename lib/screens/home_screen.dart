@@ -5,6 +5,7 @@ import 'folder_content_screen.dart';
 import '../services/auth_service.dart';
 import '../services/bili_api_service.dart';
 import 'login_screen.dart';
+import 'history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -106,6 +107,16 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('我的收藏'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: '本地观看历史',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const HistoryScreen()),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -191,7 +202,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               crossAxisSpacing: 12,
                               mainAxisSpacing: 12,
                             ),
-                            // +1 for the loading indicator at the bottom
                             itemCount: _folders.length + (_hasMore ? 1 : 0),
                             itemBuilder: (context, index) {
                               if (index == _folders.length) {

@@ -107,3 +107,25 @@ class VideoPlayInfo {
     );
   }
 }
+
+class VideoDetail {
+  final int bvid;
+  final int aid;
+  final int cid;
+  final int historyProgress; // 观看进度(秒)
+
+  VideoDetail({
+    required this.aid,
+    required this.cid,
+    this.bvid = 0, 
+    this.historyProgress = 0,
+  });
+
+  factory VideoDetail.fromJson(Map<String, dynamic> json) {
+    return VideoDetail(
+      aid: json['aid'] ?? 0,
+      cid: json['cid'] ?? 0,
+      historyProgress: json['history']?['progress'] ?? 0,
+    );
+  }
+}

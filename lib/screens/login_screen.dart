@@ -74,7 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
             // 保存登录信息
             await _authService.saveLoginInfo(result['url']);
 
-            // 跳转到主页 (清空路由栈)
+            // 跳转到主页
             if (mounted) {
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (context) => const HomeScreen()),

@@ -90,8 +90,8 @@ class BiliApiService {
     }
   }
 
-  // 获取视频详情
-  Future<int> getVideoCid(String bvid) async {
+  // 获取视频详情 (包含 CID, AID, 历史进度)
+  Future<VideoDetail> getVideoDetail(String bvid) async {
     try {
       final response = await _dio.get(
         '/x/web-interface/view',
@@ -99,12 +99,39 @@ class BiliApiService {
         options: Options(headers: {'Cookie': await _getCookieHeader()}),
       );
       if (response.data['code'] == 0) {
-        return response.data['data']['cid'];
+        return VideoDetail.fromJson(response.data['data']);
       } else {
         throw Exception('获取视频详情失败: ${response.data['message']}');
       }
     } catch (e) {
       rethrow;
+    }
+  }
+
+  // 上报播放进度
+  Future<void> reportHistory({
+    required int aid,
+    required int cid,
+    required int progress,
+  }) async {
+    final csrf = await AuthService().getCsrfToken();
+    try {
+      await _dio.post(
+        '/x/v2/history/report',
+        data: {
+          'aid': aid,
+          'cid': cid,
+          'progress': progress,
+          'platform': 'android', 
+          'csrf': csrf,
+        },
+        options: Options(
+          contentType: Headers.formUrlEncodedContentType,
+          headers: {'Cookie': await _getCookieHeader()},
+        ),
+      );
+    } catch (e) {
+      // 忽略上报错误
     }
   }
 

@@ -1,15 +1,16 @@
+import 'dart:async';
 import 'package:chewie/chewie.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models/bili_models.dart';
 import '../services/bili_api_service.dart';
+import '../services/history_service.dart';
 
 class VideoPlayerScreen extends StatefulWidget {
-  final String bvid;
-  final String title;
+  final Video video;
 
-  const VideoPlayerScreen({super.key, required this.bvid, required this.title});
+  const VideoPlayerScreen({super.key, required this.video});
 
   @override
   State<VideoPlayerScreen> createState() => _VideoPlayerScreenState();
@@ -22,6 +23,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   String? _error;
   int? _cid;
   VideoPlayInfo? _playInfo;
+  VideoDetail? _videoDetail;
+  Timer? _saveHistoryTimer;
   
   // 独立保存清晰度列表，防止切换时 API 返回不完整的列表导致选项丢失
   List<int> _supportQualities = [];
@@ -31,11 +34,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   void initState() {
     super.initState();
     WakelockPlus.enable(); // 保持屏幕常亮
+    _addToHistory(); // 添加到本地观看历史
     _initializePlayer();
+  }
+
+  Future<void> _addToHistory() async {
+    await HistoryService().addWatchedVideo(widget.video);
   }
 
   @override
   void dispose() {
+    _saveHistoryTimer?.cancel();
+    _saveProgress(); // 退出时保存进度
     _videoPlayerController?.dispose();
     _chewieController?.dispose();
     WakelockPlus.disable(); // 取消屏幕常亮
@@ -45,24 +55,41 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   Future<void> _initializePlayer() async {
     try {
       final api = BiliApiService();
-      // 1. 获取 CID
-      _cid = await api.getVideoCid(widget.bvid);
-      // 2. 获取播放链接 (默认清晰度)
-      _playInfo = await api.getVideoPlayUrl(widget.bvid, _cid!);
+      _videoDetail = await api.getVideoDetail(widget.video.bvid);
+      _cid = _videoDetail!.cid;
+      _playInfo = await api.getVideoPlayUrl(widget.video.bvid, _cid!);
       
-      // 初始化清晰度列表
       if (_playInfo != null) {
         _supportQualities = _playInfo!.acceptQuality;
         _supportQualityDescs = _playInfo!.acceptDescription;
       }
 
-      await _setupController(_playInfo!.url);
+      final savedPosition = _videoDetail!.historyProgress;
+      
+      await _setupController(
+        _playInfo!.url, 
+        startAt: savedPosition > 0 ? Duration(seconds: savedPosition) : null
+      );
 
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
+        
+        if (savedPosition > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('已为您恢复到上次播放位置: ${_formatDuration(savedPosition)}'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       }
+
+      _saveHistoryTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+        _saveProgress();
+      });
+
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -73,14 +100,35 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
+  Future<void> _saveProgress() async {
+    if (_videoPlayerController != null && 
+        _videoPlayerController!.value.isInitialized &&
+        _videoDetail != null &&
+        _cid != null) {
+      final position = _videoPlayerController!.value.position.inSeconds;
+      if (position > 5) {
+         await BiliApiService().reportHistory(
+           aid: _videoDetail!.aid,
+           cid: _cid!,
+           progress: position,
+         );
+      }
+    }
+  }
+
+  String _formatDuration(int seconds) {
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
   Future<void> _setupController(String url, {Duration? startAt}) async {
-    // B站视频通常需要 Referer 头才能播放
     final newController = VideoPlayerController.networkUrl(
       Uri.parse(url),
       httpHeaders: {
         'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Referer': 'https://www.bilibili.com/video/${widget.bvid}',
+        'Referer': 'https://www.bilibili.com/video/${widget.video.bvid}',
       },
     );
 
@@ -90,7 +138,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       await newController.seekTo(startAt);
     }
 
-    // Dispose old controllers if they exist
     _videoPlayerController?.dispose();
     _chewieController?.dispose();
 
@@ -108,7 +155,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           ),
         );
       },
-      // 自定义一些 UI 颜色以匹配你的主题
       materialProgressColors: ChewieProgressColors(
         playedColor: const Color(0xFF2D7D9A),
         handleColor: const Color(0xFF2D7D9A),
@@ -121,7 +167,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   Future<void> _switchQuality(int quality) async {
     if (_cid == null || _playInfo == null) return;
     
-    // Show a loading indicator overlay? Or just let the user know.
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('正在切换清晰度...'), duration: Duration(seconds: 1)),
     );
@@ -129,13 +174,20 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     try {
       final position = _videoPlayerController?.value.position;
       final api = BiliApiService();
-      final newInfo = await api.getVideoPlayUrl(widget.bvid, _cid!, qn: quality);
+      final newInfo = await api.getVideoPlayUrl(widget.video.bvid, _cid!, qn: quality);
       
-      await _setupController(newInfo.url, startAt: position);
+      final updatedInfo = VideoPlayInfo(
+        url: newInfo.url,
+        quality: newInfo.quality,
+        acceptQuality: _playInfo!.acceptQuality,
+        acceptDescription: _playInfo!.acceptDescription,
+      );
+      
+      await _setupController(updatedInfo.url, startAt: position);
 
       if (mounted) {
         setState(() {
-          _playInfo = newInfo;
+          _playInfo = updatedInfo;
         });
       }
     } catch (e) {
@@ -150,12 +202,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // 沉浸式黑色背景
+      backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: Text(widget.title, style: const TextStyle(fontSize: 16)),
+        title: Text(widget.video.title, style: const TextStyle(fontSize: 16)),
         actions: [
           if (_playInfo != null && _supportQualities.isNotEmpty)
             PopupMenuButton<int>(
