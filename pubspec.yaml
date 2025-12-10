@@ -9,6 +9,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  dio: ^5.4.0
+  qr_flutter: ^4.1.0
+  shared_preferences: ^2.2.2
+  path_provider: ^2.1.1 # 配合后续可能的缓存需求
 
 dev_dependencies:
   flutter_test:
