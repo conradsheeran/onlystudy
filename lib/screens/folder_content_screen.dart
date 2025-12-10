@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/bili_models.dart';
 import '../widgets/video_tile.dart';
 import '../services/bili_api_service.dart';
+import 'video_player_screen.dart';
 
 class FolderContentScreen extends StatefulWidget {
   final Folder folder;
@@ -42,7 +43,8 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
           _error = '加载视频失败: ${e.toString()}';
         });
       }
-    } finally {
+    }
+    finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -94,8 +96,14 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
                             return VideoTile(
                               video: video,
                               onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('即将播放: ${video.title} (开发中)')),
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => VideoPlayerScreen(
+                                      bvid: video.bvid,
+                                      title: video.title,
+                                    ),
+                                  ),
                                 );
                               },
                             );
@@ -105,3 +113,4 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
     );
   }
 }
+

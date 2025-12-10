@@ -89,4 +89,52 @@ class BiliApiService {
       rethrow;
     }
   }
+
+  // 获取视频详情
+  Future<int> getVideoCid(String bvid) async {
+    try {
+      final response = await _dio.get(
+        '/x/web-interface/view',
+        queryParameters: {'bvid': bvid},
+        options: Options(headers: {'Cookie': await _getCookieHeader()}),
+      );
+      if (response.data['code'] == 0) {
+        return response.data['data']['cid'];
+      } else {
+        throw Exception('获取视频详情失败: ${response.data['message']}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // 获取播放地址
+  Future<String> getVideoPlayUrl(String bvid, int cid) async {
+    try {
+      final response = await _dio.get(
+        '/x/player/playurl',
+        queryParameters: {
+          'bvid': bvid,
+          'cid': cid,
+          'qn': 64, // 64 = 720p
+          'fnval': 1, // mp4 格式
+          'fnver': 0,
+          'fourk': 1,
+        },
+        options: Options(headers: {'Cookie': await _getCookieHeader()}),
+      );
+
+      if (response.data['code'] == 0) {
+        final durl = response.data['data']['durl'] as List;
+        if (durl.isNotEmpty) {
+          return durl[0]['url'];
+        }
+        throw Exception('未找到播放地址');
+      } else {
+        throw Exception('获取播放地址失败: ${response.data['message']}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

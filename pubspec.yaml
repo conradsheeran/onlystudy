@@ -13,6 +13,9 @@ dependencies:
   qr_flutter: ^4.1.0
   shared_preferences: ^2.2.2
   path_provider: ^2.1.1 # 配合后续可能的缓存需求
+  video_player: ^2.10.1
+  chewie: ^1.13.0
+  wakelock_plus: ^1.4.0
 
 dev_dependencies:
   flutter_test:
