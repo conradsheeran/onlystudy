@@ -81,3 +81,29 @@ class Video {
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 }
+
+class VideoPlayInfo {
+  final String url;
+  final int quality;
+  final List<int> acceptQuality;
+  final List<String> acceptDescription;
+
+  VideoPlayInfo({
+    required this.url,
+    required this.quality,
+    required this.acceptQuality,
+    required this.acceptDescription,
+  });
+
+  factory VideoPlayInfo.fromJson(Map<String, dynamic> json) {
+    final durl = json['durl'] as List;
+    final url = durl.isNotEmpty ? durl[0]['url'] : '';
+    
+    return VideoPlayInfo(
+      url: url,
+      quality: json['quality'] ?? 0,
+      acceptQuality: List<int>.from(json['accept_quality'] ?? []),
+      acceptDescription: List<String>.from(json['accept_description'] ?? []),
+    );
+  }
+}

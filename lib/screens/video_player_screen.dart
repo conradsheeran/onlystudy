@@ -20,6 +20,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   ChewieController? _chewieController;
   bool _isLoading = true;
   String? _error;
+  int? _cid;
+  VideoPlayInfo? _playInfo;
+  
+  // 独立保存清晰度列表，防止切换时 API 返回不完整的列表导致选项丢失
+  List<int> _supportQualities = [];
+  List<String> _supportQualityDescs = [];
 
   @override
   void initState() {
@@ -40,44 +46,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     try {
       final api = BiliApiService();
       // 1. 获取 CID
-      final cid = await api.getVideoCid(widget.bvid);
-      // 2. 获取播放链接
-      final playUrl = await api.getVideoPlayUrl(widget.bvid, cid);
+      _cid = await api.getVideoCid(widget.bvid);
+      // 2. 获取播放链接 (默认清晰度)
+      _playInfo = await api.getVideoPlayUrl(widget.bvid, _cid!);
+      
+      // 初始化清晰度列表
+      if (_playInfo != null) {
+        _supportQualities = _playInfo!.acceptQuality;
+        _supportQualityDescs = _playInfo!.acceptDescription;
+      }
 
-      // 3. 初始化播放器
-      // B站视频通常需要 Referer 头才能播放
-      _videoPlayerController = VideoPlayerController.networkUrl(
-        Uri.parse(playUrl),
-        httpHeaders: {
-          'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Referer': 'https://www.bilibili.com/video/${widget.bvid}',
-        },
-      );
-
-      await _videoPlayerController!.initialize();
-
-      _chewieController = ChewieController(
-        videoPlayerController: _videoPlayerController!,
-        autoPlay: true,
-        looping: false,
-        aspectRatio: _videoPlayerController!.value.aspectRatio,
-        errorBuilder: (context, errorMessage) {
-          return Center(
-            child: Text(
-              errorMessage,
-              style: const TextStyle(color: Colors.white),
-            ),
-          );
-        },
-        // 自定义一些 UI 颜色以匹配你的主题
-        materialProgressColors: ChewieProgressColors(
-          playedColor: const Color(0xFF2D7D9A),
-          handleColor: const Color(0xFF2D7D9A),
-          backgroundColor: Colors.grey,
-          bufferedColor: Colors.white24,
-        ),
-      );
+      await _setupController(_playInfo!.url);
 
       if (mounted) {
         setState(() {
@@ -94,6 +73,80 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
+  Future<void> _setupController(String url, {Duration? startAt}) async {
+    // B站视频通常需要 Referer 头才能播放
+    final newController = VideoPlayerController.networkUrl(
+      Uri.parse(url),
+      httpHeaders: {
+        'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://www.bilibili.com/video/${widget.bvid}',
+      },
+    );
+
+    await newController.initialize();
+    
+    if (startAt != null) {
+      await newController.seekTo(startAt);
+    }
+
+    // Dispose old controllers if they exist
+    _videoPlayerController?.dispose();
+    _chewieController?.dispose();
+
+    _videoPlayerController = newController;
+    _chewieController = ChewieController(
+      videoPlayerController: _videoPlayerController!,
+      autoPlay: true,
+      looping: false,
+      aspectRatio: _videoPlayerController!.value.aspectRatio,
+      errorBuilder: (context, errorMessage) {
+        return Center(
+          child: Text(
+            errorMessage,
+            style: const TextStyle(color: Colors.white),
+          ),
+        );
+      },
+      // 自定义一些 UI 颜色以匹配你的主题
+      materialProgressColors: ChewieProgressColors(
+        playedColor: const Color(0xFF2D7D9A),
+        handleColor: const Color(0xFF2D7D9A),
+        backgroundColor: Colors.grey,
+        bufferedColor: Colors.white24,
+      ),
+    );
+  }
+
+  Future<void> _switchQuality(int quality) async {
+    if (_cid == null || _playInfo == null) return;
+    
+    // Show a loading indicator overlay? Or just let the user know.
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('正在切换清晰度...'), duration: Duration(seconds: 1)),
+    );
+
+    try {
+      final position = _videoPlayerController?.value.position;
+      final api = BiliApiService();
+      final newInfo = await api.getVideoPlayUrl(widget.bvid, _cid!, qn: quality);
+      
+      await _setupController(newInfo.url, startAt: position);
+
+      if (mounted) {
+        setState(() {
+          _playInfo = newInfo;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('切换清晰度失败: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -103,6 +156,37 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         title: Text(widget.title, style: const TextStyle(fontSize: 16)),
+        actions: [
+          if (_playInfo != null && _supportQualities.isNotEmpty)
+            PopupMenuButton<int>(
+              initialValue: _playInfo!.quality,
+              onSelected: _switchQuality,
+              itemBuilder: (context) {
+                return List.generate(_supportQualities.length, (index) {
+                  final quality = _supportQualities[index];
+                  final description = index < _supportQualityDescs.length 
+                      ? _supportQualityDescs[index] 
+                      : '$quality';
+                  return PopupMenuItem(
+                    value: quality,
+                    child: Text(description),
+                  );
+                });
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Center(
+                  child: Text(
+                    _getCurrentQualityDesc(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       body: SafeArea(
         child: Center(
@@ -117,5 +201,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         ),
       ),
     );
+  }
+
+  String _getCurrentQualityDesc() {
+    if (_playInfo == null) return '清晰度';
+    final index = _supportQualities.indexOf(_playInfo!.quality);
+    if (index != -1 && index < _supportQualityDescs.length) {
+      return _supportQualityDescs[index];
+    }
+    return '清晰度';
   }
 }

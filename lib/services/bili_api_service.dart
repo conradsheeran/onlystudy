@@ -109,14 +109,14 @@ class BiliApiService {
   }
 
   // 获取播放地址
-  Future<String> getVideoPlayUrl(String bvid, int cid) async {
+  Future<VideoPlayInfo> getVideoPlayUrl(String bvid, int cid, {int qn = 64}) async {
     try {
       final response = await _dio.get(
         '/x/player/playurl',
         queryParameters: {
           'bvid': bvid,
           'cid': cid,
-          'qn': 64, // 64 = 720p
+          'qn': qn, // 默认 64 = 720p
           'fnval': 1, // mp4 格式
           'fnver': 0,
           'fourk': 1,
@@ -125,11 +125,7 @@ class BiliApiService {
       );
 
       if (response.data['code'] == 0) {
-        final durl = response.data['data']['durl'] as List;
-        if (durl.isNotEmpty) {
-          return durl[0]['url'];
-        }
-        throw Exception('未找到播放地址');
+        return VideoPlayInfo.fromJson(response.data['data']);
       } else {
         throw Exception('获取播放地址失败: ${response.data['message']}');
       }
