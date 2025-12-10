@@ -85,9 +85,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => VideoPlayerScreen(video: video),
+                            builder: (context) => VideoPlayerScreen(
+                              playlist: _videos,
+                              initialIndex: index,
+                            ),
                           ),
-                        ).then((_) => _loadHistory());
+                        ).then((_) => _loadHistory()); // refresh on return
                       },
                     );
                   },

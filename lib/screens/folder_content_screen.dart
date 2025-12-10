@@ -160,7 +160,8 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => VideoPlayerScreen(
-                                      video: video,
+                                      playlist: _videos,
+                                      initialIndex: index,
                                     ),
                                   ),
                                 );

@@ -8,15 +8,21 @@ import '../services/bili_api_service.dart';
 import '../services/history_service.dart';
 
 class VideoPlayerScreen extends StatefulWidget {
-  final Video video;
+  final List<Video> playlist;
+  final int initialIndex;
 
-  const VideoPlayerScreen({super.key, required this.video});
+  const VideoPlayerScreen({
+    super.key,
+    required this.playlist,
+    required this.initialIndex,
+  });
 
   @override
   State<VideoPlayerScreen> createState() => _VideoPlayerScreenState();
 }
 
 class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
+  late int _currentIndex;
   VideoPlayerController? _videoPlayerController;
   ChewieController? _chewieController;
   bool _isLoading = true;
@@ -26,38 +32,49 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   VideoDetail? _videoDetail;
   Timer? _saveHistoryTimer;
   
-  // 独立保存清晰度列表，防止切换时 API 返回不完整的列表导致选项丢失
   List<int> _supportQualities = [];
   List<String> _supportQualityDescs = [];
+
+  Video get _currentVideo => widget.playlist[_currentIndex];
 
   @override
   void initState() {
     super.initState();
-    WakelockPlus.enable(); // 保持屏幕常亮
-    _addToHistory(); // 添加到本地观看历史
-    _initializePlayer();
+    _currentIndex = widget.initialIndex;
+    WakelockPlus.enable();
+    _playCurrentVideo();
+  }
+
+  Future<void> _playCurrentVideo() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    
+    await _addToHistory();
+    await _initializePlayer();
   }
 
   Future<void> _addToHistory() async {
-    await HistoryService().addWatchedVideo(widget.video);
+    await HistoryService().addWatchedVideo(_currentVideo);
   }
 
   @override
   void dispose() {
     _saveHistoryTimer?.cancel();
-    _saveProgress(); // 退出时保存进度
+    _saveProgress();
     _videoPlayerController?.dispose();
     _chewieController?.dispose();
-    WakelockPlus.disable(); // 取消屏幕常亮
+    WakelockPlus.disable();
     super.dispose();
   }
 
   Future<void> _initializePlayer() async {
     try {
       final api = BiliApiService();
-      _videoDetail = await api.getVideoDetail(widget.video.bvid);
+      _videoDetail = await api.getVideoDetail(_currentVideo.bvid);
       _cid = _videoDetail!.cid;
-      _playInfo = await api.getVideoPlayUrl(widget.video.bvid, _cid!);
+      _playInfo = await api.getVideoPlayUrl(_currentVideo.bvid, _cid!);
       
       if (_playInfo != null) {
         _supportQualities = _playInfo!.acceptQuality;
@@ -86,6 +103,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         }
       }
 
+      _saveHistoryTimer?.cancel();
       _saveHistoryTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
         _saveProgress();
       });
@@ -128,7 +146,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       httpHeaders: {
         'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Referer': 'https://www.bilibili.com/video/${widget.video.bvid}',
+        'Referer': 'https://www.bilibili.com/video/${_currentVideo.bvid}',
       },
     );
 
@@ -137,6 +155,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     if (startAt != null) {
       await newController.seekTo(startAt);
     }
+
+    // Add listener for auto-play next
+    newController.addListener(_checkVideoEnd);
 
     _videoPlayerController?.dispose();
     _chewieController?.dispose();
@@ -164,6 +185,36 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
+  void _checkVideoEnd() {
+    if (_videoPlayerController == null) return;
+    final value = _videoPlayerController!.value;
+    
+    if (value.position >= value.duration && 
+        !value.isPlaying && 
+        _currentIndex < widget.playlist.length - 1) {
+      
+      _videoPlayerController!.removeListener(_checkVideoEnd);
+      _playNext();
+    }
+  }
+
+  void _playNext() {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('即将播放下一集: ${widget.playlist[_currentIndex + 1].title}'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      
+      _saveProgress();
+      setState(() {
+        _currentIndex++;
+      });
+      _playCurrentVideo();
+    }
+  }
+
   Future<void> _switchQuality(int quality) async {
     if (_cid == null || _playInfo == null) return;
     
@@ -174,7 +225,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     try {
       final position = _videoPlayerController?.value.position;
       final api = BiliApiService();
-      final newInfo = await api.getVideoPlayUrl(widget.video.bvid, _cid!, qn: quality);
+      final newInfo = await api.getVideoPlayUrl(_currentVideo.bvid, _cid!, qn: quality);
       
       final updatedInfo = VideoPlayInfo(
         url: newInfo.url,
@@ -207,7 +258,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: Text(widget.video.title, style: const TextStyle(fontSize: 16)),
+        title: Text(_currentVideo.title, style: const TextStyle(fontSize: 16)),
         actions: [
           if (_playInfo != null && _supportQualities.isNotEmpty)
             PopupMenuButton<int>(
