@@ -6,7 +6,6 @@ class AppTheme {
     final ColorScheme colorScheme = ColorScheme.fromSeed(
       seedColor: _seedColor,
       brightness: Brightness.dark,
-      background: const Color(0xFF121212),
       surface: const Color(0xFF121212),
     );
 

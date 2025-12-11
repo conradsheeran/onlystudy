@@ -1,8 +1,7 @@
 import 'dart:async';
-import 'dart:io';
-import 'package:chewie/chewie.dart';
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart' as mkv;
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models/bili_models.dart';
 import '../services/bili_api_service.dart';
@@ -26,9 +25,10 @@ class VideoPlayerScreen extends StatefulWidget {
 }
 
 class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
+  late final Player _player;
+  late final mkv.VideoController _controller;
+  
   late int _currentIndex;
-  VideoPlayerController? _videoPlayerController;
-  ChewieController? _chewieController;
   bool _isLoading = true;
   String? _error;
   int? _cid;
@@ -46,6 +46,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     super.initState();
     _currentIndex = widget.initialIndex;
     WakelockPlus.enable();
+
+    // Create a [Player] to control playback.
+    _player = Player();
+    // Create a [VideoController] to handle video output from [Player].
+    _controller = mkv.VideoController(_player);
+
+    _player.stream.completed.listen((completed) {
+      if (completed) {
+         _checkVideoEnd();
+      }
+    });
+
     _playCurrentVideo();
   }
 
@@ -67,8 +79,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   void dispose() {
     _saveHistoryTimer?.cancel();
     _saveProgress();
-    _videoPlayerController?.dispose();
-    _chewieController?.dispose();
+    _player.dispose();
     WakelockPlus.disable();
     super.dispose();
   }
@@ -133,18 +144,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   Future<void> _saveProgress() async {
-    if (_videoPlayerController != null && 
-        _videoPlayerController!.value.isInitialized &&
-        _videoDetail != null &&
-        _cid != null) {
-      final position = _videoPlayerController!.value.position.inSeconds;
-      if (position > 5) {
-         await BiliApiService().reportHistory(
-           aid: _videoDetail!.aid,
-           cid: _cid!,
-           progress: position,
-         );
-      }
+    // Only report if position > 5 seconds
+    final position = _player.state.position.inSeconds;
+    if (position > 5 && _videoDetail != null && _cid != null) {
+        await BiliApiService().reportHistory(
+          aid: _videoDetail!.aid,
+          cid: _cid!,
+          progress: position,
+        );
     }
   }
 
@@ -155,61 +162,26 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   Future<void> _setupController(String url, {Duration? startAt, bool isLocal = false}) async {
-    final newController = isLocal
-        ? VideoPlayerController.file(File(url))
-        : VideoPlayerController.networkUrl(
-            Uri.parse(url),
-            httpHeaders: {
+    final httpHeaders = {
         'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Referer': 'https://www.bilibili.com/video/${_currentVideo.bvid}',
-      },
+    };
+
+    final media = Media(
+      url, 
+      httpHeaders: isLocal ? null : httpHeaders,
     );
 
-    await newController.initialize();
+    await _player.open(media, play: true);
     
     if (startAt != null) {
-      await newController.seekTo(startAt);
+      await _player.seek(startAt);
     }
-
-    // Add listener for auto-play next
-    newController.addListener(_checkVideoEnd);
-
-    _videoPlayerController?.dispose();
-    _chewieController?.dispose();
-
-    _videoPlayerController = newController;
-    _chewieController = ChewieController(
-      videoPlayerController: _videoPlayerController!,
-      autoPlay: true,
-      looping: false,
-      aspectRatio: _videoPlayerController!.value.aspectRatio,
-      errorBuilder: (context, errorMessage) {
-        return Center(
-          child: Text(
-            errorMessage,
-            style: const TextStyle(color: Colors.white),
-          ),
-        );
-      },
-      materialProgressColors: ChewieProgressColors(
-        playedColor: Theme.of(context).colorScheme.primary,
-        handleColor: Theme.of(context).colorScheme.primary,
-        backgroundColor: Colors.grey,
-        bufferedColor: Colors.white24,
-      ),
-    );
   }
 
   void _checkVideoEnd() {
-    if (_videoPlayerController == null) return;
-    final value = _videoPlayerController!.value;
-    
-    if (value.position >= value.duration && 
-        !value.isPlaying && 
-        _currentIndex < widget.playlist.length - 1) {
-      
-      _videoPlayerController!.removeListener(_checkVideoEnd);
+    if (_currentIndex < widget.playlist.length - 1) {
       _playNext();
     }
   }
@@ -238,7 +210,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
 
     try {
-      final position = _videoPlayerController?.value.position;
+      final position = _player.state.position;
       final api = BiliApiService();
       final newInfo = await api.getVideoPlayUrl(_currentVideo.bvid, _cid!, qn: quality);
       
@@ -332,7 +304,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                       _error!,
                       style: const TextStyle(color: Colors.white),
                     )
-                  : Chewie(controller: _chewieController!),
+                  : mkv.MaterialVideoControlsTheme(
+                      normal: mkv.MaterialVideoControlsThemeData(
+                        seekBarPositionColor: Theme.of(context).colorScheme.primary,
+                        // Adjusting margin to move the progress bar up.
+                        // The default margin might be too low.
+                        // Let's try to increase the bottom padding.
+                        seekBarMargin: const EdgeInsets.fromLTRB(12, 0, 12, 60), // L, T, R, B
+                      ),
+                      fullscreen: const mkv.MaterialVideoControlsThemeData(),
+                      child: mkv.Video(controller: _controller),
+                    ),
         ),
       ),
     );
