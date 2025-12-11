@@ -142,24 +142,57 @@ class VideoPlayInfo {
   }
 }
 
+class VideoPage {
+  final int cid;
+  final int page;
+  final String part;
+  final int duration;
+
+  VideoPage({
+    required this.cid,
+    required this.page,
+    required this.part,
+    required this.duration,
+  });
+
+  factory VideoPage.fromJson(Map<String, dynamic> json) {
+    return VideoPage(
+      cid: json['cid'] ?? 0,
+      page: json['page'] ?? 1,
+      part: json['part'] ?? '',
+      duration: json['duration'] ?? 0,
+    );
+  }
+}
+
 class VideoDetail {
   final int bvid;
   final int aid;
   final int cid;
   final int historyProgress; // 观看进度(秒)
+  final List<VideoPage> pages;
 
   VideoDetail({
     required this.aid,
     required this.cid,
     this.bvid = 0, 
     this.historyProgress = 0,
+    this.pages = const [],
   });
 
   factory VideoDetail.fromJson(Map<String, dynamic> json) {
+    var pagesList = <VideoPage>[];
+    if (json['pages'] != null) {
+      for (var p in json['pages']) {
+        pagesList.add(VideoPage.fromJson(p));
+      }
+    }
+    
     return VideoDetail(
       aid: json['aid'] ?? 0,
       cid: json['cid'] ?? 0,
       historyProgress: json['history']?['progress'] ?? 0,
+      pages: pagesList,
     );
   }
 }

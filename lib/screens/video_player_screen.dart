@@ -39,6 +39,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   
   List<int> _supportQualities = [];
   List<String> _supportQualityDescs = [];
+  
+  // Multi-part support
+  List<VideoPage> _pages = [];
+  int _currentPartIndex = 0;
 
   Video get _currentVideo => widget.playlist[_currentIndex];
 
@@ -66,6 +70,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     setState(() {
       _isLoading = true;
       _error = null;
+      _pages = [];
+      _currentPartIndex = 0;
     });
     
     await _addToHistory();
@@ -99,7 +105,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
       final api = BiliApiService();
       _videoDetail = await api.getVideoDetail(_currentVideo.bvid);
+      
+      // Setup multi-part info
+      _pages = _videoDetail!.pages;
       _cid = _videoDetail!.cid;
+      
+      // Find current part index based on CID
+      if (_pages.isNotEmpty) {
+        final index = _pages.indexWhere((p) => p.cid == _cid);
+        if (index != -1) {
+          _currentPartIndex = index;
+        }
+      }
+
       _playInfo = await api.getVideoPlayUrl(_currentVideo.bvid, _cid!);
       
       if (_playInfo != null) {
@@ -182,7 +200,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   void _checkVideoEnd() {
-    if (_currentIndex < widget.playlist.length - 1) {
+    // If there are multiple parts and it's not the last part, play next part
+    if (_pages.isNotEmpty && _currentPartIndex < _pages.length - 1) {
+      _switchPart(_currentPartIndex + 1);
+    } else if (_currentIndex < widget.playlist.length - 1) {
+      // If no more parts, play next video in playlist
       _playNext();
     }
   }
@@ -201,6 +223,52 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       _currentIndex++;
     });
     _playCurrentVideo();
+  }
+  
+  Future<void> _switchPart(int index) async {
+    if (index < 0 || index >= _pages.length) return;
+    
+    // Save progress of current part
+    _saveProgress();
+    
+    setState(() {
+      _isLoading = true;
+      _currentPartIndex = index;
+      _cid = _pages[index].cid;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('即将播放 P${index + 1}: ${_pages[index].part}'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+
+    try {
+      final api = BiliApiService();
+      _playInfo = await api.getVideoPlayUrl(_currentVideo.bvid, _cid!);
+      
+      // Refresh qualities if needed
+      if (_playInfo != null) {
+        _supportQualities = _playInfo!.acceptQuality;
+        _supportQualityDescs = _playInfo!.acceptDescription;
+      }
+      
+      await _setupController(_playInfo!.url, startAt: Duration.zero);
+      
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = '切换分P失败: $e';
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _switchQuality(int quality) async {
@@ -237,17 +305,94 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       }
     }
   }
+  
+  void _showPartsList() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.grey[900],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                '分集列表 (${_pages.length})',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _pages.length,
+                itemBuilder: (context, index) {
+                  final page = _pages[index];
+                  final isSelected = index == _currentPartIndex;
+                  return ListTile(
+                    selected: isSelected,
+                    selectedTileColor: Colors.white10,
+                    leading: Text(
+                      'P${page.page}',
+                      style: TextStyle(
+                        color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey,
+                      ),
+                    ),
+                    title: Text(
+                      page.part,
+                      style: TextStyle(
+                        color: isSelected ? Theme.of(context).colorScheme.primary : Colors.white,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: Text(
+                      _formatDuration(page.duration),
+                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      if (!isSelected) {
+                        _switchPart(index);
+                      }
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Construct title
+    String title = _currentVideo.title;
+    if (_pages.isNotEmpty && _pages.length > 1) {
+       title += ' - P${_currentPartIndex + 1} ${_pages[_currentPartIndex].part}';
+    }
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: Text(_currentVideo.title, style: const TextStyle(fontSize: 16)),
+        title: Text(title, style: const TextStyle(fontSize: 16)),
         actions: [
+          // Parts Button
+          if (_pages.isNotEmpty && _pages.length > 1)
+             IconButton(
+              icon: const Icon(Icons.list),
+              tooltip: '分集列表',
+              onPressed: _showPartsList,
+            ),
           IconButton(
             icon: const Icon(Icons.download),
             tooltip: AppLocalizations.of(context)!.downloadCache,

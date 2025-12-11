@@ -11,6 +11,8 @@ import 'services/download_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Increase image cache size to 500MB to reduce eviction
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 500 * 1024 * 1024; 
   MediaKit.ensureInitialized();
   await DownloadService().init();
   await CacheService().checkAndClearCache();
