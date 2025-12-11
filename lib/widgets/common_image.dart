@@ -16,7 +16,7 @@ class CommonImage extends StatelessWidget {
     this.height,
     this.fit = BoxFit.cover,
     this.radius = 0,
-    this.fadeInDurationMs = 300,
+    this.fadeInDurationMs = 0,
   });
 
   @override

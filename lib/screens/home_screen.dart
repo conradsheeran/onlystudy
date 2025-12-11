@@ -1,4 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:onlystudy/services/cache_service.dart';
+import 'package:onlystudy/l10n/app_localizations.dart';
 import '../models/bili_models.dart';
 import '../widgets/folder_card.dart';
 import '../widgets/video_tile.dart';
@@ -35,22 +38,41 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isSearching = false;
   String _searchKeyword = '';
   final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
 
 
   Future<void> _performSearch(String keyword) async {
     if (keyword.isEmpty) {
-      setState(() {
-        _searchResults = [];
-      });
+      if (mounted) {
+        setState(() {
+          _searchResults = [];
+        });
+      }
       return;
     }
     
-    final videos = await _databaseService.searchVideos(keyword);
-    if (mounted) {
-      setState(() {
-        _searchResults = videos;
-      });
+    try {
+      final videos = await _databaseService.searchVideos(keyword);
+      if (mounted) {
+        setState(() {
+          _searchResults = videos;
+        });
+      }
+    } catch (e) {
+      debugPrint('Search error: $e');
     }
+  }
+
+  void _onSearchChanged(String value) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      if (value != _searchKeyword) {
+          setState(() {
+            _searchKeyword = value;
+          });
+          _performSearch(value);
+      }
+    });
   }
 
   @override
@@ -62,6 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -162,12 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: _isSearching
             ? CustomSearchBar(
                 controller: _searchController,
-                onChanged: (value) {
-                  setState(() {
-                    _searchKeyword = value;
-                  });
-                  _performSearch(value);
-                },
+                onChanged: _onSearchChanged,
                 onClear: () {
                   setState(() {
                     _searchController.clear();
@@ -176,12 +194,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   });
                 },
               )
-            : const Text('唯学'),
+            : Text(AppLocalizations.of(context)!.appTitle),
         actions: [
           if (!_isSearching)
             IconButton(
               icon: const Icon(Icons.cloud_download_outlined),
-              tooltip: '离线缓存',
+              tooltip: AppLocalizations.of(context)!.downloadCache,
               onPressed: () {
                 Navigator.push(
                   context,
@@ -192,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (!_isSearching)
             IconButton(
               icon: const Icon(Icons.history),
-              tooltip: '本地观看历史',
+              tooltip: '本地观看历史', // Consider localizing this too
               onPressed: () {
                 Navigator.push(
                   context,
@@ -228,6 +246,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
               } else if (value == 'refresh') {
                 _fetchFolders(refresh: true);
+              } else if (value == 'clear_cache') {
+                await CacheService().clearCache();
+                if (context.mounted) {
+                   ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('缓存已清理')),
+                   );
+                }
               }
             },
             itemBuilder: (context) => [
@@ -238,6 +263,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     Icon(Icons.refresh, color: Colors.black54),
                     SizedBox(width: 8),
                     Text('刷新收藏夹'),
+                  ],
+                ),
+              ),
+               const PopupMenuItem(
+                value: 'clear_cache',
+                child: Row(
+                  children: [
+                    Icon(Icons.cleaning_services_outlined, color: Colors.black54),
+                    SizedBox(width: 8),
+                    Text('清理缓存'),
                   ],
                 ),
               ),

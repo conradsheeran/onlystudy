@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/bili_models.dart';
 import '../widgets/video_tile.dart';
-import '../widgets/skeletons.dart';
 import '../widgets/error_view.dart';
 import '../services/bili_api_service.dart';
 import '../services/database_service.dart';
@@ -161,11 +160,7 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
         ],
       ),
       body: _isLoading
-          ? ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: 10,
-              itemBuilder: (context, index) => const VideoTileSkeleton(),
-            )
+          ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? ErrorView(
                   message: _error!,
