@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:chewie/chewie.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
@@ -6,15 +7,18 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models/bili_models.dart';
 import '../services/bili_api_service.dart';
 import '../services/history_service.dart';
+import '../services/download_service.dart';
 
 class VideoPlayerScreen extends StatefulWidget {
   final List<Video> playlist;
   final int initialIndex;
+  final String? localFilePath;
 
   const VideoPlayerScreen({
     super.key,
     required this.playlist,
     required this.initialIndex,
+    this.localFilePath,
   });
 
   @override
@@ -71,6 +75,16 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   Future<void> _initializePlayer() async {
     try {
+      if (widget.localFilePath != null) {
+        await _setupController(widget.localFilePath!, isLocal: true);
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
       final api = BiliApiService();
       _videoDetail = await api.getVideoDetail(_currentVideo.bvid);
       _cid = _videoDetail!.cid;
@@ -140,10 +154,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
-  Future<void> _setupController(String url, {Duration? startAt}) async {
-    final newController = VideoPlayerController.networkUrl(
-      Uri.parse(url),
-      httpHeaders: {
+  Future<void> _setupController(String url, {Duration? startAt, bool isLocal = false}) async {
+    final newController = isLocal
+        ? VideoPlayerController.file(File(url))
+        : VideoPlayerController.networkUrl(
+            Uri.parse(url),
+            httpHeaders: {
         'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Referer': 'https://www.bilibili.com/video/${_currentVideo.bvid}',
@@ -260,6 +276,23 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         elevation: 0,
         title: Text(_currentVideo.title, style: const TextStyle(fontSize: 16)),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: '缓存视频',
+            onPressed: () {
+               if (_cid != null && _videoDetail != null) {
+                  DownloadService().startDownload(
+                      _currentVideo, 
+                      _cid!, 
+                      _videoDetail!.aid,
+                      qn: _playInfo?.quality ?? 64, 
+                  );
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('已添加到下载任务')),
+                  );
+               }
+            },
+          ),
           if (_playInfo != null && _supportQualities.isNotEmpty)
             PopupMenuButton<int>(
               initialValue: _playInfo!.quality,

@@ -51,6 +51,7 @@ class Video {
   final int duration; // 时长 (秒)
   final BiliUpper upper; // UP主信息
   final int view; // 播放量
+  final int danmaku; // 弹幕数
   final int pubTimestamp; // 发布时间戳
 
   Video({
@@ -60,6 +61,7 @@ class Video {
     required this.duration,
     required this.upper,
     required this.view,
+    required this.danmaku,
     required this.pubTimestamp,
   });
 
@@ -71,6 +73,7 @@ class Video {
       duration: json['duration'] ?? 0,
       upper: BiliUpper.fromJson(json['upper'] ?? {}),
       view: json['cnt_info']?['play'] ?? 0, // 播放量在 cnt_info 中
+      danmaku: json['cnt_info']?['danmaku'] ?? 0,
       pubTimestamp: json['pub_time'] ?? 0,
     );
   }
@@ -90,6 +93,25 @@ class Video {
       return view.toString();
     }
   }
+
+  String get formattedDanmakuCount {
+    if (danmaku >= 10000) {
+      return '${(danmaku / 10000).toStringAsFixed(1)}万';
+    } else {
+      return danmaku.toString();
+    }
+  }
+
+  String get formattedPubDate {
+    if (pubTimestamp == 0) return '';
+    final date = DateTime.fromMillisecondsSinceEpoch(pubTimestamp * 1000);
+    final now = DateTime.now();
+    if (now.year == date.year) {
+        return '${date.month}-${date.day}';
+    } else {
+        return '${date.year}-${date.month}-${date.day}';
+    }
+  }
 }
 
 class VideoPlayInfo {
@@ -106,8 +128,10 @@ class VideoPlayInfo {
   });
 
   factory VideoPlayInfo.fromJson(Map<String, dynamic> json) {
-    final durl = json['durl'] as List;
-    final url = durl.isNotEmpty ? durl[0]['url'] : '';
+    String url = '';
+    if (json['durl'] != null && (json['durl'] as List).isNotEmpty) {
+      url = json['durl'][0]['url'];
+    }
     
     return VideoPlayInfo(
       url: url,

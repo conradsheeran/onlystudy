@@ -13,7 +13,7 @@ class VideoTile extends StatelessWidget {
     return Card(
       elevation: 0,
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
-      color: Colors.transparent, // Making it look like a list item rather than a card
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
@@ -58,6 +58,7 @@ class VideoTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Title
                     Text(
                       video.title,
                       maxLines: 2,
@@ -69,9 +70,10 @@ class VideoTile extends StatelessWidget {
                           ),
                     ),
                     const SizedBox(height: 6),
+                    // Uploader
                     Row(
                       children: [
-                        const Icon(Icons.person_outline, size: 14, color: Colors.grey),
+                        const Icon(Icons.person_outline, size: 13, color: Colors.grey),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
@@ -84,19 +86,35 @@ class VideoTile extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8), // Added spacing
-                        const Icon(Icons.play_arrow_outlined, size: 14, color: Colors.grey), // Play icon
-                        const SizedBox(width: 4),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    // Stats & Date
+                    Row(
+                      children: [
+                        // View Count
+                        const Icon(Icons.play_circle_outline, size: 13, color: Colors.grey),
+                        const SizedBox(width: 3),
                         Text(
-                          video.formattedViewCount, // Formatted view count
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
+                          video.formattedViewCount,
+                          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                        ),
+                        const SizedBox(width: 12),
+                        // Danmaku Count
+                        const Icon(Icons.subtitles_outlined, size: 13, color: Colors.grey),
+                        const SizedBox(width: 3),
+                        Text(
+                          video.formattedDanmakuCount,
+                          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                        ),
+                        const Spacer(),
+                        // Pub Date
+                        Text(
+                          video.formattedPubDate,
+                          style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
                   ],
                 ),
               ),

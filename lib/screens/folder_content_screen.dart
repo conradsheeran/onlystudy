@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/bili_models.dart';
 import '../widgets/video_tile.dart';
 import '../widgets/skeletons.dart';
+import '../widgets/error_view.dart';
 import '../services/bili_api_service.dart';
 import 'video_player_screen.dart';
 
@@ -156,25 +157,9 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
               itemBuilder: (context, index) => const VideoTileSkeleton(),
             )
           : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _error!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () => _fetchVideos(refresh: true),
-                          child: const Text('重试'),
-                        ),
-                      ],
-                    ),
-                  ),
+              ? ErrorView(
+                  message: _error!,
+                  onRetry: () => _fetchVideos(refresh: true),
                 )
               : RefreshIndicator(
                   onRefresh: () => _fetchVideos(refresh: true),

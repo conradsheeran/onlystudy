@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../models/bili_models.dart';
 import '../widgets/folder_card.dart';
 import '../widgets/skeletons.dart';
+import '../widgets/error_view.dart';
 import 'folder_content_screen.dart';
+import 'download_screen.dart';
 import '../services/auth_service.dart';
 import '../services/bili_api_service.dart';
 import 'login_screen.dart';
@@ -128,8 +130,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   });
                 },
               )
-            : const Text('我的收藏'),
+            : const Text('只准搞学'),
         actions: [
+          if (!_isSearching)
+            IconButton(
+              icon: const Icon(Icons.cloud_download_outlined),
+              tooltip: '离线缓存',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const DownloadScreen()),
+                );
+              },
+            ),
           if (!_isSearching)
             IconButton(
               icon: const Icon(Icons.history),
@@ -208,25 +221,9 @@ class _HomeScreenState extends State<HomeScreen> {
               itemBuilder: (context, index) => const FolderCardSkeleton(),
             )
           : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _error!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () => _fetchFolders(refresh: true),
-                          child: const Text('重试'),
-                        ),
-                      ],
-                    ),
-                  ),
+              ? ErrorView(
+                  message: _error!,
+                  onRetry: () => _fetchFolders(refresh: true),
                 )
               : RefreshIndicator(
                   onRefresh: () => _fetchFolders(refresh: true),
