@@ -40,7 +40,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('观看历史 (本地)'),
+        title: const Text('观看历史'),
         actions: [
           IconButton(
             icon: const Icon(Icons.delete),

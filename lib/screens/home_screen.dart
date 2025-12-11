@@ -176,7 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   });
                 },
               )
-            : const Text('只准搞学'),
+            : const Text('唯学'),
         actions: [
           if (!_isSearching)
             IconButton(

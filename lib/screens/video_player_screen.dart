@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:onlystudy/l10n/app_localizations.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart' as mkv;
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -121,7 +122,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         if (savedPosition > 0) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('已为您恢复到上次播放位置: ${_formatDuration(savedPosition)}'),
+              content: Text(AppLocalizations.of(context)!.resumePlayback(_formatDuration(savedPosition))),
               duration: const Duration(seconds: 2),
             ),
           );
@@ -136,7 +137,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = '播放失败: $e';
+          _error = AppLocalizations.of(context)!.playFailed(e.toString());
           _isLoading = false;
         });
       }
@@ -190,7 +191,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('即将播放下一集: ${widget.playlist[_currentIndex + 1].title}'),
+        content: Text(AppLocalizations.of(context)!.nextVideo(widget.playlist[_currentIndex + 1].title)),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -206,7 +207,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     if (_cid == null || _playInfo == null) return;
     
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('正在切换清晰度...'), duration: Duration(seconds: 1)),
+      SnackBar(content: Text(AppLocalizations.of(context)!.switchingQuality), duration: const Duration(seconds: 1)),
     );
 
     try {
@@ -231,7 +232,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('切换清晰度失败: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.switchQualityFailed(e.toString()))),
         );
       }
     }
@@ -249,7 +250,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.download),
-            tooltip: '缓存视频',
+            tooltip: AppLocalizations.of(context)!.downloadCache,
             onPressed: () {
                if (_cid != null && _videoDetail != null) {
                   DownloadService().startDownload(
@@ -259,7 +260,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                       qn: _playInfo?.quality ?? 64, 
                   );
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('已添加到下载任务')),
+                    SnackBar(content: Text(AppLocalizations.of(context)!.addToDownload)),
                   );
                }
             },
@@ -307,6 +308,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   : mkv.MaterialVideoControlsTheme(
                       normal: mkv.MaterialVideoControlsThemeData(
                         seekBarPositionColor: Theme.of(context).colorScheme.primary,
+                        seekBarThumbColor: Theme.of(context).colorScheme.primary,
                         // Adjusting margin to move the progress bar up.
                         // The default margin might be too low.
                         // Let's try to increase the bottom padding.
@@ -321,11 +323,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   String _getCurrentQualityDesc() {
-    if (_playInfo == null) return '清晰度';
+    if (_playInfo == null) return AppLocalizations.of(context)!.quality;
     final index = _supportQualities.indexOf(_playInfo!.quality);
     if (index != -1 && index < _supportQualityDescs.length) {
       return _supportQualityDescs[index];
     }
-    return '清晰度';
+    return AppLocalizations.of(context)!.quality;
   }
 }

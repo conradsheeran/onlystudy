@@ -1,0 +1,16 @@
+{
+  "appTitle": "唯学",
+  "@appTitle": {
+    "description": "The title of the application"
+  },
+  "login": "登录",
+  "download": "下载",
+  "downloadCache": "缓存视频",
+  "addToDownload": "已添加到下载任务",
+  "playFailed": "播放失败: {error}",
+  "resumePlayback": "已为您恢复到上次播放位置: {time}",
+  "nextVideo": "即将播放下一集: {title}",
+  "switchingQuality": "正在切换清晰度...",
+  "switchQualityFailed": "切换清晰度失败: {error}",
+  "quality": "清晰度"
+}

@@ -1,0 +1,13 @@
+{
+  "appTitle": "OnlyStudy",
+  "login": "Login",
+  "download": "Download",
+  "downloadCache": "Cache Video",
+  "addToDownload": "Added to download queue",
+  "playFailed": "Playback failed: {error}",
+  "resumePlayback": "Resumed from: {time}",
+  "nextVideo": "Playing next: {title}",
+  "switchingQuality": "Switching quality...",
+  "switchQualityFailed": "Failed to switch quality: {error}",
+  "quality": "Quality"
+}
