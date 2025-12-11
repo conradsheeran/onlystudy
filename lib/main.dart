@@ -25,9 +25,9 @@ class OnlyStudyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: '只准搞学',
-      theme: AppTheme.lightTheme,
+      theme: AppTheme.darkTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.dark,
       home: initialRoute,
       debugShowCheckedModeBanner: false,
     );

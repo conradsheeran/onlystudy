@@ -23,9 +23,6 @@ class _DownloadScreenState extends State<DownloadScreen> {
         appBar: AppBar(
           title: const Text('离线缓存'),
           bottom: const TabBar(
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            indicatorColor: Colors.white,
             tabs: [
               Tab(text: '已完成'),
               Tab(text: '进行中'),

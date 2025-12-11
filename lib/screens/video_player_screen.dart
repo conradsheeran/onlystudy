@@ -193,8 +193,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         );
       },
       materialProgressColors: ChewieProgressColors(
-        playedColor: const Color(0xFF2D7D9A),
-        handleColor: const Color(0xFF2D7D9A),
+        playedColor: Theme.of(context).colorScheme.primary,
+        handleColor: Theme.of(context).colorScheme.primary,
         backgroundColor: Colors.grey,
         bufferedColor: Colors.white24,
       ),
