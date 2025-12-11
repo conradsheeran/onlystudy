@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import '../models/bili_models.dart';
 import '../widgets/folder_card.dart';
+import '../widgets/video_tile.dart';
+import '../widgets/custom_search_bar.dart';
 import '../widgets/skeletons.dart';
 import '../widgets/error_view.dart';
 import 'folder_content_screen.dart';
 import 'download_screen.dart';
 import '../services/auth_service.dart';
 import '../services/bili_api_service.dart';
+import '../services/database_service.dart';
 import 'login_screen.dart';
 import 'history_screen.dart';
+import 'video_player_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,8 +23,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final BiliApiService _biliApiService = BiliApiService();
+  final DatabaseService _databaseService = DatabaseService();
   final ScrollController _scrollController = ScrollController();
   List<Folder> _folders = [];
+  List<Video> _searchResults = []; // Added for video search
   bool _isLoading = true;
   bool _isLoadingMore = false;
   String? _error;
@@ -30,9 +36,21 @@ class _HomeScreenState extends State<HomeScreen> {
   String _searchKeyword = '';
   final TextEditingController _searchController = TextEditingController();
 
-  List<Folder> get _filteredFolders {
-    if (_searchKeyword.isEmpty) return _folders;
-    return _folders.where((f) => f.title.toLowerCase().contains(_searchKeyword.toLowerCase())).toList();
+
+  Future<void> _performSearch(String keyword) async {
+    if (keyword.isEmpty) {
+      setState(() {
+        _searchResults = [];
+      });
+      return;
+    }
+    
+    final videos = await _databaseService.searchVideos(keyword);
+    if (mounted) {
+      setState(() {
+        _searchResults = videos;
+      });
+    }
   }
 
   @override
@@ -89,6 +107,11 @@ class _HomeScreenState extends State<HomeScreen> {
             _page++;
           }
         });
+        
+        // Start background sync if it's the first page refresh
+        if (refresh) {
+          _syncAllVideos(List.from(folders));
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -112,21 +135,44 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // Background sync to fetch and cache videos from all folders
+  Future<void> _syncAllVideos(List<Folder> folders) async {
+    for (var folder in folders) {
+      if (!mounted) return;
+      try {
+        // Fetch first page of each folder to build cache
+        // We limit to first page (20 videos) per folder to avoid API rate limits
+        // In a real production app, this should be more robust with queueing
+        final videos = await _biliApiService.getFolderVideos(folder.id, pn: 1, ps: 20);
+        if (videos.isNotEmpty) {
+           await _databaseService.insertVideos(videos, folder.id);
+        }
+        // Small delay to be nice to the API
+        await Future.delayed(const Duration(milliseconds: 500));
+      } catch (e) {
+        debugPrint('Sync failed for folder ${folder.id}: $e');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: _isSearching
-            ? TextField(
+            ? CustomSearchBar(
                 controller: _searchController,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  hintText: '搜索本地收藏夹...',
-                  border: InputBorder.none,
-                ),
                 onChanged: (value) {
                   setState(() {
                     _searchKeyword = value;
+                  });
+                  _performSearch(value);
+                },
+                onClear: () {
+                  setState(() {
+                    _searchController.clear();
+                    _searchKeyword = '';
+                    _searchResults = [];
                   });
                 },
               )
@@ -162,6 +208,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _isSearching = false;
                   _searchKeyword = '';
                   _searchController.clear();
+                  _searchResults = [];
                 } else {
                   _isSearching = true;
                 }
@@ -225,50 +272,50 @@ class _HomeScreenState extends State<HomeScreen> {
                   message: _error!,
                   onRetry: () => _fetchFolders(refresh: true),
                 )
-              : RefreshIndicator(
-                  onRefresh: () => _fetchFolders(refresh: true),
-                  child: _folders.isEmpty
-                      ? const Center(
-                          child: Text('没有找到收藏夹，请登录或刷新'),
-                        )
-                      : Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: GridView.builder(
-                            controller: _scrollController,
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              childAspectRatio: 0.85,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                            ),
-                            itemCount: _isSearching 
-                                ? _filteredFolders.length 
-                                : _folders.length + (_hasMore ? 1 : 0),
-                            itemBuilder: (context, index) {
-                              if (!_isSearching && index == _folders.length) {
-                                return const Center(
-                                  child: Padding(
-                                    padding: EdgeInsets.all(8.0),
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                );
-                              }
-                              final folder = _isSearching ? _filteredFolders[index] : _folders[index];
-                              return FolderCard(
-                                folder: folder,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => FolderContentScreen(folder: folder),
-                                    ),
+              : _isSearching
+                  ? _buildSearchResults()
+                  : RefreshIndicator(
+                      onRefresh: () => _fetchFolders(refresh: true),
+                      child: _folders.isEmpty
+                          ? const Center(
+                              child: Text('没有找到收藏夹，请登录或刷新'),
+                            )
+                          : Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: GridView.builder(
+                                controller: _scrollController,
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  childAspectRatio: 0.85,
+                                  crossAxisSpacing: 12,
+                                  mainAxisSpacing: 12,
+                                ),
+                                itemCount: _folders.length + (_hasMore ? 1 : 0),
+                                itemBuilder: (context, index) {
+                                  if (index == _folders.length) {
+                                    return const Center(
+                                      child: Padding(
+                                        padding: EdgeInsets.all(8.0),
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    );
+                                  }
+                                  return FolderCard(
+                                    folder: _folders[index],
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              FolderContentScreen(folder: _folders[index]),
+                                        ),
+                                      );
+                                    },
                                   );
                                 },
-                              );
-                            },
-                          ),
-                        ),
-                ),
+                              ),
+                            ),
+                    ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
            ScaffoldMessenger.of(context).showSnackBar(
@@ -277,6 +324,38 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         child: const Icon(Icons.add),
       ),
+    );
+  }
+
+  Widget _buildSearchResults() {
+    if (_searchKeyword.isEmpty) {
+      return const Center(child: Text('请输入关键词搜索视频'));
+    }
+    
+    if (_searchResults.isEmpty) {
+      return const Center(child: Text('没有找到相关视频'));
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: _searchResults.length,
+      itemBuilder: (context, index) {
+        final video = _searchResults[index];
+        return VideoTile(
+          video: video,
+          onTap: () {
+             Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => VideoPlayerScreen(
+                  playlist: [video], // Only play this one from search for now
+                  initialIndex: 0,
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

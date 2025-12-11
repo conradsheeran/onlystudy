@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:flutter/foundation.dart'; // Import for debugPrint
 import '../models/download_task.dart';
 import '../models/bili_models.dart';
 import 'bili_api_service.dart';
@@ -51,7 +52,7 @@ class DownloadService {
       );
       await _loadTasks();
     } catch (e) {
-      print('Database init failed: $e');
+      debugPrint('Database init failed: $e');
     }
   }
 
@@ -133,7 +134,7 @@ class DownloadService {
         await _updateStatus(bvid, cid, DownloadStatus.completed);
 
     } catch (e) {
-        print('Download error: $e');
+        debugPrint('Download error: $e');
         await _updateStatus(bvid, cid, DownloadStatus.failed);
     }
   }

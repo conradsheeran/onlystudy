@@ -215,20 +215,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   void _playNext() {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('即将播放下一集: ${widget.playlist[_currentIndex + 1].title}'),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-      
-      _saveProgress();
-      setState(() {
-        _currentIndex++;
-      });
-      _playCurrentVideo();
-    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('即将播放下一集: ${widget.playlist[_currentIndex + 1].title}'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+    
+    _saveProgress();
+    setState(() {
+      _currentIndex++;
+    });
+    _playCurrentVideo();
   }
 
   Future<void> _switchQuality(int quality) async {

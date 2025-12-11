@@ -37,7 +37,7 @@ class VideoTile extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.65),
+                        color: Color.fromARGB((255 * 0.65).round(), 0, 0, 0),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(

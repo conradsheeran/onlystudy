@@ -4,7 +4,9 @@ import '../widgets/video_tile.dart';
 import '../widgets/skeletons.dart';
 import '../widgets/error_view.dart';
 import '../services/bili_api_service.dart';
+import '../services/database_service.dart';
 import 'video_player_screen.dart';
+import '../widgets/custom_search_bar.dart';
 
 class FolderContentScreen extends StatefulWidget {
   final Folder folder;
@@ -17,6 +19,7 @@ class FolderContentScreen extends StatefulWidget {
 
 class _FolderContentScreenState extends State<FolderContentScreen> {
   final BiliApiService _biliApiService = BiliApiService();
+  final DatabaseService _databaseService = DatabaseService();
   final ScrollController _scrollController = ScrollController();
   List<Video> _videos = [];
   bool _isLoading = true;
@@ -74,6 +77,11 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
       );
       
       if (mounted) {
+        // Cache videos to local database
+        if (videos.isNotEmpty) {
+           _databaseService.insertVideos(videos, widget.folder.id);
+        }
+
         setState(() {
           if (refresh) {
             _videos = videos;
@@ -116,18 +124,20 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
     return Scaffold(
       appBar: AppBar(
         title: _isSearching
-            ? TextField(
+            ? CustomSearchBar(
                 controller: _searchController,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  hintText: '搜索视频...',
-                  border: InputBorder.none,
-                ),
-                textInputAction: TextInputAction.search,
+                hintText: '在线搜索此收藏夹...',
                 onSubmitted: (value) {
                   setState(() {
                     _searchKeyword = value;
                     _fetchVideos(refresh: true);
+                  });
+                },
+                onClear: () {
+                  setState(() {
+                     _searchController.clear();
+                     _searchKeyword = '';
+                     _fetchVideos(refresh: true);
                   });
                 },
               )

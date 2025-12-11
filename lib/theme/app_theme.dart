@@ -14,11 +14,11 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: colorScheme.background,
+      scaffoldBackgroundColor: colorScheme.surface,
 
       appBarTheme: AppBarTheme(
-        backgroundColor: colorScheme.background,
-        foregroundColor: colorScheme.onBackground,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
         centerTitle: true,
         elevation: 0,
         scrolledUnderElevation: 3,
