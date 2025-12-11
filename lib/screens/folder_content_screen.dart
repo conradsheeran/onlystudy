@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/bili_models.dart';
 import '../widgets/video_tile.dart';
+import '../widgets/skeletons.dart';
 import '../services/bili_api_service.dart';
 import 'video_player_screen.dart';
 
@@ -22,6 +23,9 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
   String? _error;
   int _page = 1;
   bool _hasMore = true;
+  bool _isSearching = false;
+  String _searchKeyword = '';
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -33,6 +37,7 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -64,6 +69,7 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
       final videos = await _biliApiService.getFolderVideos(
         widget.folder.id,
         pn: _page,
+        keyword: _searchKeyword,
       );
       
       if (mounted) {
@@ -108,10 +114,47 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.folder.title),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: '搜索视频...',
+                  border: InputBorder.none,
+                ),
+                textInputAction: TextInputAction.search,
+                onSubmitted: (value) {
+                  setState(() {
+                    _searchKeyword = value;
+                    _fetchVideos(refresh: true);
+                  });
+                },
+              )
+            : Text(widget.folder.title),
+        actions: [
+          IconButton(
+            icon: Icon(_isSearching ? Icons.close : Icons.search),
+            onPressed: () {
+              setState(() {
+                if (_isSearching) {
+                  _isSearching = false;
+                  _searchKeyword = '';
+                  _searchController.clear();
+                  _fetchVideos(refresh: true);
+                } else {
+                  _isSearching = true;
+                }
+              });
+            },
+          ),
+        ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: 10,
+              itemBuilder: (context, index) => const VideoTileSkeleton(),
+            )
           : _error != null
               ? Center(
                   child: Padding(

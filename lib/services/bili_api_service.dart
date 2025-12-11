@@ -63,23 +63,32 @@ class BiliApiService {
 
   // 获取指定收藏夹内的视频列表
   Future<List<Video>> getFolderVideos(int mediaId,
-      {int pn = 1, int ps = 20}) async {
+      {int pn = 1, int ps = 20, String? keyword}) async {
     try {
+      final queryParams = {
+        'media_id': mediaId,
+        'pn': pn,
+        'ps': ps,
+        'jsonp': 'jsonp',
+        'order': 'mtime',
+      };
+
+      if (keyword != null && keyword.isNotEmpty) {
+        queryParams['keyword'] = keyword;
+      }
+
       final response = await _dio.get(
         '/x/v3/fav/resource/list',
-        queryParameters: {
-          'media_id': mediaId,
-          'pn': pn,
-          'ps': ps,
-          'jsonp': 'jsonp',
-        },
+        queryParameters: queryParams,
         options: Options(headers: {'Cookie': await _getCookieHeader()}),
       );
 
       if (response.data['code'] == 0) {
         List<Video> videos = [];
-        for (var item in response.data['data']['medias']) {
-          videos.add(Video.fromJson(item));
+        if (response.data['data']['medias'] != null) {
+          for (var item in response.data['data']['medias']) {
+            videos.add(Video.fromJson(item));
+          }
         }
         return videos;
       } else {

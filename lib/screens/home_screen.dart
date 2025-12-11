@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/bili_models.dart';
 import '../widgets/folder_card.dart';
+import '../widgets/skeletons.dart';
 import 'folder_content_screen.dart';
 import '../services/auth_service.dart';
 import '../services/bili_api_service.dart';
@@ -23,6 +24,14 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _error;
   int _page = 1;
   bool _hasMore = true;
+  bool _isSearching = false;
+  String _searchKeyword = '';
+  final TextEditingController _searchController = TextEditingController();
+
+  List<Folder> get _filteredFolders {
+    if (_searchKeyword.isEmpty) return _folders;
+    return _folders.where((f) => f.title.toLowerCase().contains(_searchKeyword.toLowerCase())).toList();
+  }
 
   @override
   void initState() {
@@ -34,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -104,26 +114,48 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('我的收藏'),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: '搜索本地收藏夹...',
+                  border: InputBorder.none,
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _searchKeyword = value;
+                  });
+                },
+              )
+            : const Text('我的收藏'),
         actions: [
+          if (!_isSearching)
+            IconButton(
+              icon: const Icon(Icons.history),
+              tooltip: '本地观看历史',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HistoryScreen()),
+                );
+              },
+            ),
           IconButton(
-            icon: const Icon(Icons.history),
-            tooltip: '本地观看历史',
+            icon: Icon(_isSearching ? Icons.close : Icons.search),
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const HistoryScreen()),
-              );
+              setState(() {
+                if (_isSearching) {
+                  _isSearching = false;
+                  _searchKeyword = '';
+                  _searchController.clear();
+                } else {
+                  _isSearching = true;
+                }
+              });
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('搜索功能待开发')),
-              );
-            },
-          ),
+          if (!_isSearching)
           PopupMenuButton<String>(
             onSelected: (value) async {
               if (value == 'logout') {
@@ -164,7 +196,17 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? GridView.builder(
+              padding: const EdgeInsets.all(12.0),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 0.85,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemCount: 8,
+              itemBuilder: (context, index) => const FolderCardSkeleton(),
+            )
           : _error != null
               ? Center(
                   child: Padding(
@@ -202,9 +244,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               crossAxisSpacing: 12,
                               mainAxisSpacing: 12,
                             ),
-                            itemCount: _folders.length + (_hasMore ? 1 : 0),
+                            itemCount: _isSearching 
+                                ? _filteredFolders.length 
+                                : _folders.length + (_hasMore ? 1 : 0),
                             itemBuilder: (context, index) {
-                              if (index == _folders.length) {
+                              if (!_isSearching && index == _folders.length) {
                                 return const Center(
                                   child: Padding(
                                     padding: EdgeInsets.all(8.0),
@@ -212,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                 );
                               }
-                              final folder = _folders[index];
+                              final folder = _isSearching ? _filteredFolders[index] : _folders[index];
                               return FolderCard(
                                 folder: folder,
                                 onTap: () {

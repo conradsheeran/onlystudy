@@ -80,6 +80,16 @@ class Video {
     final seconds = duration % 60;
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
+
+  String get formattedViewCount {
+    if (view >= 100000000) {
+      return '${(view / 100000000).toStringAsFixed(1)}亿';
+    } else if (view >= 10000) {
+      return '${(view / 10000).toStringAsFixed(1)}万';
+    } else {
+      return view.toString();
+    }
+  }
 }
 
 class VideoPlayInfo {
