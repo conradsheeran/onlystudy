@@ -103,6 +103,18 @@ class AuthService {
     await prefs.clear();
   }
 
+  Future<void> saveVisibleFolderIds(List<int> ids) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('visible_folder_ids', ids.map((e) => e.toString()).toList());
+  }
+
+  Future<List<int>> getVisibleFolderIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList('visible_folder_ids');
+    if (list == null) return [];
+    return list.map((e) => int.tryParse(e) ?? 0).where((e) => e != 0).toList();
+  }
+
   // 获取请求头需要的 Cookie 字符串
   Future<String> getCookieString() async {
     final prefs = await SharedPreferences.getInstance();

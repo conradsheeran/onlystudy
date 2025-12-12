@@ -69,12 +69,20 @@ class DatabaseService {
     await batch.commit(noResult: true);
   }
 
-  Future<List<Video>> searchVideos(String keyword) async {
+  Future<List<Video>> searchVideos(String keyword, {List<int>? visibleFolderIds}) async {
     final db = await database;
+    
+    String whereClause = 'title LIKE ?';
+    List<dynamic> whereArgs = ['%$keyword%'];
+
+    if (visibleFolderIds != null && visibleFolderIds.isNotEmpty) {
+      whereClause += ' AND folder_id IN (${visibleFolderIds.join(',')})';
+    }
+
     final List<Map<String, dynamic>> maps = await db.query(
       'videos',
-      where: 'title LIKE ?',
-      whereArgs: ['%$keyword%'],
+      where: whereClause,
+      whereArgs: whereArgs,
       orderBy: 'timestamp DESC',
     );
 
@@ -88,5 +96,10 @@ class DatabaseService {
   Future<void> clearFolderCache(int folderId) async {
     final db = await database;
     await db.delete('videos', where: 'folder_id = ?', whereArgs: [folderId]);
+  }
+
+  Future<void> clearAllCache() async {
+    final db = await database;
+    await db.delete('videos');
   }
 }

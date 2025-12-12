@@ -16,6 +16,7 @@ import '../services/database_service.dart';
 import 'login_screen.dart';
 import 'history_screen.dart';
 import 'video_player_screen.dart';
+import 'select_folders_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,7 +30,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final DatabaseService _databaseService = DatabaseService();
   final ScrollController _scrollController = ScrollController();
   List<Folder> _folders = [];
-  List<Video> _searchResults = []; // Added for video search
+  List<Video> _searchResults = [];
+  List<int> _visibleFolderIds = [];
   bool _isLoading = true;
   bool _isLoadingMore = false;
   String? _error;
@@ -52,7 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     
     try {
-      final videos = await _databaseService.searchVideos(keyword);
+      final videos = await _databaseService.searchVideos(keyword, visibleFolderIds: _visibleFolderIds);
       if (mounted) {
         setState(() {
           _searchResults = videos;
@@ -78,8 +80,13 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchFolders(refresh: true);
+    _initData();
     _scrollController.addListener(_onScroll);
+  }
+
+  Future<void> _initData() async {
+    _visibleFolderIds = await AuthService().getVisibleFolderIds();
+    _fetchFolders(refresh: true);
   }
 
   @override
@@ -91,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >=
+    if (_scrollController.position.pixels >= 
             _scrollController.position.maxScrollExtent - 200 &&
         !_isLoadingMore &&
         _hasMore) {
@@ -108,6 +115,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _hasMore = true;
         _folders.clear();
       });
+      // Refresh visible IDs on refresh
+      _visibleFolderIds = await AuthService().getVisibleFolderIds();
     } else {
       setState(() {
         _isLoadingMore = true;
@@ -116,12 +125,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final folders = await _biliApiService.getFavoriteFolders(pn: _page);
+      
+      // Filter visible folders
+      List<Folder> filteredFolders = folders;
+      if (_visibleFolderIds.isNotEmpty) {
+        filteredFolders = folders.where((f) => _visibleFolderIds.contains(f.id)).toList();
+      }
+
       if (mounted) {
         setState(() {
           if (refresh) {
-            _folders = folders;
+            _folders = filteredFolders;
           } else {
-            _folders.addAll(folders);
+            _folders.addAll(filteredFolders);
           }
           
           if (folders.length < 20) {
@@ -133,7 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
         
         // Start background sync if it's the first page refresh
         if (refresh) {
-          _syncAllVideos(List.from(folders));
+          _syncAllVideos(List.from(_folders));
         }
       }
     } catch (e) {
@@ -163,14 +179,10 @@ class _HomeScreenState extends State<HomeScreen> {
     for (var folder in folders) {
       if (!mounted) return;
       try {
-        // Fetch first page of each folder to build cache
-        // We limit to first page (20 videos) per folder to avoid API rate limits
-        // In a real production app, this should be more robust with queueing
         final videos = await _biliApiService.getFolderVideos(folder.id, pn: 1, ps: 20);
         if (videos.isNotEmpty) {
            await _databaseService.insertVideos(videos, folder.id);
         }
-        // Small delay to be nice to the API
         await Future.delayed(const Duration(milliseconds: 500));
       } catch (e) {
         debugPrint('Sync failed for folder ${folder.id}: $e');
@@ -196,7 +208,17 @@ class _HomeScreenState extends State<HomeScreen> {
               )
             : Text(AppLocalizations.of(context)!.appTitle),
         actions: [
-          if (!_isSearching)
+          if (!_isSearching) ...[
+             IconButton(
+              icon: const Icon(Icons.filter_list),
+              tooltip: '筛选收藏夹',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SelectFoldersScreen()),
+                );
+              },
+            ),
             IconButton(
               icon: const Icon(Icons.cloud_download_outlined),
               tooltip: AppLocalizations.of(context)!.downloadCache,
@@ -207,10 +229,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
             ),
-          if (!_isSearching)
             IconButton(
               icon: const Icon(Icons.history),
-              tooltip: '本地观看历史', // Consider localizing this too
+              tooltip: '本地观看历史', 
               onPressed: () {
                 Navigator.push(
                   context,
@@ -218,6 +239,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
             ),
+          ],
           IconButton(
             icon: Icon(_isSearching ? Icons.close : Icons.search),
             onPressed: () {
@@ -313,7 +335,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       onRefresh: () => _fetchFolders(refresh: true),
                       child: _folders.isEmpty
                           ? const Center(
-                              child: Text('没有找到收藏夹，请登录或刷新'),
+                              child: Text('没有找到收藏夹，请登录或刷新\n或点击右上角筛选按钮选择显示的收藏夹'),
                             )
                           : Padding(
                               padding: const EdgeInsets.all(12.0),

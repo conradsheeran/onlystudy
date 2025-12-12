@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../services/auth_service.dart';
-import 'home_screen.dart';
+import 'select_folders_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -77,7 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
             // 跳转到主页
             if (mounted) {
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const HomeScreen()),
+                MaterialPageRoute(builder: (context) => const SelectFoldersScreen(isFirstLogin: true)),
                 (route) => false,
               );
             }
