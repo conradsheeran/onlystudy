@@ -98,7 +98,7 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
-  /// 唯学是一款专为学习设计的沉浸式 Bilibili 视频播放器，提供锁定功能以确保专注的学习环境
+  /// The title of the application
   ///
   /// In zh, this message translates to:
   /// **'唯学'**
@@ -215,7 +215,7 @@ abstract class AppLocalizations {
   /// No description provided for @selectFolders.
   ///
   /// In zh, this message translates to:
-  /// **'只显示这些收藏夹'**
+  /// **'选择显示的收藏夹'**
   String get selectFolders;
 
   /// No description provided for @clearCache.
@@ -241,6 +241,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'GitHub 仓库'**
   String get githubRepo;
+
+  /// No description provided for @reportBug.
+  ///
+  /// In zh, this message translates to:
+  /// **'提交 Bug'**
+  String get reportBug;
 }
 
 class _AppLocalizationsDelegate

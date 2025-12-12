@@ -87,4 +87,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get githubRepo => 'GitHub Repository';
+
+  @override
+  String get reportBug => 'Report Bug';
 }

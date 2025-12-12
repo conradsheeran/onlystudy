@@ -1,7 +1,7 @@
 {
   "appTitle": "唯学",
   "@appTitle": {
-    "description": "唯学是一款专为学习设计的沉浸式 Bilibili 视频播放器，提供锁定功能以确保专注的学习环境"
+    "description": "The title of the application"
   },
   "login": "登录",
   "download": "下载",
@@ -21,9 +21,10 @@
   "appName": "唯学",
   "developer": "开发者",
   "sourceCode": "源代码",
-  "selectFolders": "只显示这些收藏夹",
+  "selectFolders": "选择显示的收藏夹",
   "clearCache": "清理缓存",
   "logout": "注销登录",
   "slogan": "别让知识烂在收藏夹里",
-  "githubRepo": "GitHub 仓库"
+  "githubRepo": "GitHub 仓库",
+  "reportBug": "提交 Bug"
 }

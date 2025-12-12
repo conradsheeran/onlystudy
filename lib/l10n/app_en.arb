@@ -22,5 +22,6 @@
   "clearCache": "Clear Cache",
   "logout": "Logout",
   "slogan": "Don't let knowledge rot in your favorites",
-  "githubRepo": "GitHub Repository"
+  "githubRepo": "GitHub Repository",
+  "reportBug": "Report Bug"
 }

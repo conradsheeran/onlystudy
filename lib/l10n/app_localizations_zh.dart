@@ -74,7 +74,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sourceCode => '源代码';
 
   @override
-  String get selectFolders => '只显示这些收藏夹';
+  String get selectFolders => '选择显示的收藏夹';
 
   @override
   String get clearCache => '清理缓存';
@@ -87,4 +87,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get githubRepo => 'GitHub 仓库';
+
+  @override
+  String get reportBug => '提交 Bug';
 }

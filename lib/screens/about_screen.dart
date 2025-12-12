@@ -50,15 +50,9 @@ class _AboutScreenState extends State<AboutScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildAvatar(
-                'assets/images/logo.webp', 
-                label: AppLocalizations.of(context)!.appName,
-              ),
+              _buildAvatar('assets/images/logo.webp'),
               const SizedBox(width: 32),
-              _buildAvatar(
-                'assets/images/conradsheeran.webp', 
-                label: 'Yhe',
-              ),
+              _buildAvatar('assets/images/conradsheeran.webp'),
             ],
           ),
           const SizedBox(height: 24),
@@ -86,12 +80,19 @@ class _AboutScreenState extends State<AboutScreen> {
             subtitle: const Text('https://github.com/conradsheeran/onlystudy'),
             onTap: () => _launchUrl('https://github.com/conradsheeran/onlystudy'),
           ),
+          ListTile(
+            leading: const Icon(Icons.bug_report),
+            title: Text(AppLocalizations.of(context)!.reportBug),
+            subtitle: const Text('GitHub Issues'),
+            onTap: () => _launchUrl('https://github.com/conradsheeran/onlystudy/issues/new'),
+          ),
+          // Add more list tiles for license, privacy policy etc if needed
         ],
       ),
     );
   }
 
-  Widget _buildAvatar(String assetPath, {required String label}) {
+  Widget _buildAvatar(String assetPath) {
     return Column(
       children: [
         Container(
@@ -114,11 +115,6 @@ class _AboutScreenState extends State<AboutScreen> {
               fit: BoxFit.cover,
             ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ],
     );

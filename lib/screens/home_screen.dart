@@ -320,19 +320,30 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: false,
-        title: _isSearching
-            ? CustomSearchBar(
-                controller: _searchController,
-                onChanged: _onSearchChanged,
-                onClear: () {
-                  setState(() {
-                    _searchController.clear();
-                    _searchKeyword = '';
-                    _searchResults = [];
-                  });
-                },
-              )
-            : Text(AppLocalizations.of(context)!.appTitle),
+        title: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 150),
+          transitionBuilder: (Widget child, Animation<double> animation) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          child: _isSearching
+              ? CustomSearchBar(
+                  key: const ValueKey('SearchBar'),
+                  controller: _searchController,
+                  onChanged: _onSearchChanged,
+                  onClear: () {
+                    setState(() {
+                      _searchController.clear();
+                      _searchKeyword = '';
+                      _searchResults = [];
+                    });
+                  },
+                )
+              : SizedBox(
+                  key: const ValueKey('Title'),
+                  width: double.infinity,
+                  child: Text(AppLocalizations.of(context)!.appTitle),
+                ),
+        ),
         actions: [
           if (!_isSearching) ...[
             IconButton(
@@ -390,50 +401,54 @@ class _HomeScreenState extends State<HomeScreen> {
                   message: _error!,
                   onRetry: () => _fetchFolders(refresh: true),
                 )
-              : _isSearching
-                  ? _buildSearchResults()
-                  : RefreshIndicator(
-                      onRefresh: () => _fetchFolders(refresh: true),
-                      child: _folders.isEmpty
-                          ? const Center(
-                              child: Text('没有找到收藏夹，请登录或刷新\n或点击右上角筛选按钮选择显示的收藏夹'),
-                            )
-                          : Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: GridView.builder(
-                                controller: _scrollController,
-                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  childAspectRatio: 0.85,
-                                  crossAxisSpacing: 12,
-                                  mainAxisSpacing: 12,
-                                ),
-                                itemCount: _folders.length + (_hasMore ? 1 : 0),
-                                itemBuilder: (context, index) {
-                                  if (index == _folders.length) {
-                                    return const Center(
-                                      child: Padding(
-                                        padding: EdgeInsets.all(8.0),
-                                        child: CircularProgressIndicator(),
-                                      ),
-                                    );
-                                  }
-                                  return FolderCard(
-                                    folder: _folders[index],
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              FolderContentScreen(folder: _folders[index]),
-                                        ),
+              : AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 150),
+                  child: _isSearching
+                      ? _buildSearchResults()
+                      : RefreshIndicator(
+                          key: const ValueKey('FolderList'),
+                          onRefresh: () => _fetchFolders(refresh: true),
+                          child: _folders.isEmpty
+                              ? const Center(
+                                  child: Text('没有找到收藏夹，请登录或刷新\n或点击右上角筛选按钮选择显示的收藏夹'),
+                                )
+                              : Padding(
+                                  padding: const EdgeInsets.all(12.0),
+                                  child: GridView.builder(
+                                    controller: _scrollController,
+                                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 2,
+                                      childAspectRatio: 0.85,
+                                      crossAxisSpacing: 12,
+                                      mainAxisSpacing: 12,
+                                    ),
+                                    itemCount: _folders.length + (_hasMore ? 1 : 0),
+                                    itemBuilder: (context, index) {
+                                      if (index == _folders.length) {
+                                        return const Center(
+                                          child: Padding(
+                                            padding: EdgeInsets.all(8.0),
+                                            child: CircularProgressIndicator(),
+                                          ),
+                                        );
+                                      }
+                                      return FolderCard(
+                                        folder: _folders[index],
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  FolderContentScreen(folder: _folders[index]),
+                                            ),
+                                          );
+                                        },
                                       );
                                     },
-                                  );
-                                },
-                              ),
-                            ),
-                    ),
+                                  ),
+                                ),
+                        ),
+                ),
       floatingActionButton: GestureDetector(
         onLongPress: _handleUnlockLongPress,
         child: FloatingActionButton(
@@ -448,33 +463,42 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildSearchResults() {
     if (_searchKeyword.isEmpty) {
-      return const Center(child: Text('请输入关键词搜索视频'));
+      return Container(
+        key: const ValueKey('SearchResults'),
+        child: const Center(child: Text('请输入关键词搜索视频')),
+      );
     }
     
     if (_searchResults.isEmpty) {
-      return const Center(child: Text('没有找到相关视频'));
+      return Container(
+        key: const ValueKey('SearchResults'),
+        child: const Center(child: Text('没有找到相关视频')),
+      );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: _searchResults.length,
-      itemBuilder: (context, index) {
-        final video = _searchResults[index];
-        return VideoTile(
-          video: video,
-          onTap: () {
-             Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => VideoPlayerScreen(
-                  playlist: [video],
-                  initialIndex: 0,
+    return Container(
+      key: const ValueKey('SearchResults'),
+      child: ListView.builder(
+        padding: const EdgeInsets.all(12),
+        itemCount: _searchResults.length,
+        itemBuilder: (context, index) {
+          final video = _searchResults[index];
+          return VideoTile(
+            video: video,
+            onTap: () {
+               Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => VideoPlayerScreen(
+                    playlist: [video],
+                    initialIndex: 0,
+                  ),
                 ),
-              ),
-            );
-          },
-        );
-      },
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }
