@@ -319,6 +319,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        centerTitle: false,
         title: _isSearching
             ? CustomSearchBar(
                 controller: _searchController,
@@ -334,24 +335,6 @@ class _HomeScreenState extends State<HomeScreen> {
             : Text(AppLocalizations.of(context)!.appTitle),
         actions: [
           if (!_isSearching) ...[
-             IconButton(
-              icon: const Icon(Icons.filter_list),
-              tooltip: '筛选收藏夹',
-              onPressed: () {
-                if (_isLocked) {
-                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('修改功能已锁定，请先解锁')), 
-                   );
-                } else {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const SelectFoldersScreen()),
-                  ).then((_) {
-                    _initData();
-                  });
-                }
-              },
-            ),
             IconButton(
               icon: const Icon(Icons.cloud_download_outlined),
               tooltip: AppLocalizations.of(context)!.downloadCache,
@@ -387,61 +370,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
               });
             },
-          ),
-          if (!_isSearching)
-          PopupMenuButton<String>(
-            onSelected: (value) async {
-              if (value == 'logout') {
-                await AuthService().logout();
-                if (context.mounted) {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (context) => const LoginScreen()),
-                    (route) => false,
-                  );
-                }
-              } else if (value == 'refresh') {
-                _fetchFolders(refresh: true);
-              } else if (value == 'clear_cache') {
-                await CacheService().clearCache();
-                if (context.mounted) {
-                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('缓存已清理')), 
-                   );
-                }
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'refresh',
-                child: Row(
-                  children: [
-                    Icon(Icons.refresh, color: Colors.black54),
-                    SizedBox(width: 8),
-                    Text('刷新收藏夹'),
-                  ],
-                ),
-              ),
-               const PopupMenuItem(
-                value: 'clear_cache',
-                child: Row(
-                  children: [
-                    Icon(Icons.cleaning_services_outlined, color: Colors.black54),
-                    SizedBox(width: 8),
-                    Text('清理缓存'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout, color: Colors.black54),
-                    SizedBox(width: 8),
-                    Text('注销登录'),
-                  ],
-                ),
-              ),
-            ],
           ),
         ],
       ),

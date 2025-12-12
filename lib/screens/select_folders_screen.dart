@@ -3,7 +3,7 @@ import '../models/bili_models.dart';
 import '../services/auth_service.dart';
 import '../services/bili_api_service.dart';
 import '../services/database_service.dart';
-import 'home_screen.dart';
+import 'main_screen.dart';
 
 class SelectFoldersScreen extends StatefulWidget {
   final bool isFirstLogin;
@@ -84,7 +84,7 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
 
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          MaterialPageRoute(builder: (context) => const MainScreen()),
           (route) => false,
         );
       }

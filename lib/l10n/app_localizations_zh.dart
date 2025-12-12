@@ -48,4 +48,43 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get quality => '清晰度';
+
+  @override
+  String get home => '主页';
+
+  @override
+  String get settings => '设置';
+
+  @override
+  String get defaultResolution => '默认清晰度';
+
+  @override
+  String get about => '关于';
+
+  @override
+  String get version => '版本';
+
+  @override
+  String get appName => '唯学';
+
+  @override
+  String get developer => '开发者';
+
+  @override
+  String get sourceCode => '源代码';
+
+  @override
+  String get selectFolders => '只显示这些收藏夹';
+
+  @override
+  String get clearCache => '清理缓存';
+
+  @override
+  String get logout => '注销登录';
+
+  @override
+  String get slogan => '别让知识烂在收藏夹里';
+
+  @override
+  String get githubRepo => 'GitHub 仓库';
 }

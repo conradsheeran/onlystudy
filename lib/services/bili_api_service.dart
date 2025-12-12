@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/bili_models.dart';
 import 'auth_service.dart';
+import 'settings_service.dart';
 
 class BiliApiService {
   static final BiliApiService _instance = BiliApiService._internal();
@@ -145,14 +146,14 @@ class BiliApiService {
   }
 
   /// 获取播放地址
-  Future<VideoPlayInfo> getVideoPlayUrl(String bvid, int cid, {int qn = 64}) async {
+  Future<VideoPlayInfo> getVideoPlayUrl(String bvid, int cid, {int? qn}) async {
     try {
       final response = await _dio.get(
         '/x/player/playurl',
         queryParameters: {
           'bvid': bvid,
           'cid': cid,
-          'qn': qn, // 默认 64 = 720p
+          'qn': qn ?? SettingsService().defaultResolution, 
           'fnval': 1, // mp4 格式
           'fnver': 0,
           'fourk': 1,

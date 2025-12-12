@@ -98,7 +98,7 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
-  /// The title of the application
+  /// 唯学是一款专为学习设计的沉浸式 Bilibili 视频播放器，提供锁定功能以确保专注的学习环境
   ///
   /// In zh, this message translates to:
   /// **'唯学'**
@@ -163,6 +163,84 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'清晰度'**
   String get quality;
+
+  /// No description provided for @home.
+  ///
+  /// In zh, this message translates to:
+  /// **'主页'**
+  String get home;
+
+  /// No description provided for @settings.
+  ///
+  /// In zh, this message translates to:
+  /// **'设置'**
+  String get settings;
+
+  /// No description provided for @defaultResolution.
+  ///
+  /// In zh, this message translates to:
+  /// **'默认清晰度'**
+  String get defaultResolution;
+
+  /// No description provided for @about.
+  ///
+  /// In zh, this message translates to:
+  /// **'关于'**
+  String get about;
+
+  /// No description provided for @version.
+  ///
+  /// In zh, this message translates to:
+  /// **'版本'**
+  String get version;
+
+  /// No description provided for @appName.
+  ///
+  /// In zh, this message translates to:
+  /// **'唯学'**
+  String get appName;
+
+  /// No description provided for @developer.
+  ///
+  /// In zh, this message translates to:
+  /// **'开发者'**
+  String get developer;
+
+  /// No description provided for @sourceCode.
+  ///
+  /// In zh, this message translates to:
+  /// **'源代码'**
+  String get sourceCode;
+
+  /// No description provided for @selectFolders.
+  ///
+  /// In zh, this message translates to:
+  /// **'只显示这些收藏夹'**
+  String get selectFolders;
+
+  /// No description provided for @clearCache.
+  ///
+  /// In zh, this message translates to:
+  /// **'清理缓存'**
+  String get clearCache;
+
+  /// No description provided for @logout.
+  ///
+  /// In zh, this message translates to:
+  /// **'注销登录'**
+  String get logout;
+
+  /// No description provided for @slogan.
+  ///
+  /// In zh, this message translates to:
+  /// **'别让知识烂在收藏夹里'**
+  String get slogan;
+
+  /// No description provided for @githubRepo.
+  ///
+  /// In zh, this message translates to:
+  /// **'GitHub 仓库'**
+  String get githubRepo;
 }
 
 class _AppLocalizationsDelegate

@@ -48,4 +48,43 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get quality => 'Quality';
+
+  @override
+  String get home => 'Home';
+
+  @override
+  String get settings => 'Settings';
+
+  @override
+  String get defaultResolution => 'Default Resolution';
+
+  @override
+  String get about => 'About';
+
+  @override
+  String get version => 'Version';
+
+  @override
+  String get appName => 'OnlyStudy';
+
+  @override
+  String get developer => 'Developer';
+
+  @override
+  String get sourceCode => 'Source Code';
+
+  @override
+  String get selectFolders => 'Select Displayed Folders';
+
+  @override
+  String get clearCache => 'Clear Cache';
+
+  @override
+  String get logout => 'Logout';
+
+  @override
+  String get slogan => 'Don\'t let knowledge rot in your favorites';
+
+  @override
+  String get githubRepo => 'GitHub Repository';
 }

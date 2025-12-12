@@ -9,5 +9,18 @@
   "nextVideo": "Playing next: {title}",
   "switchingQuality": "Switching quality...",
   "switchQualityFailed": "Failed to switch quality: {error}",
-  "quality": "Quality"
+  "quality": "Quality",
+  "home": "Home",
+  "settings": "Settings",
+  "defaultResolution": "Default Resolution",
+  "about": "About",
+  "version": "Version",
+  "appName": "OnlyStudy",
+  "developer": "Developer",
+  "sourceCode": "Source Code",
+  "selectFolders": "Select Displayed Folders",
+  "clearCache": "Clear Cache",
+  "logout": "Logout",
+  "slogan": "Don't let knowledge rot in your favorites",
+  "githubRepo": "GitHub Repository"
 }
