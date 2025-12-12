@@ -41,6 +41,9 @@ class _HomeScreenState extends State<HomeScreen> {
   String _searchKeyword = '';
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
+  
+  // Lock feature
+  bool _isLocked = false;
 
 
   Future<void> _performSearch(String keyword) async {
@@ -86,6 +89,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _initData() async {
     _visibleFolderIds = await AuthService().getVisibleFolderIds();
+    final locked = await AuthService().isFolderSelectionLocked();
+    setState(() {
+      _isLocked = locked;
+    });
     _fetchFolders(refresh: true);
   }
 
@@ -189,6 +196,124 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
   }
+  
+  // --- Lock Feature Logic ---
+  
+  Future<void> _handleLockPress() async {
+    if (_isLocked) {
+      // Locked: Tap shows hint
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('当前为锁定状态，请长按解锁')),
+      );
+    } else {
+      // Unlocked: Tap to lock
+      final hasPassword = await AuthService().isFolderLockSet();
+      if (!hasPassword) {
+        _showSetPasswordDialog();
+      } else {
+        await AuthService().setFolderSelectionLocked(true);
+        if (mounted) {
+          setState(() {
+            _isLocked = true;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('已锁定收藏夹修改')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _handleUnlockLongPress() async {
+    if (_isLocked) {
+      _showUnlockDialog();
+    }
+  }
+
+  void _showSetPasswordDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('设置锁定密码'),
+        content: TextField(
+          controller: controller,
+          obscureText: true,
+          decoration: const InputDecoration(hintText: '输入密码'),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              if (controller.text.isNotEmpty) {
+                await AuthService().setFolderLockPassword(controller.text);
+                await AuthService().setFolderSelectionLocked(true);
+                if (context.mounted) {
+                   setState(() {
+                    _isLocked = true;
+                  });
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('密码已设置并锁定')),
+                  );
+                }
+              }
+            },
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showUnlockDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('解锁收藏夹修改'),
+        content: TextField(
+          controller: controller,
+          obscureText: true,
+          decoration: const InputDecoration(hintText: '输入密码'),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () async {
+                            final isCorrect = await AuthService().checkFolderLockPassword(controller.text);
+                            if (!context.mounted) return;
+                            
+                            if (isCorrect) {
+                               await AuthService().setFolderSelectionLocked(false);
+                               if (context.mounted) {
+                                 setState(() {
+                                  _isLocked = false;
+                                 });
+                                 Navigator.pop(context);
+                                 ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('已解锁')),
+                                 );
+                               }
+                            } else {
+                               ScaffoldMessenger.of(context).showSnackBar(
+                                 const SnackBar(content: Text('密码错误')),
+                               );
+                            }            },
+            child: const Text('解锁'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -213,10 +338,19 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: const Icon(Icons.filter_list),
               tooltip: '筛选收藏夹',
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const SelectFoldersScreen()),
-                );
+                if (_isLocked) {
+                   ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('修改功能已锁定，请先解锁')), 
+                   );
+                } else {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SelectFoldersScreen()),
+                  ).then((_) {
+                    // Refresh when returning
+                    _initData();
+                  });
+                }
               },
             ),
             IconButton(
@@ -272,7 +406,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 await CacheService().clearCache();
                 if (context.mounted) {
                    ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('缓存已清理')),
+                    const SnackBar(content: Text('缓存已清理')), 
                    );
                 }
               }
@@ -373,13 +507,14 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                     ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('创建收藏夹功能待开发')),
-          );
-        },
-        child: const Icon(Icons.add),
+      floatingActionButton: GestureDetector(
+        onLongPress: _handleUnlockLongPress,
+        child: FloatingActionButton(
+          onPressed: _handleLockPress,
+          backgroundColor: _isLocked ? Colors.red : Theme.of(context).colorScheme.primaryContainer,
+          foregroundColor: _isLocked ? Colors.white : Theme.of(context).colorScheme.onPrimaryContainer,
+          child: Icon(_isLocked ? Icons.lock : Icons.lock_open_outlined),
+        ),
       ),
     );
   }

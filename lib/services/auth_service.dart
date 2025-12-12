@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -15,6 +17,42 @@ class AuthService {
       'Referer': 'https://www.bilibili.com/',
     },
   ));
+
+  // Folder Lock Logic
+  static const String _prefLockPassword = 'folder_lock_password';
+  static const String _prefIsLocked = 'folder_is_locked';
+
+  Future<bool> isFolderLockSet() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.containsKey(_prefLockPassword);
+  }
+
+  Future<void> setFolderLockPassword(String password) async {
+    final prefs = await SharedPreferences.getInstance();
+    final bytes = utf8.encode(password);
+    final digest = sha256.convert(bytes);
+    await prefs.setString(_prefLockPassword, digest.toString());
+  }
+
+  Future<bool> checkFolderLockPassword(String password) async {
+    final prefs = await SharedPreferences.getInstance();
+    final storedHash = prefs.getString(_prefLockPassword);
+    if (storedHash == null) return false;
+    
+    final bytes = utf8.encode(password);
+    final digest = sha256.convert(bytes);
+    return storedHash == digest.toString();
+  }
+
+  Future<bool> isFolderSelectionLocked() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_prefIsLocked) ?? false;
+  }
+
+  Future<void> setFolderSelectionLocked(bool locked) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_prefIsLocked, locked);
+  }
 
   // 获取二维码数据
   Future<Map<String, dynamic>> generateQRCode() async {
