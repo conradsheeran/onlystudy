@@ -1,7 +1,7 @@
 name: onlystudy
 description: "唯学是一款专为学习设计的沉浸式 Bilibili 视频播放器，提供锁定功能以确保专注的学习环境"
 publish_to: 'none'
-version: 0.1.0
+version: 0.1.1+2
 
 environment:
   sdk: ^3.10.3
@@ -32,7 +32,10 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
   generate: true
+  assets:
+    - assets/images/
