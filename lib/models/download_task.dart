@@ -1,5 +1,7 @@
+/// 下载任务状态枚举
 enum DownloadStatus { pending, running, paused, completed, failed }
 
+/// 视频下载任务模型
 class DownloadTask {
   final String bvid;
   final int cid;

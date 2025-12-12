@@ -1,3 +1,4 @@
+/// Bilibili UP主信息模型
 class BiliUpper {
   final int mid;
   final String name;
@@ -15,6 +16,7 @@ class BiliUpper {
   }
 }
 
+/// 收藏夹信息模型
 class Folder {
   final int id; // 收藏夹ID
   final String title;
@@ -44,6 +46,7 @@ class Folder {
   }
 }
 
+/// 视频基本信息模型 (用于列表展示)
 class Video {
   final String bvid;
   final String title;
@@ -114,6 +117,7 @@ class Video {
   }
 }
 
+/// 视频播放地址信息模型 (包含清晰度信息)
 class VideoPlayInfo {
   final String url;
   final int quality;
@@ -142,6 +146,7 @@ class VideoPlayInfo {
   }
 }
 
+/// 视频分P信息模型
 class VideoPage {
   final int cid;
   final int page;
@@ -165,6 +170,7 @@ class VideoPage {
   }
 }
 
+/// 视频详细信息模型 (包含 AID, CID, 历史进度, 分P列表)
 class VideoDetail {
   final int bvid;
   final int aid;

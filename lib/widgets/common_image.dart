@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
+/// 通用网络图片加载组件，支持缓存和淡入动画
 class CommonImage extends StatefulWidget {
   final String imageUrl;
   final double? width;
@@ -17,7 +18,7 @@ class CommonImage extends StatefulWidget {
     this.height,
     this.fit = BoxFit.cover,
     this.radius = 0,
-    this.fadeInDurationMs = 300, // Revert to 300ms default
+    this.fadeInDurationMs = 300,
   });
 
   @override
@@ -30,7 +31,6 @@ class _CommonImageState extends State<CommonImage> {
   @override
   void initState() {
     super.initState();
-    // Check if image is in cache (memory or disk)
     _fileInfoFuture = DefaultCacheManager().getFileFromCache(widget.imageUrl);
   }
 
@@ -76,8 +76,8 @@ class _CommonImageState extends State<CommonImage> {
               child: Icon(Icons.broken_image, color: Colors.grey[400]),
             ),
             fadeInDuration: isCachedInMemory
-                ? Duration.zero // No fade if already in cache
-                : Duration(milliseconds: widget.fadeInDurationMs), // Fade if from network
+                ? Duration.zero
+                : Duration(milliseconds: widget.fadeInDurationMs),
           );
         },
       ),

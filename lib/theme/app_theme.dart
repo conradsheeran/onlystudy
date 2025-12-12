@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// 应用主题配置类，定义颜色、字体和组件样式
 class AppTheme {
   static const Color _seedColor = Color(0xFF5E7987);
   static ThemeData get darkTheme {
@@ -70,14 +71,12 @@ class AppTheme {
         dividerColor: Colors.transparent,
       ),
 
-      // Dialog
       dialogTheme: DialogThemeData(
         elevation: 6,
         backgroundColor: colorScheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       ),
 
-      // Floating Action Button
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: colorScheme.primaryContainer,
         foregroundColor: colorScheme.onPrimaryContainer,

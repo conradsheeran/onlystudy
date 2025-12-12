@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/bili_models.dart';
 import 'common_image.dart';
 
+/// 收藏夹卡片组件，显示封面、标题和视频数量
 class FolderCard extends StatelessWidget {
   final Folder folder;
   final VoidCallback onTap;
@@ -25,7 +26,7 @@ class FolderCard extends StatelessWidget {
               child: CommonImage(
                 folder.cover,
                 fit: BoxFit.cover,
-                fadeInDurationMs: 150, // Faster animation for home screen
+                fadeInDurationMs: 150,
               ),
             ),
             Expanded(

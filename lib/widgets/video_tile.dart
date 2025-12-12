@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/bili_models.dart';
 import 'common_image.dart';
 
+/// 视频列表项组件，显示封面、标题、UP主、播放量等信息
 class VideoTile extends StatelessWidget {
   final Video video;
   final VoidCallback onTap;
@@ -22,13 +23,12 @@ class VideoTile extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Cover Image with Duration Badge
               Stack(
                 children: [
                   CommonImage(
                     video.cover,
                     width: 128,
-                    height: 72, // Standard 16:9 thumbnail size
+                    height: 72,
                     radius: 6,
                   ),
                   Positioned(
@@ -53,12 +53,10 @@ class VideoTile extends StatelessWidget {
                 ],
               ),
               const SizedBox(width: 12),
-              // Text Content
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Title
                     Text(
                       video.title,
                       maxLines: 2,
@@ -70,7 +68,6 @@ class VideoTile extends StatelessWidget {
                           ),
                     ),
                     const SizedBox(height: 6),
-                    // Uploader
                     Row(
                       children: [
                         const Icon(Icons.person_outline, size: 13, color: Colors.grey),
@@ -89,10 +86,8 @@ class VideoTile extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 6),
-                    // Stats & Date
                     Row(
                       children: [
-                        // View Count
                         const Icon(Icons.play_circle_outline, size: 13, color: Colors.grey),
                         const SizedBox(width: 3),
                         Text(
@@ -100,7 +95,6 @@ class VideoTile extends StatelessWidget {
                           style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                         ),
                         const SizedBox(width: 12),
-                        // Danmaku Count
                         const Icon(Icons.subtitles_outlined, size: 13, color: Colors.grey),
                         const SizedBox(width: 3),
                         Text(
@@ -108,7 +102,6 @@ class VideoTile extends StatelessWidget {
                           style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                         ),
                         const Spacer(),
-                        // Pub Date
                         Text(
                           video.formattedPubDate,
                           style: TextStyle(fontSize: 11, color: Colors.grey[500]),

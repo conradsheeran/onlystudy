@@ -17,18 +17,18 @@ class BiliApiService {
     },
   ));
 
-  // 获取用户 ID (up_mid)
+  /// 获取用户 ID (up_mid)
   Future<int?> getUserId() async {
     final prefs = await SharedPreferences.getInstance();
     return int.tryParse(prefs.getString('uid') ?? '');
   }
 
-  // 获取请求头所需的 Cookie 字符串
+  /// 获取请求头所需的 Cookie 字符串
   Future<String> _getCookieHeader() async {
     return AuthService().getCookieString();
   }
 
-  // 获取用户的收藏夹列表
+  /// 获取用户的收藏夹列表
   Future<List<Folder>> getFavoriteFolders({int pn = 1, int ps = 20}) async {
     final uid = await getUserId();
     if (uid == null) {
@@ -61,7 +61,7 @@ class BiliApiService {
     }
   }
 
-  // 获取指定收藏夹内的视频列表
+  /// 获取指定收藏夹内的视频列表
   Future<List<Video>> getFolderVideos(int mediaId,
       {int pn = 1, int ps = 20, String? keyword}) async {
     try {
@@ -99,7 +99,7 @@ class BiliApiService {
     }
   }
 
-  // 获取视频详情 (包含 CID, AID, 历史进度)
+  /// 获取视频详情 (包含 CID, AID, 历史进度)
   Future<VideoDetail> getVideoDetail(String bvid) async {
     try {
       final response = await _dio.get(
@@ -117,7 +117,7 @@ class BiliApiService {
     }
   }
 
-  // 上报播放进度
+  /// 上报播放进度
   Future<void> reportHistory({
     required int aid,
     required int cid,
@@ -144,7 +144,7 @@ class BiliApiService {
     }
   }
 
-  // 获取播放地址
+  /// 获取播放地址
   Future<VideoPlayInfo> getVideoPlayUrl(String bvid, int cid, {int qn = 64}) async {
     try {
       final response = await _dio.get(

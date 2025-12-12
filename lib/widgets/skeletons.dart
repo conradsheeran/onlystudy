@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
+/// 收藏夹卡片骨架屏，加载中占位
 class FolderCardSkeleton extends StatelessWidget {
   const FolderCardSkeleton({super.key});
 
@@ -12,12 +13,10 @@ class FolderCardSkeleton extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-         // color: Colors.white, // Remove background color to let internal containers show
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Cover
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
@@ -27,7 +26,6 @@ class FolderCardSkeleton extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            // Title
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Container(
@@ -40,7 +38,6 @@ class FolderCardSkeleton extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            // Subtitle
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Container(
@@ -60,6 +57,7 @@ class FolderCardSkeleton extends StatelessWidget {
   }
 }
 
+/// 视频列表项骨架屏，加载中占位
 class VideoTileSkeleton extends StatelessWidget {
   const VideoTileSkeleton({super.key});
 
@@ -73,17 +71,15 @@ class VideoTileSkeleton extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Cover
             Container(
               width: 120,
-              height: 75, // approx 16:9
+              height: 75,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
             const SizedBox(width: 12),
-            // Info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

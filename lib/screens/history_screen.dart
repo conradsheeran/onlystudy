@@ -21,6 +21,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _loadHistory();
   }
 
+  /// 加载本地观看历史记录
   Future<void> _loadHistory() async {
     final videos = await HistoryService().getWatchedVideos();
     if (mounted) {
@@ -31,6 +32,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
   
+  /// 清空本地观看历史记录
   Future<void> _clearHistory() async {
     await HistoryService().clearHistory();
     _loadHistory();
@@ -90,7 +92,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               initialIndex: index,
                             ),
                           ),
-                        ).then((_) => _loadHistory()); // refresh on return
+                        ).then((_) => _loadHistory());
                       },
                     );
                   },

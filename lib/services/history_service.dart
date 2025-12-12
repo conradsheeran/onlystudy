@@ -9,7 +9,7 @@ class HistoryService {
 
   static const String _historyKey = 'local_watch_history';
 
-  // 添加观看记录 (添加到队首，去重)
+  /// 添加观看记录 (添加到队首，去重)
   Future<void> addWatchedVideo(Video video) async {
     final prefs = await SharedPreferences.getInstance();
     final List<String> historyJson = prefs.getStringList(_historyKey) ?? [];
@@ -46,7 +46,7 @@ class HistoryService {
     await prefs.setStringList(_historyKey, historyJson);
   }
 
-  // 获取观看记录
+  /// 获取本地观看记录列表
   Future<List<Video>> getWatchedVideos() async {
     final prefs = await SharedPreferences.getInstance();
     final List<String> historyJson = prefs.getStringList(_historyKey) ?? [];
@@ -63,7 +63,7 @@ class HistoryService {
     return videos;
   }
   
-  // 清空历史
+  /// 清空本地观看历史
   Future<void> clearHistory() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_historyKey);

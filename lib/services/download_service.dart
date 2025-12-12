@@ -4,7 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter/foundation.dart'; // Import for debugPrint
+import 'package:flutter/foundation.dart';
 import '../models/download_task.dart';
 import '../models/bili_models.dart';
 import 'bili_api_service.dart';
@@ -22,6 +22,7 @@ class DownloadService {
   Stream<List<DownloadTask>> get tasksStream => _tasksController.stream;
   List<DownloadTask> get currentTasks => List.unmodifiable(_memoryTasks);
 
+  /// 初始化下载服务和数据库
   Future<void> init() async {
     if (_db != null) return;
     
@@ -56,6 +57,7 @@ class DownloadService {
     }
   }
 
+  /// 从数据库加载历史下载任务
   Future<void> _loadTasks() async {
     if (_db == null) return;
     final List<Map<String, dynamic>> maps = await _db!.query('tasks', orderBy: 'createTime DESC');
@@ -63,13 +65,12 @@ class DownloadService {
     _tasksController.add(_memoryTasks);
   }
 
+  /// 开始一个新的视频下载任务
   Future<void> startDownload(Video video, int cid, int aid, {int qn = 64}) async {
-    // 1. Check if task exists
     if (_memoryTasks.any((t) => t.bvid == video.bvid && t.cid == cid)) {
-        return; // Already exists
+        return;
     }
 
-    // 2. Create pending task
     final newTask = DownloadTask(
       bvid: video.bvid,
       cid: cid,
@@ -83,10 +84,10 @@ class DownloadService {
     
     await _insertOrUpdateTask(newTask);
     
-    // 3. Start process
     _executeDownload(newTask, video.bvid, cid, qn);
   }
 
+  /// 执行下载逻辑 (获取地址、下载文件、更新进度)
   Future<void> _executeDownload(DownloadTask task, String bvid, int cid, int qn) async {
     try {
         final playInfo = await BiliApiService().getVideoPlayUrl(bvid, cid, qn: qn);
@@ -96,7 +97,6 @@ class DownloadService {
         }
 
         final docDir = await getApplicationDocumentsDirectory();
-        // Create a dedicated directory
         final downloadDir = Directory(join(docDir.path, 'downloads'));
         if (!await downloadDir.exists()) {
           await downloadDir.create(recursive: true);
@@ -105,14 +105,12 @@ class DownloadService {
         final fileName = '${bvid}_$cid.mp4';
         final savePath = join(downloadDir.path, fileName);
         
-        // Update to Running
         final runningTask = task.copyWith(
             filePath: savePath, 
             status: DownloadStatus.running
         );
         await _insertOrUpdateTask(runningTask);
 
-        // Prepare headers
         final options = Options(headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Referer': 'https://www.bilibili.com/',
@@ -130,7 +128,6 @@ class DownloadService {
             },
         );
         
-        // Completed
         await _updateStatus(bvid, cid, DownloadStatus.completed);
 
     } catch (e) {
@@ -139,6 +136,7 @@ class DownloadService {
     }
   }
 
+  /// 插入或更新任务状态到数据库和内存
   Future<void> _insertOrUpdateTask(DownloadTask task) async {
     if (_db == null) await init();
     
@@ -148,9 +146,7 @@ class DownloadService {
     } else {
         _memoryTasks.insert(0, task);
     }
-    _tasksController.add(List.from(_memoryTasks)); // Emit new list
-
-    // DB Operation
+    _tasksController.add(List.from(_memoryTasks));
     await _db!.insert(
         'tasks', 
         task.toMap(), 
@@ -162,7 +158,6 @@ class DownloadService {
      final index = _memoryTasks.indexWhere((t) => t.bvid == bvid && t.cid == cid);
      if (index >= 0) {
          final task = _memoryTasks[index];
-         // Throttle: only update if changed significantly
          if ((task.progress - progress).abs() > 0.01) {
              final newTask = task.copyWith(progress: progress);
              _memoryTasks[index] = newTask;
@@ -182,13 +177,13 @@ class DownloadService {
      }
   }
 
+  /// 删除下载任务及对应的文件
   Future<void> deleteTask(String bvid, int cid) async {
     final index = _memoryTasks.indexWhere((t) => t.bvid == bvid && t.cid == cid);
     if (index == -1) return;
 
     final task = _memoryTasks[index];
     
-    // 1. Delete file
     if (task.filePath != null) {
       final file = File(task.filePath!);
       if (await file.exists()) {
@@ -196,7 +191,6 @@ class DownloadService {
       }
     }
 
-    // 2. Remove from DB
     if (_db != null) {
       await _db!.delete(
         'tasks',
@@ -205,12 +199,10 @@ class DownloadService {
       );
     }
 
-    // 3. Remove from memory
     _memoryTasks.removeAt(index);
     _tasksController.add(List.from(_memoryTasks));
   }
   
-  // Clean up
   void dispose() {
     _tasksController.close();
     _db?.close();

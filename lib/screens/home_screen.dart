@@ -41,11 +41,10 @@ class _HomeScreenState extends State<HomeScreen> {
   String _searchKeyword = '';
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
-  
-  // Lock feature
   bool _isLocked = false;
 
 
+  /// 执行搜索逻辑，支持按可见收藏夹过滤
   Future<void> _performSearch(String keyword) async {
     if (keyword.isEmpty) {
       if (mounted) {
@@ -68,6 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  /// 处理搜索框输入变化，带防抖 (500ms)
   void _onSearchChanged(String value) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () {
@@ -87,6 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _scrollController.addListener(_onScroll);
   }
 
+  /// 初始化数据：获取可见收藏夹ID和锁定状态
   Future<void> _initData() async {
     _visibleFolderIds = await AuthService().getVisibleFolderIds();
     final locked = await AuthService().isFolderSelectionLocked();
@@ -113,6 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  /// 获取收藏夹列表 (支持分页和可见性过滤)
   Future<void> _fetchFolders({bool refresh = false}) async {
     if (refresh) {
       setState(() {
@@ -133,7 +135,6 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final folders = await _biliApiService.getFavoriteFolders(pn: _page);
       
-      // Filter visible folders
       List<Folder> filteredFolders = folders;
       if (_visibleFolderIds.isNotEmpty) {
         filteredFolders = folders.where((f) => _visibleFolderIds.contains(f.id)).toList();
@@ -153,8 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _page++;
           }
         });
-        
-        // Start background sync if it's the first page refresh
+
         if (refresh) {
           _syncAllVideos(List.from(_folders));
         }
@@ -181,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // Background sync to fetch and cache videos from all folders
+  /// 后台同步所有(可见)收藏夹的视频数据到本地数据库
   Future<void> _syncAllVideos(List<Folder> folders) async {
     for (var folder in folders) {
       if (!mounted) return;
@@ -196,17 +196,14 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
   }
-  
-  // --- Lock Feature Logic ---
-  
+    
+  /// 处理锁定按钮点击事件 (锁定/设置密码/提示解锁)
   Future<void> _handleLockPress() async {
     if (_isLocked) {
-      // Locked: Tap shows hint
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('当前为锁定状态，请长按解锁')),
       );
     } else {
-      // Unlocked: Tap to lock
       final hasPassword = await AuthService().isFolderLockSet();
       if (!hasPassword) {
         _showSetPasswordDialog();
@@ -224,12 +221,14 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  /// 处理锁定按钮长按事件 (弹出解锁对话框)
   Future<void> _handleUnlockLongPress() async {
     if (_isLocked) {
       _showUnlockDialog();
     }
   }
 
+  /// 显示设置锁定密码的对话框
   void _showSetPasswordDialog() {
     final controller = TextEditingController();
     showDialog(
@@ -270,6 +269,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// 显示解锁对话框
   void _showUnlockDialog() {
     final controller = TextEditingController();
     showDialog(
@@ -347,7 +347,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     context,
                     MaterialPageRoute(builder: (context) => const SelectFoldersScreen()),
                   ).then((_) {
-                    // Refresh when returning
                     _initData();
                   });
                 }
@@ -540,7 +539,7 @@ class _HomeScreenState extends State<HomeScreen> {
               context,
               MaterialPageRoute(
                 builder: (context) => VideoPlayerScreen(
-                  playlist: [video], // Only play this one from search for now
+                  playlist: [video],
                   initialIndex: 0,
                 ),
               ),

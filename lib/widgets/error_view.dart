@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// 通用错误提示组件，包含错误信息和重试按钮
 class ErrorView extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;

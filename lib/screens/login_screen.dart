@@ -31,6 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  /// 加载并显示登录二维码
   Future<void> _loadQRCode() async {
     setState(() {
       _statusText = '正在加载...';
@@ -56,6 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// 开始轮询二维码扫码状态
   void _startPolling() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 3), (timer) async {
@@ -70,11 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
             setState(() {
               _statusText = '登录成功! 正在跳转...';
             });
-            
-            // 保存登录信息
-            await _authService.saveLoginInfo(result['url']);
-
-            // 跳转到主页
+                        await _authService.saveLoginInfo(result['url']);
             if (mounted) {
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (context) => const SelectFoldersScreen(isFirstLogin: true)),
@@ -84,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         }
       } catch (e) {
-        // 如果是过期或其他严重错误，停止轮询
+        // 停止轮询
         if (e.toString().contains('过期')) {
           timer.cancel();
           if (mounted) {

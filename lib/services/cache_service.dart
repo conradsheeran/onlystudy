@@ -5,7 +5,7 @@ class CacheService {
   static const String _lastClearKey = 'last_cache_clear_timestamp';
   static const int _cacheDurationDays = 7;
 
-  /// Checks if cache needs clearing (older than 7 days) and clears it if so.
+  /// 检查并清理过期的缓存文件 (默认保留7天)
   Future<void> checkAndClearCache() async {
     final prefs = await SharedPreferences.getInstance();
     final lastClear = prefs.getInt(_lastClearKey) ?? 0;
@@ -14,11 +14,10 @@ class CacheService {
     if (now - lastClear > _cacheDurationDays * 24 * 60 * 60 * 1000) {
       await DefaultCacheManager().emptyCache();
       await prefs.setInt(_lastClearKey, now);
-      // print('Cache cleared automatically.');
     }
   }
 
-  /// Manually clear cache
+  /// 手动清理所有缓存
   Future<void> clearCache() async {
     await DefaultCacheManager().emptyCache();
     final prefs = await SharedPreferences.getInstance();

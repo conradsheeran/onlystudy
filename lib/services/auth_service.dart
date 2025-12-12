@@ -18,15 +18,16 @@ class AuthService {
     },
   ));
 
-  // Folder Lock Logic
   static const String _prefLockPassword = 'folder_lock_password';
   static const String _prefIsLocked = 'folder_is_locked';
 
+  /// 检查是否设置了收藏夹锁定密码
   Future<bool> isFolderLockSet() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.containsKey(_prefLockPassword);
   }
 
+  /// 设置收藏夹锁定密码 (SHA256加密)
   Future<void> setFolderLockPassword(String password) async {
     final prefs = await SharedPreferences.getInstance();
     final bytes = utf8.encode(password);
@@ -34,6 +35,7 @@ class AuthService {
     await prefs.setString(_prefLockPassword, digest.toString());
   }
 
+  /// 校验收藏夹锁定密码
   Future<bool> checkFolderLockPassword(String password) async {
     final prefs = await SharedPreferences.getInstance();
     final storedHash = prefs.getString(_prefLockPassword);
@@ -44,17 +46,19 @@ class AuthService {
     return storedHash == digest.toString();
   }
 
+  /// 检查收藏夹选择功能是否处于锁定状态
   Future<bool> isFolderSelectionLocked() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_prefIsLocked) ?? false;
   }
 
+  /// 设置收藏夹选择功能的锁定状态
   Future<void> setFolderSelectionLocked(bool locked) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefIsLocked, locked);
   }
 
-  // 获取二维码数据
+  /// 生成 Bilibili 登录二维码
   Future<Map<String, dynamic>> generateQRCode() async {
     try {
       final response = await _dio.get('/x/passport-login/web/qrcode/generate');
@@ -68,11 +72,11 @@ class AuthService {
     }
   }
 
-  // 轮询登录状态
-  // 返回值: 
-  // null: 继续轮询
-  // Map: 登录成功，包含 url (内含 cookie)
-  // throw: 失败或过期
+  /// 轮询二维码扫码状态
+  /// 返回值: 
+  /// null: 继续轮询
+  /// Map: 登录成功，包含 url (内含 cookie)
+  /// throw: 失败或过期
   Future<Map<String, dynamic>?> pollLoginStatus(String qrcodeKey) async {
     try {
       final response = await _dio.get(
@@ -107,7 +111,7 @@ class AuthService {
     }
   }
 
-  // 解析并保存 Cookie
+  /// 解析并保存 Cookie
   Future<void> saveLoginInfo(String url) async {
     final Uri uri = Uri.parse(url);
     final prefs = await SharedPreferences.getInstance();
@@ -131,21 +135,25 @@ class AuthService {
     await prefs.setBool('isLoggedIn', true);
   }
 
+  /// 检查是否已登录
   Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('isLoggedIn') ?? false;
   }
 
+  /// 注销登录并清除本地数据
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
   }
 
+  /// 保存用户选择显示的收藏夹ID列表
   Future<void> saveVisibleFolderIds(List<int> ids) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('visible_folder_ids', ids.map((e) => e.toString()).toList());
   }
 
+  /// 获取用户选择显示的收藏夹ID列表
   Future<List<int>> getVisibleFolderIds() async {
     final prefs = await SharedPreferences.getInstance();
     final list = prefs.getStringList('visible_folder_ids');
@@ -153,7 +161,7 @@ class AuthService {
     return list.map((e) => int.tryParse(e) ?? 0).where((e) => e != 0).toList();
   }
 
-  // 获取请求头需要的 Cookie 字符串
+  /// 获取请求头需要的 Cookie 字符串
   Future<String> getCookieString() async {
     final prefs = await SharedPreferences.getInstance();
     final sessData = prefs.getString('SESSDATA') ?? '';
@@ -161,7 +169,7 @@ class AuthService {
     return 'SESSDATA=$sessData; bili_jct=$biliJct'; 
   }
 
-  // 获取 CSRF Token (bili_jct)
+  /// 获取 CSRF Token (bili_jct)
   Future<String> getCsrfToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('bili_jct') ?? '';

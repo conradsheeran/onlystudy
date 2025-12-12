@@ -27,6 +27,7 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
     _loadData();
   }
 
+  /// 加载所有收藏夹数据及当前选中状态
   Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
@@ -46,17 +47,13 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
         if (folders.length < 20) break;
         page++;
       }
-
-      // Get saved selection
       final savedIds = await AuthService().getVisibleFolderIds();
       
       setState(() {
         _allFolders = allFolders;
         if (savedIds.isEmpty && widget.isFirstLogin) {
-          // Default select all on first login
           _selectedIds = allFolders.map((e) => e.id).toSet();
         } else {
-          // Merge saved with current available
           _selectedIds = savedIds.toSet();
         }
         _isLoading = false;
@@ -71,6 +68,7 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
     }
   }
 
+  /// 确认选择，保存设置并重建缓存
   Future<void> _onConfirm() async {
     if (_selectedIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -80,10 +78,8 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
     }
 
     try {
-      // Save selection
       await AuthService().saveVisibleFolderIds(_selectedIds.toList());
       
-      // Clear search cache so it can be rebuilt with only selected folders
       await DatabaseService().clearAllCache();
 
       if (mounted) {

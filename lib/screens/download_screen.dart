@@ -49,6 +49,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
     );
   }
 
+  /// 构建已完成下载任务列表
   Widget _buildDownloadedList(List<DownloadTask> tasks) {
     if (tasks.isEmpty) {
       return const Center(child: Text('暂无已完成的视频'));
@@ -115,6 +116,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
     );
   }
   
+  /// 构建进行中下载任务列表
   Widget _buildDownloadingList(List<DownloadTask> tasks) {
      if (tasks.isEmpty) {
       return const Center(child: Text('暂无进行中的任务'));
@@ -157,6 +159,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
     );
   }
 
+  /// 获取下载状态的文本描述
   String _getStatusText(DownloadStatus status) {
     switch (status) {
       case DownloadStatus.pending: return '等待中...';

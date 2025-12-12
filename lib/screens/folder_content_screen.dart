@@ -44,6 +44,7 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
     super.dispose();
   }
 
+  /// 滚动监听，触底加载更多
   void _onScroll() {
     if (_scrollController.position.pixels >=
             _scrollController.position.maxScrollExtent - 200 &&
@@ -53,6 +54,7 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
     }
   }
 
+  /// 获取收藏夹内的视频列表 (支持分页和搜索)
   Future<void> _fetchVideos({bool refresh = false}) async {
     if (refresh) {
       setState(() {
@@ -76,7 +78,6 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
       );
       
       if (mounted) {
-        // Cache videos to local database
         if (videos.isNotEmpty) {
            _databaseService.insertVideos(videos, widget.folder.id);
         }

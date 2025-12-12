@@ -40,7 +40,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   List<int> _supportQualities = [];
   List<String> _supportQualityDescs = [];
   
-  // Multi-part support
   List<VideoPage> _pages = [];
   int _currentPartIndex = 0;
 
@@ -51,10 +50,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     super.initState();
     _currentIndex = widget.initialIndex;
     WakelockPlus.enable();
-
-    // Create a [Player] to control playback.
     _player = Player();
-    // Create a [VideoController] to handle video output from [Player].
     _controller = mkv.VideoController(_player);
 
     _player.stream.completed.listen((completed) {
@@ -66,6 +62,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _playCurrentVideo();
   }
 
+  /// 开始播放当前视频 (初始化状态、记录历史、加载播放器)
   Future<void> _playCurrentVideo() async {
     setState(() {
       _isLoading = true;
@@ -78,6 +75,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     await _initializePlayer();
   }
 
+  /// 将当前视频添加到观看历史
   Future<void> _addToHistory() async {
     await HistoryService().addWatchedVideo(_currentVideo);
   }
@@ -91,6 +89,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     super.dispose();
   }
 
+  /// 初始化播放器：获取详情、播放地址、设置控制器
   Future<void> _initializePlayer() async {
     try {
       if (widget.localFilePath != null) {
@@ -106,11 +105,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       final api = BiliApiService();
       _videoDetail = await api.getVideoDetail(_currentVideo.bvid);
       
-      // Setup multi-part info
       _pages = _videoDetail!.pages;
       _cid = _videoDetail!.cid;
       
-      // Find current part index based on CID
       if (_pages.isNotEmpty) {
         final index = _pages.indexWhere((p) => p.cid == _cid);
         if (index != -1) {
@@ -162,8 +159,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
+  /// 保存当前播放进度到 Bilibili 服务器
   Future<void> _saveProgress() async {
-    // Only report if position > 5 seconds
     final position = _player.state.position.inSeconds;
     if (position > 5 && _videoDetail != null && _cid != null) {
         await BiliApiService().reportHistory(
@@ -180,6 +177,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
+  /// 设置 media_kit 播放控制器 (设置 User-Agent, Referer)
   Future<void> _setupController(String url, {Duration? startAt, bool isLocal = false}) async {
     final httpHeaders = {
         'User-Agent':
@@ -199,16 +197,16 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
+  /// 检查视频播放结束，自动播放下一集或下一个视频
   void _checkVideoEnd() {
-    // If there are multiple parts and it's not the last part, play next part
     if (_pages.isNotEmpty && _currentPartIndex < _pages.length - 1) {
       _switchPart(_currentPartIndex + 1);
     } else if (_currentIndex < widget.playlist.length - 1) {
-      // If no more parts, play next video in playlist
       _playNext();
     }
   }
 
+  /// 播放列表中的下一个视频
   void _playNext() {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -225,10 +223,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _playCurrentVideo();
   }
   
+  /// 切换多P视频的分集
   Future<void> _switchPart(int index) async {
     if (index < 0 || index >= _pages.length) return;
     
-    // Save progress of current part
     _saveProgress();
     
     setState(() {
@@ -248,7 +246,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       final api = BiliApiService();
       _playInfo = await api.getVideoPlayUrl(_currentVideo.bvid, _cid!);
       
-      // Refresh qualities if needed
       if (_playInfo != null) {
         _supportQualities = _playInfo!.acceptQuality;
         _supportQualityDescs = _playInfo!.acceptDescription;
@@ -271,6 +268,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
+  /// 切换视频清晰度
   Future<void> _switchQuality(int quality) async {
     if (_cid == null || _playInfo == null) return;
     
@@ -306,6 +304,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
   
+  /// 显示分集列表底部弹窗
   void _showPartsList() {
     showModalBottomSheet(
       context: context,
@@ -372,7 +371,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Construct title
     String title = _currentVideo.title;
     if (_pages.isNotEmpty && _pages.length > 1) {
        title += ' - P${_currentPartIndex + 1} ${_pages[_currentPartIndex].part}';
@@ -386,7 +384,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         elevation: 0,
         title: Text(title, style: const TextStyle(fontSize: 16)),
         actions: [
-          // Parts Button
           if (_pages.isNotEmpty && _pages.length > 1)
              IconButton(
               icon: const Icon(Icons.list),
@@ -454,10 +451,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                       normal: mkv.MaterialVideoControlsThemeData(
                         seekBarPositionColor: Theme.of(context).colorScheme.primary,
                         seekBarThumbColor: Theme.of(context).colorScheme.primary,
-                        // Adjusting margin to move the progress bar up.
-                        // The default margin might be too low.
-                        // Let's try to increase the bottom padding.
-                        seekBarMargin: const EdgeInsets.fromLTRB(12, 0, 12, 60), // L, T, R, B
+                        seekBarMargin: const EdgeInsets.fromLTRB(12, 0, 12, 60),
                       ),
                       fullscreen: const mkv.MaterialVideoControlsThemeData(),
                       child: mkv.Video(controller: _controller),

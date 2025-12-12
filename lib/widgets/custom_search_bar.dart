@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// 自定义搜索栏组件，支持输入、清除和提交
 class CustomSearchBar extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
