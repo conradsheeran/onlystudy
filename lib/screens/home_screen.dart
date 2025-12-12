@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:onlystudy/services/cache_service.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
 import '../models/bili_models.dart';
 import '../widgets/folder_card.dart';
@@ -13,10 +12,8 @@ import 'download_screen.dart';
 import '../services/auth_service.dart';
 import '../services/bili_api_service.dart';
 import '../services/database_service.dart';
-import 'login_screen.dart';
 import 'history_screen.dart';
 import 'video_player_screen.dart';
-import 'select_folders_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});

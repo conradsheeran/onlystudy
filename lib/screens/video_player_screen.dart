@@ -115,7 +115,38 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         }
       }
 
-      _playInfo = await api.getVideoPlayUrl(_currentVideo.bvid, _cid!);
+      try {
+        _playInfo = await api.getVideoPlayUrl(_currentVideo.bvid, _cid!);
+      } catch (e) {
+        debugPrint('Failed to get video url with default resolution: $e. Attempting fallback discovery...');
+        try {
+          // Try lowest resolution (360P) to likely get a success response and metadata
+          final lowQualityInfo = await api.getVideoPlayUrl(_currentVideo.bvid, _cid!, qn: 16);
+          
+          if (lowQualityInfo.acceptQuality.isNotEmpty) {
+             // acceptQuality is usually sorted descending (e.g., [80, 64, 32, 16])
+             // We want the highest possible quality since the user's preferred one failed.
+             final bestQuality = lowQualityInfo.acceptQuality.first;
+             
+             if (bestQuality > 16) {
+                debugPrint('Found better available quality: $bestQuality. Retrying...');
+                try {
+                   _playInfo = await api.getVideoPlayUrl(_currentVideo.bvid, _cid!, qn: bestQuality);
+                } catch (e3) {
+                   debugPrint('Failed to get best quality $bestQuality: $e3. using 360P fallback.');
+                   _playInfo = lowQualityInfo;
+                }
+             } else {
+                _playInfo = lowQualityInfo;
+             }
+          } else {
+             _playInfo = lowQualityInfo;
+          }
+        } catch (e2) {
+          debugPrint('Fallback discovery failed: $e2');
+          rethrow;
+        }
+      }
       
       if (_playInfo != null) {
         _supportQualities = _playInfo!.acceptQuality;
