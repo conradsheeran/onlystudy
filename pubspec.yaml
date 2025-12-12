@@ -1,5 +1,5 @@
 name: onlystudy
-description: "A new Flutter project."
+description: "唯学是一款专为学习设计的沉浸式 Bilibili 视频播放器，提供锁定功能以确保专注的学习环境"
 publish_to: 'none'
 version: 0.1.0
 
@@ -12,7 +12,7 @@ dependencies:
   dio: ^5.4.0
   qr_flutter: ^4.1.0
   shared_preferences: ^2.2.2
-  path_provider: ^2.1.1 # 配合后续可能的缓存需求
+  path_provider: ^2.1.1
   media_kit: ^1.1.10
   media_kit_video: ^1.2.4
   media_kit_libs_video: ^1.0.4
