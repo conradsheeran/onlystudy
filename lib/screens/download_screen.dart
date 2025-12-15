@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:onlystudy/l10n/app_localizations.dart';
 import '../services/download_service.dart';
 import '../models/download_task.dart';
 import '../models/bili_models.dart';
@@ -21,11 +22,11 @@ class _DownloadScreenState extends State<DownloadScreen> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('离线缓存'),
-          bottom: const TabBar(
+          title: Text(AppLocalizations.of(context)!.offlineCache),
+          bottom: TabBar(
             tabs: [
-              Tab(text: '已完成'),
-              Tab(text: '进行中'),
+              Tab(text: AppLocalizations.of(context)!.completed),
+              Tab(text: AppLocalizations.of(context)!.downloading),
             ],
           ),
         ),
@@ -52,7 +53,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
   /// 构建已完成下载任务列表
   Widget _buildDownloadedList(List<DownloadTask> tasks) {
     if (tasks.isEmpty) {
-      return const Center(child: Text('暂无已完成的视频'));
+      return Center(child: Text(AppLocalizations.of(context)!.noDownloadedVideos));
     }
     return ListView.builder(
       itemCount: tasks.length,
@@ -65,23 +66,23 @@ class _DownloadScreenState extends State<DownloadScreen> {
             child: CommonImage(task.cover, radius: 4),
           ),
           title: Text(task.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-          subtitle: Text('画质: ${task.quality}'),
+          subtitle: Text('${AppLocalizations.of(context)!.quality}: ${task.quality}'),
           trailing: IconButton(
             icon: const Icon(Icons.delete_outline),
             onPressed: () {
                showDialog(
                  context: context,
                  builder: (ctx) => AlertDialog(
-                   title: const Text('确认删除'),
-                   content: Text('确定要删除 "${task.title}" 吗？'),
+                   title: Text(AppLocalizations.of(context)!.confirmDelete),
+                   content: Text(AppLocalizations.of(context)!.deleteTaskConfirm(task.title)),
                    actions: [
-                     TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+                     TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLocalizations.of(context)!.cancel)),
                      TextButton(
                        onPressed: () {
                          _downloadService.deleteTask(task.bvid, task.cid);
                          Navigator.pop(ctx);
                        },
-                       child: const Text('删除'),
+                       child: Text(AppLocalizations.of(context)!.delete),
                      ),
                    ],
                  ),
@@ -119,7 +120,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
   /// 构建进行中下载任务列表
   Widget _buildDownloadingList(List<DownloadTask> tasks) {
      if (tasks.isEmpty) {
-      return const Center(child: Text('暂无进行中的任务'));
+      return Center(child: Text(AppLocalizations.of(context)!.noDownloadingTasks));
     }
     return ListView.builder(
       itemCount: tasks.length,
@@ -138,7 +139,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
               const SizedBox(height: 4),
               LinearProgressIndicator(value: task.progress),
               const SizedBox(height: 4),
-              Text(_getStatusText(task.status)),
+              Text(_getStatusText(context, task.status)),
             ],
           ),
           trailing: task.status == DownloadStatus.failed 
@@ -160,12 +161,12 @@ class _DownloadScreenState extends State<DownloadScreen> {
   }
 
   /// 获取下载状态的文本描述
-  String _getStatusText(DownloadStatus status) {
+  String _getStatusText(BuildContext context, DownloadStatus status) {
     switch (status) {
-      case DownloadStatus.pending: return '等待中...';
-      case DownloadStatus.running: return '下载中';
-      case DownloadStatus.paused: return '已暂停';
-      case DownloadStatus.failed: return '下载失败';
+      case DownloadStatus.pending: return AppLocalizations.of(context)!.statusPending;
+      case DownloadStatus.running: return AppLocalizations.of(context)!.statusRunning;
+      case DownloadStatus.paused: return AppLocalizations.of(context)!.statusPaused;
+      case DownloadStatus.failed: return AppLocalizations.of(context)!.statusFailed;
       default: return '';
     }
   }

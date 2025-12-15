@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:onlystudy/l10n/app_localizations.dart';
 
 /// 通用错误提示组件，包含错误信息和重试按钮
 class ErrorView extends StatelessWidget {
@@ -28,7 +29,7 @@ class ErrorView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              '哎呀，出错了',
+              AppLocalizations.of(context)!.oopsError,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     color: Colors.grey[700],
                     fontWeight: FontWeight.bold,
@@ -44,7 +45,7 @@ class ErrorView extends StatelessWidget {
             FilledButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
-              label: const Text('重试'),
+              label: Text(AppLocalizations.of(context)!.retry),
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:onlystudy/l10n/app_localizations.dart';
 import '../models/bili_models.dart';
 import '../widgets/video_tile.dart';
 import '../widgets/error_view.dart';
@@ -100,11 +101,11 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
       if (mounted) {
         if (refresh) {
           setState(() {
-            _error = '加载视频失败: ${e.toString()}';
+            _error = AppLocalizations.of(context)!.loadFailed(e.toString());
           });
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('加载更多失败: ${e.toString()}')),
+            SnackBar(content: Text(AppLocalizations.of(context)!.loadMoreFailed(e.toString()))),
           );
         }
       }
@@ -126,7 +127,7 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
         title: _isSearching
             ? CustomSearchBar(
                 controller: _searchController,
-                hintText: '在线搜索此收藏夹...',
+                hintText: AppLocalizations.of(context)!.searchFolder,
                 onSubmitted: (value) {
                   setState(() {
                     _searchKeyword = value;
@@ -170,8 +171,8 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
               : RefreshIndicator(
                   onRefresh: () => _fetchVideos(refresh: true),
                   child: _videos.isEmpty
-                      ? const Center(
-                          child: Text('此收藏夹中没有视频。'),
+                      ? Center(
+                          child: Text(AppLocalizations.of(context)!.noVideosInFolder),
                         )
                       : ListView.builder(
                           controller: _scrollController,

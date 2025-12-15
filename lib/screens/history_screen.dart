@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:onlystudy/l10n/app_localizations.dart';
 import '../models/bili_models.dart';
 import '../services/history_service.dart';
 import '../widgets/video_tile.dart';
@@ -42,28 +43,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('观看历史'),
+        title: Text(AppLocalizations.of(context)!.watchHistory),
         actions: [
           IconButton(
             icon: const Icon(Icons.delete),
-            tooltip: '清空历史',
+            tooltip: AppLocalizations.of(context)!.clearHistory,
             onPressed: () {
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
-                  title: const Text('清空历史'),
-                  content: const Text('确定要清空所有本地观看历史吗？'),
+                  title: Text(AppLocalizations.of(context)!.clearHistory),
+                  content: Text(AppLocalizations.of(context)!.confirmClearHistory),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('取消'),
+                      child: Text(AppLocalizations.of(context)!.cancel),
                     ),
                     TextButton(
                       onPressed: () {
                         Navigator.pop(context);
                         _clearHistory();
                       },
-                      child: const Text('清空'),
+                      child: Text(AppLocalizations.of(context)!.clear),
                     ),
                   ],
                 ),
@@ -75,7 +76,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _videos.isEmpty
-              ? const Center(child: Text('暂无观看记录'))
+              ? Center(child: Text(AppLocalizations.of(context)!.noHistory))
               : ListView.builder(
                   padding: const EdgeInsets.all(12),
                   itemCount: _videos.length,

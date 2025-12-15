@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:onlystudy/l10n/app_localizations.dart';
 import '../services/auth_service.dart';
 import 'select_folders_screen.dart';
 
@@ -15,14 +16,19 @@ class _LoginScreenState extends State<LoginScreen> {
   final AuthService _authService = AuthService();
   String? _qrUrl;
   String? _qrKey;
-  String _statusText = '正在获取二维码...';
+  String _statusText = ''; // Will be set in initState
   Timer? _timer;
   bool _isExpired = false;
 
   @override
   void initState() {
     super.initState();
-    _loadQRCode();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() {
+            _statusText = AppLocalizations.of(context)!.fetchingQRCode;
+        });
+        _loadQRCode();
+    });
   }
 
   @override
@@ -33,8 +39,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   /// 加载并显示登录二维码
   Future<void> _loadQRCode() async {
+    if (!mounted) return;
     setState(() {
-      _statusText = '正在加载...';
+      _statusText = AppLocalizations.of(context)!.fetchingQRCode;
       _isExpired = false;
     });
 
@@ -44,14 +51,14 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() {
           _qrUrl = data['url'];
           _qrKey = data['qrcode_key'];
-          _statusText = '请使用 Bilibili 手机端扫码';
+          _statusText = AppLocalizations.of(context)!.scanQRCode;
         });
         _startPolling();
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _statusText = '获取失败: $e';
+          _statusText = e.toString();
         });
       }
     }
@@ -70,9 +77,9 @@ class _LoginScreenState extends State<LoginScreen> {
           timer.cancel();
           if (mounted) {
             setState(() {
-              _statusText = '登录成功! 正在跳转...';
+              _statusText = AppLocalizations.of(context)!.loginSuccess;
             });
-                        await _authService.saveLoginInfo(result['url']);
+            await _authService.saveLoginInfo(result['url']);
             if (mounted) {
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (context) => const SelectFoldersScreen(isFirstLogin: true)),
@@ -88,7 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
           if (mounted) {
             setState(() {
               _isExpired = true;
-              _statusText = '二维码已过期';
+              _statusText = AppLocalizations.of(context)!.qrCodeExpired;
             });
           }
         }
@@ -99,14 +106,14 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('登录 Bilibili')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.loginBilibili)),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              '唯学',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            Text(
+              AppLocalizations.of(context)!.appName,
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 32),
             Container(
@@ -133,7 +140,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ElevatedButton.icon(
                 onPressed: _loadQRCode,
                 icon: const Icon(Icons.refresh),
-                label: const Text('刷新二维码'),
+                label: Text(AppLocalizations.of(context)!.refreshQRCode),
               )
             ]
           ],

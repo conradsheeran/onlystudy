@@ -175,7 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = '加载内容失败: ${e.toString()}';
+          _error = AppLocalizations.of(context)!.loadFailed(e.toString());
         });
       }
     } finally {
@@ -220,7 +220,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _handleLockPress() async {
     if (_isLocked) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('当前为锁定状态，请长按解锁')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.lockedHint)),
       );
     } else {
       final hasPassword = await AuthService().isFolderLockSet();
@@ -233,7 +233,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _isLocked = true;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('已锁定修改')),
+            SnackBar(content: Text(AppLocalizations.of(context)!.locked)),
           );
         }
       }
@@ -253,17 +253,17 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('设置锁定密码'),
+        title: Text(AppLocalizations.of(context)!.setPassword),
         content: TextField(
           controller: controller,
           obscureText: true,
-          decoration: const InputDecoration(hintText: '输入密码'),
+          decoration: InputDecoration(hintText: AppLocalizations.of(context)!.enterPassword),
           autofocus: true,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             onPressed: () async {
@@ -276,12 +276,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   });
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('密码已设置并锁定')),
+                    SnackBar(content: Text(AppLocalizations.of(context)!.passwordSet)),
                   );
                 }
               }
             },
-            child: const Text('确定'),
+            child: Text(AppLocalizations.of(context)!.confirm),
           ),
         ],
       ),
@@ -294,17 +294,17 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('解锁修改'),
+        title: Text(AppLocalizations.of(context)!.unlockFolderSelection),
         content: TextField(
           controller: controller,
           obscureText: true,
-          decoration: const InputDecoration(hintText: '输入密码'),
+          decoration: InputDecoration(hintText: AppLocalizations.of(context)!.enterPassword),
           autofocus: true,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             onPressed: () async {
@@ -319,15 +319,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                  });
                                  Navigator.pop(context);
                                  ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('已解锁')),
+                                  SnackBar(content: Text(AppLocalizations.of(context)!.unlocked)),
                                  );
                                }
                             } else {
                                ScaffoldMessenger.of(context).showSnackBar(
-                                 const SnackBar(content: Text('密码错误')),
+                                 SnackBar(content: Text(AppLocalizations.of(context)!.passwordIncorrect)),
                                );
                             }            },
-            child: const Text('解锁'),
+            child: Text(AppLocalizations.of(context)!.unlock),
           ),
         ],
       ),
@@ -348,6 +348,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ? CustomSearchBar(
                   key: const ValueKey('SearchBar'),
                   controller: _searchController,
+                  hintText: AppLocalizations.of(context)!.searchHint,
                   onChanged: _onSearchChanged,
                   onClear: () {
                     setState(() {
@@ -377,7 +378,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             IconButton(
               icon: const Icon(Icons.history),
-              tooltip: '本地观看历史', 
+              tooltip: AppLocalizations.of(context)!.watchHistory, 
               onPressed: () {
                 Navigator.push(
                   context,
@@ -428,8 +429,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           key: const ValueKey('ContentList'),
                           onRefresh: () => _fetchContent(refresh: true),
                           child: _items.isEmpty
-                              ? const Center(
-                                  child: Text('没有找到收藏夹或合集，请登录或刷新\n或点击右下角锁定按钮旁的筛选(如果解锁)'),
+                              ? Center(
+                                  child: Text(AppLocalizations.of(context)!.noContentFound),
                                 )
                               : Padding(
                                   padding: const EdgeInsets.all(12.0),
@@ -503,14 +504,14 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_searchKeyword.isEmpty) {
       return Container(
         key: const ValueKey('SearchResults'),
-        child: const Center(child: Text('请输入关键词搜索视频')),
+        child: Center(child: Text(AppLocalizations.of(context)!.searchHint)),
       );
     }
     
     if (_searchResults.isEmpty) {
       return Container(
         key: const ValueKey('SearchResults'),
-        child: const Center(child: Text('没有找到相关视频')),
+        child: Center(child: Text(AppLocalizations.of(context)!.noResult)),
       );
     }
 

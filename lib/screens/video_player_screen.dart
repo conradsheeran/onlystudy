@@ -283,7 +283,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('即将播放 P${index + 1}: ${_pages[index].part}'),
+        content: Text(AppLocalizations.of(context)!.playingPart((index + 1).toString(), _pages[index].part)),
         duration: const Duration(seconds: 1),
       ),
     );
@@ -307,7 +307,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = '切换分P失败: $e';
+          _error = AppLocalizations.of(context)!.switchPartFailed(e.toString());
           _isLoading = false;
         });
       }
@@ -391,7 +391,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Text(
-                '分集列表 (${_pages.length})',
+                '${AppLocalizations.of(context)!.partsList} (${_pages.length})',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -509,8 +509,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         _accumulatedDy += details.primaryDelta ?? 0;
         
         // Sensitivity: 200px = 100% change
-        // Delta is positive when dragging down (decrease), negative when up (increase)
-        // So change = -delta / sensitivity
         double change = -_accumulatedDy / 200.0;
 
         if (_isAdjustingVolume && _startVolume != null) {
@@ -597,7 +595,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       if (_pages.isNotEmpty && _pages.length > 1)
          IconButton(
           icon: const Icon(Icons.list, color: Colors.white),
-          tooltip: '分集列表',
+          tooltip: AppLocalizations.of(context)!.partsList,
           onPressed: _showPartsList,
         ),
       // Speed Control

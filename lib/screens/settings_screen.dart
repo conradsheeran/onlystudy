@@ -100,17 +100,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('解锁收藏夹修改'),
+        title: Text(AppLocalizations.of(context)!.unlockFolderSelection),
         content: TextField(
           controller: controller,
           obscureText: true,
-          decoration: const InputDecoration(hintText: '输入密码'),
+          decoration: InputDecoration(hintText: AppLocalizations.of(context)!.enterPassword),
           autofocus: true,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             onPressed: () async {
@@ -122,7 +122,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                  if (context.mounted) {
                    Navigator.pop(context); // Close dialog
                    ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('已解锁')),
+                    SnackBar(content: Text(AppLocalizations.of(context)!.unlocked)),
                    );
                    Navigator.push(
                     context,
@@ -131,11 +131,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                  }
               } else {
                  ScaffoldMessenger.of(context).showSnackBar(
-                   const SnackBar(content: Text('密码错误')),
+                   SnackBar(content: Text(AppLocalizations.of(context)!.passwordIncorrect)),
                  );
               }
             },
-            child: const Text('解锁'),
+            child: Text(AppLocalizations.of(context)!.unlock),
           ),
         ],
       ),
@@ -148,15 +148,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(AppLocalizations.of(context)!.clearCache),
-        content: const Text('确定要清理所有缓存吗？'),
+        content: Text(AppLocalizations.of(context)!.confirmClearCache),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('确定'),
+            child: Text(AppLocalizations.of(context)!.confirm),
           ),
         ],
       ),
@@ -166,7 +166,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await CacheService().clearCache();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('缓存已清理')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.cacheCleared)),
         );
       }
     }
@@ -179,17 +179,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       barrierDismissible: true,
       builder: (context) => AlertDialog(
-        title: const Text('验证密码'),
+        title: Text(AppLocalizations.of(context)!.verifyPassword),
         content: TextField(
           controller: controller,
           obscureText: true,
-          decoration: const InputDecoration(hintText: '输入密码'),
+          decoration: InputDecoration(hintText: AppLocalizations.of(context)!.enterPassword),
           autofocus: true,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             onPressed: () async {
@@ -199,12 +199,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Navigator.pop(context, true);
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('密码错误')),
+                    SnackBar(content: Text(AppLocalizations.of(context)!.passwordIncorrect)),
                   );
                 }
               }
             },
-            child: const Text('确定'),
+            child: Text(AppLocalizations.of(context)!.confirm),
           ),
         ],
       ),
@@ -228,16 +228,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(AppLocalizations.of(context)!.logout),
-        content: const Text('确定要退出登录吗？'),
+        content: Text(AppLocalizations.of(context)!.confirmLogout),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('退出'),
+            child: Text(AppLocalizations.of(context)!.logout),
           ),
         ],
       ),
@@ -285,7 +285,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(AppLocalizations.of(context)!.cancel),
             ),
           ],
         );

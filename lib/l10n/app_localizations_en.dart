@@ -139,4 +139,188 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get defaultPlaybackSpeed => 'Default Playback Speed';
+
+  @override
+  String get unlockFolderSelection => 'Unlock Folder Selection';
+
+  @override
+  String get enterPassword => 'Enter Password';
+
+  @override
+  String get verifyPassword => 'Verify Password';
+
+  @override
+  String get confirmClearCache => 'Are you sure you want to clear all cache?';
+
+  @override
+  String get confirmLogout => 'Are you sure you want to logout?';
+
+  @override
+  String get confirm => 'Confirm';
+
+  @override
+  String get unlocked => 'Unlocked';
+
+  @override
+  String get passwordIncorrect => 'Incorrect Password';
+
+  @override
+  String get cacheCleared => 'Cache Cleared';
+
+  @override
+  String get loginBilibili => 'Login to Bilibili';
+
+  @override
+  String get fetchingQRCode => 'Fetching QR Code...';
+
+  @override
+  String get scanQRCode => 'Please scan with Bilibili App';
+
+  @override
+  String get loginSuccess => 'Login Successful! Redirecting...';
+
+  @override
+  String get qrCodeExpired => 'QR Code Expired';
+
+  @override
+  String get refreshQRCode => 'Refresh QR Code';
+
+  @override
+  String get lockedHint => 'Currently locked, long press to unlock';
+
+  @override
+  String get locked => 'Locked';
+
+  @override
+  String get setPassword => 'Set Lock Password';
+
+  @override
+  String get passwordSet => 'Password set and locked';
+
+  @override
+  String get unlock => 'Unlock';
+
+  @override
+  String get noContentFound => 'No content found, please login or refresh';
+
+  @override
+  String get searchHint => 'Search videos...';
+
+  @override
+  String get noResult => 'No results found';
+
+  @override
+  String get favorites => 'Favorites';
+
+  @override
+  String get subscribedSeasons => 'Subscribed Seasons';
+
+  @override
+  String get offlineCache => 'Offline Cache';
+
+  @override
+  String get completed => 'Completed';
+
+  @override
+  String get downloading => 'Downloading';
+
+  @override
+  String get noDownloadedVideos => 'No downloaded videos';
+
+  @override
+  String get noDownloadingTasks => 'No active downloads';
+
+  @override
+  String get confirmDelete => 'Confirm Delete';
+
+  @override
+  String deleteTaskConfirm(Object title) {
+    return 'Are you sure you want to delete \"$title\"?';
+  }
+
+  @override
+  String get delete => 'Delete';
+
+  @override
+  String get statusPending => 'Pending...';
+
+  @override
+  String get statusRunning => 'Downloading';
+
+  @override
+  String get statusPaused => 'Paused';
+
+  @override
+  String get statusFailed => 'Failed';
+
+  @override
+  String get watchHistory => 'Watch History';
+
+  @override
+  String get clearHistory => 'Clear History';
+
+  @override
+  String get confirmClearHistory =>
+      'Are you sure you want to clear all history?';
+
+  @override
+  String get noHistory => 'No history';
+
+  @override
+  String get searchFolder => 'Search in folder...';
+
+  @override
+  String loadFailed(Object error) {
+    return 'Load failed: $error';
+  }
+
+  @override
+  String loadMoreFailed(Object error) {
+    return 'Load more failed: $error';
+  }
+
+  @override
+  String get noVideosInFolder => 'No videos in this folder.';
+
+  @override
+  String get selectContent => 'Select Content';
+
+  @override
+  String get retry => 'Retry';
+
+  @override
+  String get selectAll => 'Select All';
+
+  @override
+  String get clear => 'Clear';
+
+  @override
+  String get confirmAndEnter => 'Confirm and Enter';
+
+  @override
+  String get selectAtLeastOne => 'Please select at least one folder or season';
+
+  @override
+  String get noVideosInSeason => 'No videos in this season.';
+
+  @override
+  String get partsList => 'Parts List';
+
+  @override
+  String playingPart(Object part, Object title) {
+    return 'Playing P$part: $title';
+  }
+
+  @override
+  String get oopsError => 'Oops, something went wrong';
+
+  @override
+  String videoCount(Object count) {
+    return '$count Videos';
+  }
+
+  @override
+  String switchPartFailed(Object error) {
+    return 'Failed to switch part: $error';
+  }
 }

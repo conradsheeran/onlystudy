@@ -139,4 +139,187 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get defaultPlaybackSpeed => '默认播放倍速';
+
+  @override
+  String get unlockFolderSelection => '解锁收藏夹修改';
+
+  @override
+  String get enterPassword => '输入密码';
+
+  @override
+  String get verifyPassword => '验证密码';
+
+  @override
+  String get confirmClearCache => '确定要清理所有缓存吗？';
+
+  @override
+  String get confirmLogout => '确定要退出登录吗？';
+
+  @override
+  String get confirm => '确定';
+
+  @override
+  String get unlocked => '已解锁';
+
+  @override
+  String get passwordIncorrect => '密码错误';
+
+  @override
+  String get cacheCleared => '缓存已清理';
+
+  @override
+  String get loginBilibili => '登录 Bilibili';
+
+  @override
+  String get fetchingQRCode => '正在获取二维码...';
+
+  @override
+  String get scanQRCode => '请使用 Bilibili 手机端扫码';
+
+  @override
+  String get loginSuccess => '登录成功! 正在跳转...';
+
+  @override
+  String get qrCodeExpired => '二维码已过期';
+
+  @override
+  String get refreshQRCode => '刷新二维码';
+
+  @override
+  String get lockedHint => '当前为锁定状态，请长按解锁';
+
+  @override
+  String get locked => '已锁定修改';
+
+  @override
+  String get setPassword => '设置锁定密码';
+
+  @override
+  String get passwordSet => '密码已设置并锁定';
+
+  @override
+  String get unlock => '解锁';
+
+  @override
+  String get noContentFound => '没有找到收藏夹或合集，请登录或刷新';
+
+  @override
+  String get searchHint => '请输入关键词搜索视频';
+
+  @override
+  String get noResult => '没有找到相关视频';
+
+  @override
+  String get favorites => '收藏夹';
+
+  @override
+  String get subscribedSeasons => '订阅合集';
+
+  @override
+  String get offlineCache => '离线缓存';
+
+  @override
+  String get completed => '已完成';
+
+  @override
+  String get downloading => '进行中';
+
+  @override
+  String get noDownloadedVideos => '暂无已完成的视频';
+
+  @override
+  String get noDownloadingTasks => '暂无进行中的任务';
+
+  @override
+  String get confirmDelete => '确认删除';
+
+  @override
+  String deleteTaskConfirm(Object title) {
+    return '确定要删除 \"$title\" 吗？';
+  }
+
+  @override
+  String get delete => '删除';
+
+  @override
+  String get statusPending => '等待中...';
+
+  @override
+  String get statusRunning => '下载中';
+
+  @override
+  String get statusPaused => '已暂停';
+
+  @override
+  String get statusFailed => '下载失败';
+
+  @override
+  String get watchHistory => '观看历史';
+
+  @override
+  String get clearHistory => '清空历史';
+
+  @override
+  String get confirmClearHistory => '确定要清空所有本地观看历史吗？';
+
+  @override
+  String get noHistory => '暂无观看记录';
+
+  @override
+  String get searchFolder => '在线搜索此收藏夹...';
+
+  @override
+  String loadFailed(Object error) {
+    return '加载视频失败: $error';
+  }
+
+  @override
+  String loadMoreFailed(Object error) {
+    return '加载更多失败: $error';
+  }
+
+  @override
+  String get noVideosInFolder => '此收藏夹中没有视频。';
+
+  @override
+  String get selectContent => '选择显示的内容';
+
+  @override
+  String get retry => '重试';
+
+  @override
+  String get selectAll => '全选';
+
+  @override
+  String get clear => '清空';
+
+  @override
+  String get confirmAndEnter => '确认并进入';
+
+  @override
+  String get selectAtLeastOne => '请至少选择一个收藏夹或合集';
+
+  @override
+  String get noVideosInSeason => '此合集中没有视频。';
+
+  @override
+  String get partsList => '分集列表';
+
+  @override
+  String playingPart(Object part, Object title) {
+    return '即将播放 P$part: $title';
+  }
+
+  @override
+  String get oopsError => '哎呀，出错了';
+
+  @override
+  String videoCount(Object count) {
+    return '$count 个视频';
+  }
+
+  @override
+  String switchPartFailed(Object error) {
+    return '切换分P失败: $error';
+  }
 }

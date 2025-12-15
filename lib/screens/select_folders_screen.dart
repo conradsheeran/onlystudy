@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:onlystudy/l10n/app_localizations.dart';
 import '../models/bili_models.dart';
 import '../services/auth_service.dart';
 import '../services/bili_api_service.dart';
@@ -78,7 +79,7 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = '加载失败: $e';
+          _error = AppLocalizations.of(context)!.loadFailed(e.toString());
           _isLoading = false;
         });
       }
@@ -89,7 +90,7 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
   Future<void> _onConfirm() async {
     if (_selectedIds.isEmpty && _selectedSeasonIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请至少选择一个收藏夹或合集')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.selectAtLeastOne)),
       );
       return;
     }
@@ -109,7 +110,7 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
     } catch (e) {
       if (mounted) {
          ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('保存失败: $e')),
+          SnackBar(content: Text('Error: $e')),
         );
       }
     }
@@ -119,7 +120,7 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('选择显示的内容'),
+        title: Text(AppLocalizations.of(context)!.selectContent),
         actions: [
           IconButton(
             icon: const Icon(Icons.check),
@@ -138,7 +139,7 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: _loadData,
-                        child: const Text('重试'),
+                        child: Text(AppLocalizations.of(context)!.retry),
                       ),
                     ],
                   ),
@@ -158,7 +159,7 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
                                 });
                               },
                               icon: const Icon(Icons.select_all),
-                              label: const Text('全选'),
+                              label: Text(AppLocalizations.of(context)!.selectAll),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -171,7 +172,7 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
                                 });
                               },
                               icon: const Icon(Icons.clear_all),
-                              label: const Text('清空'),
+                              label: Text(AppLocalizations.of(context)!.clear),
                             ),
                           ),
                         ],
@@ -181,10 +182,10 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
                       child: CustomScrollView(
                         slivers: [
                           if (_allFolders.isNotEmpty) ...[
-                            const SliverToBoxAdapter(
+                            SliverToBoxAdapter(
                                 child: Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                                  child: Text('收藏夹', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                                  child: Text(AppLocalizations.of(context)!.favorites, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                                 ),
                             ),
                             SliverList(
@@ -195,7 +196,7 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
                                   return CheckboxListTile(
                                     value: isSelected,
                                     title: Text(folder.title),
-                                    subtitle: Text('${folder.mediaCount}个视频'),
+                                    subtitle: Text(AppLocalizations.of(context)!.videoCount(folder.mediaCount)),
                                     secondary: ClipRRect(
                                       borderRadius: BorderRadius.circular(4),
                                       child: Image.network(
@@ -227,10 +228,10 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
                           ],
                           
                           if (_allSeasons.isNotEmpty) ...[
-                            const SliverToBoxAdapter(
+                            SliverToBoxAdapter(
                                 child: Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                                  child: Text('订阅合集', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                                  child: Text(AppLocalizations.of(context)!.subscribedSeasons, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                                 ),
                             ),
                              SliverList(
@@ -241,7 +242,7 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
                                   return CheckboxListTile(
                                     value: isSelected,
                                     title: Text(season.title),
-                                    subtitle: Text('${season.mediaCount}个视频 · ${season.upper.name}'),
+                                    subtitle: Text('${AppLocalizations.of(context)!.videoCount(season.mediaCount)} · ${season.upper.name}'),
                                     secondary: ClipRRect(
                                       borderRadius: BorderRadius.circular(4),
                                       child: Image.network(
@@ -280,11 +281,11 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
                         width: double.infinity,
                         child: FilledButton(
                           onPressed: _onConfirm,
-                          child: const Padding(
-                            padding: EdgeInsets.all(16.0),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
                             child: Text(
-                              '确认并进入',
-                              style: TextStyle(fontSize: 18),
+                              AppLocalizations.of(context)!.confirmAndEnter,
+                              style: const TextStyle(fontSize: 18),
                             ),
                           ),
                         ),
