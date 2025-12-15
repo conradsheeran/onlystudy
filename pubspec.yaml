@@ -1,7 +1,7 @@
 name: onlystudy
 description: "OnlyStudy is an immersive Bilibili video player designed specifically for learning, featuring a lock function to ensure a focused study environment."
 publish_to: 'none'
-version: 0.4.3+17
+version: 0.4.4+18
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -28,6 +28,7 @@ dependencies:
   flutter_cache_manager: ^3.4.1
   crypto: ^3.0.7
   url_launcher: ^6.3.2
+  package_info_plus: ^9.0.0
 
 dev_dependencies:
   flutter_test:

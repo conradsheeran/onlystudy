@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../services/settings_service.dart';
+import '../services/update_service.dart';
 
 class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
@@ -75,12 +77,34 @@ class _AboutScreenState extends State<AboutScreen> {
           ),
           const SizedBox(height: 48),
           ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.system_update),
+            title: Text(AppLocalizations.of(context)!.checkUpdate),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () {
+               UpdateService().checkUpdate(context);
+            },
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.autorenew),
+            title: Text(AppLocalizations.of(context)!.autoCheckUpdate),
+            value: SettingsService().autoCheckUpdate,
+            onChanged: (bool value) async {
+               await SettingsService().setAutoCheckUpdate(value);
+               setState(() {});
+            },
+          ),
+          const Divider(),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.code),
             title: Text(AppLocalizations.of(context)!.githubRepo),
             subtitle: const Text('https://github.com/conradsheeran/onlystudy'),
             onTap: () => _launchUrl('https://github.com/conradsheeran/onlystudy'),
           ),
           ListTile(
+            contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.bug_report),
             title: Text(AppLocalizations.of(context)!.reportBug),
             subtitle: const Text('GitHub Issues'),
@@ -102,7 +126,7 @@ class _AboutScreenState extends State<AboutScreen> {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),

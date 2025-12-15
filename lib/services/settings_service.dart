@@ -6,10 +6,13 @@ class SettingsService {
   SettingsService._internal();
 
   static const String _keyDefaultResolution = 'default_resolution';
+  static const String _keyAutoCheckUpdate = 'auto_check_update';
   
   int _defaultResolution = 64;
+  bool _autoCheckUpdate = true;
 
   int get defaultResolution => _defaultResolution;
+  bool get autoCheckUpdate => _autoCheckUpdate;
 
   static const Map<int, String> resolutionMap = {
     120: '4K',
@@ -23,11 +26,18 @@ class SettingsService {
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     _defaultResolution = prefs.getInt(_keyDefaultResolution) ?? 64;
+    _autoCheckUpdate = prefs.getBool(_keyAutoCheckUpdate) ?? true;
   }
 
   Future<void> setDefaultResolution(int resolution) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_keyDefaultResolution, resolution);
     _defaultResolution = resolution;
+  }
+
+  Future<void> setAutoCheckUpdate(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyAutoCheckUpdate, value);
+    _autoCheckUpdate = value;
   }
 }

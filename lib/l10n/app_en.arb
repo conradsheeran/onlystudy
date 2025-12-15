@@ -23,5 +23,13 @@
   "logout": "Logout",
   "slogan": "Don't let knowledge rot in your favorites",
   "githubRepo": "GitHub Repository",
-  "reportBug": "Report Bug"
+  "reportBug": "Report Bug",
+  "checkUpdate": "Check for Updates",
+  "newVersionAvailable": "New version available: {version}",
+  "currentVersion": "Current version: {version}",
+  "update": "Update",
+  "cancel": "Cancel",
+  "noUpdateAvailable": "You are using the latest version.",
+  "checkUpdateFailed": "Failed to check for updates.",
+  "autoCheckUpdate": "Auto Check for Updates"
 }

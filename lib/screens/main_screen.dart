@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
+import '../services/update_service.dart';
 import 'home_screen.dart';
 import 'settings_screen.dart';
 
@@ -16,6 +17,14 @@ class _MainScreenState extends State<MainScreen> {
     const HomeScreen(),
     const SettingsScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateService().checkUpdate(context, silent: true);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

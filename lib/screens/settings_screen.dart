@@ -271,7 +271,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'), // Could be localized
+              child: const Text('Cancel'),
             ),
           ],
         );

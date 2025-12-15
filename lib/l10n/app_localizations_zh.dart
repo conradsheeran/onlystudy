@@ -90,4 +90,32 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get reportBug => '提交 Bug';
+
+  @override
+  String get checkUpdate => '检查更新';
+
+  @override
+  String newVersionAvailable(Object version) {
+    return '发现新版本: $version';
+  }
+
+  @override
+  String currentVersion(Object version) {
+    return '当前版本: $version';
+  }
+
+  @override
+  String get update => '立即更新';
+
+  @override
+  String get cancel => '取消';
+
+  @override
+  String get noUpdateAvailable => '已是最新版本';
+
+  @override
+  String get checkUpdateFailed => '检查更新失败';
+
+  @override
+  String get autoCheckUpdate => '自动检查更新';
 }

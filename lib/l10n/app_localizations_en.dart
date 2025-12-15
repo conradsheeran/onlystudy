@@ -90,4 +90,32 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reportBug => 'Report Bug';
+
+  @override
+  String get checkUpdate => 'Check for Updates';
+
+  @override
+  String newVersionAvailable(Object version) {
+    return 'New version available: $version';
+  }
+
+  @override
+  String currentVersion(Object version) {
+    return 'Current version: $version';
+  }
+
+  @override
+  String get update => 'Update';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get noUpdateAvailable => 'You are using the latest version.';
+
+  @override
+  String get checkUpdateFailed => 'Failed to check for updates.';
+
+  @override
+  String get autoCheckUpdate => 'Auto Check for Updates';
 }

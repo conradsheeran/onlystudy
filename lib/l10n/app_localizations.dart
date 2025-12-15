@@ -247,6 +247,54 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'提交 Bug'**
   String get reportBug;
+
+  /// No description provided for @checkUpdate.
+  ///
+  /// In zh, this message translates to:
+  /// **'检查更新'**
+  String get checkUpdate;
+
+  /// No description provided for @newVersionAvailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'发现新版本: {version}'**
+  String newVersionAvailable(Object version);
+
+  /// No description provided for @currentVersion.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前版本: {version}'**
+  String currentVersion(Object version);
+
+  /// No description provided for @update.
+  ///
+  /// In zh, this message translates to:
+  /// **'立即更新'**
+  String get update;
+
+  /// No description provided for @cancel.
+  ///
+  /// In zh, this message translates to:
+  /// **'取消'**
+  String get cancel;
+
+  /// No description provided for @noUpdateAvailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'已是最新版本'**
+  String get noUpdateAvailable;
+
+  /// No description provided for @checkUpdateFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'检查更新失败'**
+  String get checkUpdateFailed;
+
+  /// No description provided for @autoCheckUpdate.
+  ///
+  /// In zh, this message translates to:
+  /// **'自动检查更新'**
+  String get autoCheckUpdate;
 }
 
 class _AppLocalizationsDelegate
