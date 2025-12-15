@@ -5,12 +5,15 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
 import 'settings_service.dart';
 
+/// 应用更新检查服务
 class UpdateService {
   static final UpdateService _instance = UpdateService._internal();
   factory UpdateService() => _instance;
   UpdateService._internal();
 
+  /// 检查 GitHub Release 更新
   Future<void> checkUpdate(BuildContext context, {bool silent = false}) async {
+    // 如果是静默检查且用户关闭了自动检查，则直接返回
     if (silent && !SettingsService().autoCheckUpdate) {
       return;
     }
@@ -26,6 +29,7 @@ class UpdateService {
         final data = response.data;
         final String tagName = data['tag_name'];
         final String htmlUrl = data['html_url'];
+        // 移除版本号可能存在的前缀 'v'
         final latestVersion = tagName.startsWith('v') ? tagName.substring(1) : tagName;
 
         if (_isNewVersion(currentVersion, latestVersion)) {
@@ -48,12 +52,13 @@ class UpdateService {
     }
   }
 
+  /// 简单的版本号比对逻辑 (x.y.z)
   bool _isNewVersion(String current, String latest) {
     try {
         final currentParts = current.split('.').map(int.parse).toList();
         final latestParts = latest.split('.').map(int.parse).toList();
         
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 3; i++) { // 比较 major, minor, patch
             final c = i < currentParts.length ? currentParts[i] : 0;
             final l = i < latestParts.length ? latestParts[i] : 0;
             if (l > c) return true;
@@ -65,6 +70,7 @@ class UpdateService {
     }
   }
 
+  /// 显示更新提示对话框
   void _showUpdateDialog(BuildContext context, String version, String url) {
     showDialog(
       context: context,

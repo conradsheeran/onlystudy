@@ -46,14 +46,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   List<VideoPage> _pages = [];
   int _currentPartIndex = 0;
 
-  // Player State
   late double _playbackSpeed;
   bool _showOverlay = false;
   String _overlayText = '';
   IconData _overlayIcon = Icons.info;
   Timer? _overlayTimer;
 
-  // Seek State
+  double _accumulatedDy = 0.0;
+  double? _startVolume;
+  double? _startBrightness;
+  bool _isAdjustingVolume = false;
+  bool _isAdjustingBrightness = false;
+
   Duration _seekTarget = Duration.zero;
 
   Video get _currentVideo => widget.playlist[_currentIndex];
@@ -474,31 +478,51 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
              });
          }
       },
-      onVerticalDragUpdate: (details) async {
+      onVerticalDragStart: (details) {
         final screenWidth = MediaQuery.of(context).size.width;
         final x = details.globalPosition.dx;
-        final delta = details.primaryDelta ?? 0;
         
-        // Right side: Volume (System)
+        _accumulatedDy = 0.0;
+        _isAdjustingVolume = false;
+        _isAdjustingBrightness = false;
+
+        // Determine area once at start
         if (x > screenWidth / 2) {
+           _isAdjustingVolume = true;
+           // Fetch initial volume
+           FlutterVolumeController.getVolume().then((v) {
+              _startVolume = v ?? 0.5;
+           });
+        } else {
+           _isAdjustingBrightness = true;
+           // Fetch initial brightness
+           ScreenBrightness().application.then((v) {
+              _startBrightness = v;
+           }).catchError((e) {
+              _startBrightness = 0.5; // Fallback
+           });
+        }
+      },
+      onVerticalDragUpdate: (details) async {
+        if (!_isAdjustingVolume && !_isAdjustingBrightness) return;
+
+        _accumulatedDy += details.primaryDelta ?? 0;
+        
+        // Sensitivity: 200px = 100% change
+        // Delta is positive when dragging down (decrease), negative when up (increase)
+        // So change = -delta / sensitivity
+        double change = -_accumulatedDy / 200.0;
+
+        if (_isAdjustingVolume && _startVolume != null) {
+            double newVol = (_startVolume! + change).clamp(0.0, 1.0);
+            await FlutterVolumeController.setVolume(newVol);
+            _showOverlayInfo(
+              newVol <= 0 ? Icons.volume_off : (newVol < 0.5 ? Icons.volume_down : Icons.volume_up), 
+              '${(newVol * 100).toInt()}%'
+            );
+        } else if (_isAdjustingBrightness && _startBrightness != null) {
              try {
-                 double currentVol = await FlutterVolumeController.getVolume() ?? 0.5;
-                 double change = -(delta / 200);
-                 double newVol = (currentVol + change).clamp(0.0, 1.0);
-                 await FlutterVolumeController.setVolume(newVol);
-                 _showOverlayInfo(
-                    newVol <= 0 ? Icons.volume_off : (newVol < 0.5 ? Icons.volume_down : Icons.volume_up), 
-                    '${(newVol * 100).toInt()}%'
-                 );
-             } catch (e) {
-                 // ignore
-             }
-        } 
-        // Left side: Brightness
-        else {
-             try {
-                double currentB = await ScreenBrightness().application;
-                double newB = (currentB - (delta / 200)).clamp(0.0, 1.0);
+                double newB = (_startBrightness! + change).clamp(0.0, 1.0);
                 await ScreenBrightness().setApplicationScreenBrightness(newB);
                 _showOverlayInfo(Icons.brightness_medium, '${(newB * 100).toInt()}%');
              } catch (e) {

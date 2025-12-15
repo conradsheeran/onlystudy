@@ -7,6 +7,7 @@ import 'about_screen.dart';
 import 'login_screen.dart';
 import 'select_folders_screen.dart';
 
+/// 设置页面，包含清晰度、倍速、收藏夹过滤、缓存清理等功能
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -76,6 +77,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  /// 处理收藏夹选择点击 (包含锁定校验)
   Future<void> _handleSelectFolders() async {
     final isLocked = await AuthService().isFolderSelectionLocked();
     if (isLocked) {
@@ -92,6 +94,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  /// 显示解锁对话框
   void _showUnlockDialog() {
     final controller = TextEditingController();
     showDialog(
@@ -139,6 +142,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  /// 处理清理缓存点击
   Future<void> _handleClearCache() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -168,6 +172,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  /// 验证密码 (通用)
   Future<bool> _verifyPassword() async {
     final controller = TextEditingController();
     final result = await showDialog<bool>(
@@ -207,6 +212,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return result ?? false;
   }
 
+  /// 处理注销点击
   Future<void> _handleLogout() async {
     final isLocked = await AuthService().isFolderSelectionLocked();
     if (isLocked) {
@@ -248,6 +254,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  /// 显示默认清晰度选择对话框
   void _showResolutionDialog() {
     showDialog(
       context: context,
@@ -286,6 +293,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  /// 显示默认倍速选择对话框
   void _showSpeedDialog() {
     showDialog(
       context: context,
@@ -316,7 +324,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(AppLocalizations.of(context)!.cancel),
             ),
           ],
         );

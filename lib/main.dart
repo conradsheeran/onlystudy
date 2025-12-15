@@ -12,6 +12,7 @@ import 'services/download_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 设置图片缓存限制为 500MB，避免内存溢出
   PaintingBinding.instance.imageCache.maximumSizeBytes = 500 * 1024 * 1024; 
   MediaKit.ensureInitialized();
   await DownloadService().init();
@@ -41,8 +42,8 @@ class OnlyStudyApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [
-        Locale('en'), // English
-        Locale('zh'), // Chinese
+        Locale('en'),
+        Locale('zh'),
       ],
       theme: AppTheme.darkTheme,
       darkTheme: AppTheme.darkTheme,

@@ -4,6 +4,7 @@ import '../services/update_service.dart';
 import 'home_screen.dart';
 import 'settings_screen.dart';
 
+/// 主界面容器，包含底部导航栏和子页面切换
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
@@ -21,6 +22,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    // 界面加载完成后自动检查更新
     WidgetsBinding.instance.addPostFrameCallback((_) {
       UpdateService().checkUpdate(context, silent: true);
     });

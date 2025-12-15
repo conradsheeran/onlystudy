@@ -6,6 +6,7 @@ import '../services/bili_api_service.dart';
 import '../services/database_service.dart';
 import 'video_player_screen.dart';
 
+/// 合集内容展示页面，显示合集内的视频列表
 class SeasonContentScreen extends StatefulWidget {
   final Season season;
 
@@ -39,6 +40,7 @@ class _SeasonContentScreenState extends State<SeasonContentScreen> {
     super.dispose();
   }
 
+  /// 滚动监听，触底加载更多
   void _onScroll() {
     if (_scrollController.position.pixels >=
             _scrollController.position.maxScrollExtent - 200 &&
@@ -48,6 +50,7 @@ class _SeasonContentScreenState extends State<SeasonContentScreen> {
     }
   }
 
+  /// 获取合集内的视频列表 (支持分页)
   Future<void> _fetchVideos({bool refresh = false}) async {
     if (refresh) {
       setState(() {
