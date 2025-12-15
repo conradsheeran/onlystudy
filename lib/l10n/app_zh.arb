@@ -34,5 +34,12 @@
   "cancel": "取消",
   "noUpdateAvailable": "已是最新版本",
   "checkUpdateFailed": "检查更新失败",
-  "autoCheckUpdate": "自动检查更新"
+  "autoCheckUpdate": "自动检查更新",
+  "playbackSpeed": "播放速度",
+  "speed": "倍速",
+  "volume": "音量",
+  "brightness": "亮度",
+  "seekForward": "快进",
+  "seekBackward": "后退",
+  "defaultPlaybackSpeed": "默认播放倍速"
 }

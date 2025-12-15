@@ -118,4 +118,25 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get autoCheckUpdate => '自动检查更新';
+
+  @override
+  String get playbackSpeed => '播放速度';
+
+  @override
+  String get speed => '倍速';
+
+  @override
+  String get volume => '音量';
+
+  @override
+  String get brightness => '亮度';
+
+  @override
+  String get seekForward => '快进';
+
+  @override
+  String get seekBackward => '后退';
+
+  @override
+  String get defaultPlaybackSpeed => '默认播放倍速';
 }

@@ -30,6 +30,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: _showResolutionDialog,
           ),
+          ListTile(
+            leading: const Icon(Icons.speed),
+            title: Text(AppLocalizations.of(context)!.defaultPlaybackSpeed),
+            subtitle: Text('${SettingsService().defaultPlaybackSpeed}x'),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: _showSpeedDialog,
+          ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.filter_list),
@@ -258,6 +265,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onChanged: (value) async {
                     if (value != null) {
                       await SettingsService().setDefaultResolution(value);
+                      if (mounted) {
+                        setState(() {});
+                        Navigator.pop(context);
+                      }
+                    }
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showSpeedDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(AppLocalizations.of(context)!.defaultPlaybackSpeed),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((speed) {
+                return RadioListTile<double>(
+                  title: Text('${speed}x'),
+                  value: speed,
+                  groupValue: SettingsService().defaultPlaybackSpeed,
+                  onChanged: (value) async {
+                    if (value != null) {
+                      await SettingsService().setDefaultPlaybackSpeed(value);
                       if (mounted) {
                         setState(() {});
                         Navigator.pop(context);

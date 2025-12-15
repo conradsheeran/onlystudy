@@ -7,12 +7,15 @@ class SettingsService {
 
   static const String _keyDefaultResolution = 'default_resolution';
   static const String _keyAutoCheckUpdate = 'auto_check_update';
+  static const String _keyDefaultPlaybackSpeed = 'default_playback_speed';
   
   int _defaultResolution = 64;
   bool _autoCheckUpdate = true;
+  double _defaultPlaybackSpeed = 1.0;
 
   int get defaultResolution => _defaultResolution;
   bool get autoCheckUpdate => _autoCheckUpdate;
+  double get defaultPlaybackSpeed => _defaultPlaybackSpeed;
 
   static const Map<int, String> resolutionMap = {
     120: '4K',
@@ -27,6 +30,7 @@ class SettingsService {
     final prefs = await SharedPreferences.getInstance();
     _defaultResolution = prefs.getInt(_keyDefaultResolution) ?? 64;
     _autoCheckUpdate = prefs.getBool(_keyAutoCheckUpdate) ?? true;
+    _defaultPlaybackSpeed = prefs.getDouble(_keyDefaultPlaybackSpeed) ?? 1.0;
   }
 
   Future<void> setDefaultResolution(int resolution) async {
@@ -39,5 +43,11 @@ class SettingsService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyAutoCheckUpdate, value);
     _autoCheckUpdate = value;
+  }
+
+  Future<void> setDefaultPlaybackSpeed(double speed) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_keyDefaultPlaybackSpeed, speed);
+    _defaultPlaybackSpeed = speed;
   }
 }

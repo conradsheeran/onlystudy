@@ -118,4 +118,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get autoCheckUpdate => 'Auto Check for Updates';
+
+  @override
+  String get playbackSpeed => 'Playback Speed';
+
+  @override
+  String get speed => 'Speed';
+
+  @override
+  String get volume => 'Volume';
+
+  @override
+  String get brightness => 'Brightness';
+
+  @override
+  String get seekForward => 'Forward';
+
+  @override
+  String get seekBackward => 'Backward';
+
+  @override
+  String get defaultPlaybackSpeed => 'Default Playback Speed';
 }

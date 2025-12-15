@@ -295,6 +295,48 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'自动检查更新'**
   String get autoCheckUpdate;
+
+  /// No description provided for @playbackSpeed.
+  ///
+  /// In zh, this message translates to:
+  /// **'播放速度'**
+  String get playbackSpeed;
+
+  /// No description provided for @speed.
+  ///
+  /// In zh, this message translates to:
+  /// **'倍速'**
+  String get speed;
+
+  /// No description provided for @volume.
+  ///
+  /// In zh, this message translates to:
+  /// **'音量'**
+  String get volume;
+
+  /// No description provided for @brightness.
+  ///
+  /// In zh, this message translates to:
+  /// **'亮度'**
+  String get brightness;
+
+  /// No description provided for @seekForward.
+  ///
+  /// In zh, this message translates to:
+  /// **'快进'**
+  String get seekForward;
+
+  /// No description provided for @seekBackward.
+  ///
+  /// In zh, this message translates to:
+  /// **'后退'**
+  String get seekBackward;
+
+  /// No description provided for @defaultPlaybackSpeed.
+  ///
+  /// In zh, this message translates to:
+  /// **'默认播放倍速'**
+  String get defaultPlaybackSpeed;
 }
 
 class _AppLocalizationsDelegate
