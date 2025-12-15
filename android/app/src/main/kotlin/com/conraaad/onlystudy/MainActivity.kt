@@ -1,4 +1,4 @@
-package com.example.onlystudy
+package com.conraaad.onlystudy
 
 import io.flutter.embedding.android.FlutterActivity
 
