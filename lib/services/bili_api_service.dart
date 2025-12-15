@@ -149,6 +149,15 @@ class BiliApiService {
   /// 获取合集内的视频列表
   Future<List<Video>> getSeasonVideos(int seasonId, int mid, {int pn = 1, int ps = 20}) async {
     try {
+      final folderVideos = await getFolderVideos(seasonId, pn: pn, ps: ps);
+      if (folderVideos.isNotEmpty) {
+        return folderVideos;
+      }
+    } catch (e) {
+      // 
+    }
+
+    try {
       final response = await _dio.get(
         '/x/polymer/web-space/seasons_archives_list',
         queryParameters: {
@@ -167,14 +176,14 @@ class BiliApiService {
         if (archives != null) {
           for (var item in archives) {
              videos.add(Video(
-               bvid: item['bvid'],
-               title: item['title'],
-               cover: item['cover'],
-               duration: item['duration'],
+               bvid: item['bvid'] ?? '',
+               title: item['title'] ?? '未知视频',
+               cover: item['pic'] ?? '',
+               duration: item['duration'] ?? 0,
                upper: BiliUpper(mid: mid, name: item['author'] ?? ''),
-               view: item['stat']['view'],
-               danmaku: item['stat']['danmaku'],
-               pubTimestamp: item['pubdate'],
+               view: item['stat']?['view'] ?? 0,
+               danmaku: item['stat']?['danmaku'] ?? 0,
+               pubTimestamp: item['pubdate'] ?? 0,
              ));
           }
         }
