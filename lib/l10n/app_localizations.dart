@@ -679,6 +679,24 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'切换分P失败: {error}'**
   String switchPartFailed(Object error);
+
+  /// No description provided for @language.
+  ///
+  /// In zh, this message translates to:
+  /// **'语言'**
+  String get language;
+
+  /// No description provided for @followSystem.
+  ///
+  /// In zh, this message translates to:
+  /// **'跟随系统'**
+  String get followSystem;
+
+  /// No description provided for @selectLanguage.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择语言'**
+  String get selectLanguage;
 }
 
 class _AppLocalizationsDelegate

@@ -98,5 +98,8 @@
   "playingPart": "即将播放 P{part}: {title}",
   "oopsError": "哎呀，出错了",
   "videoCount": "{count} 个视频",
-  "switchPartFailed": "切换分P失败: {error}"
+  "switchPartFailed": "切换分P失败: {error}",
+  "language": "语言",
+  "followSystem": "跟随系统",
+  "selectLanguage": "选择语言"
 }

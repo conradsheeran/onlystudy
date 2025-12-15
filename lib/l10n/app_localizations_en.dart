@@ -323,4 +323,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String switchPartFailed(Object error) {
     return 'Failed to switch part: $error';
   }
+
+  @override
+  String get language => 'Language';
+
+  @override
+  String get followSystem => 'Follow System';
+
+  @override
+  String get selectLanguage => 'Select Language';
 }

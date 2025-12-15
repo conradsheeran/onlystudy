@@ -95,5 +95,8 @@
   "playingPart": "Playing P{part}: {title}",
   "oopsError": "Oops, something went wrong",
   "videoCount": "{count} Videos",
-  "switchPartFailed": "Failed to switch part: {error}"
+  "switchPartFailed": "Failed to switch part: {error}",
+  "language": "Language",
+  "followSystem": "Follow System",
+  "selectLanguage": "Select Language"
 }

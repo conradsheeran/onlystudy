@@ -322,4 +322,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String switchPartFailed(Object error) {
     return '切换分P失败: $error';
   }
+
+  @override
+  String get language => '语言';
+
+  @override
+  String get followSystem => '跟随系统';
+
+  @override
+  String get selectLanguage => '选择语言';
 }

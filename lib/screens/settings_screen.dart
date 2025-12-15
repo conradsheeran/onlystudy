@@ -38,6 +38,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: _showSpeedDialog,
           ),
+          ListTile(
+            leading: const Icon(Icons.language),
+            title: Text(AppLocalizations.of(context)!.language),
+            subtitle: Text(_getLanguageName(SettingsService().localeCode)),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: _showLanguageDialog,
+          ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.filter_list),
@@ -294,41 +301,113 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   /// 显示默认倍速选择对话框
-  void _showSpeedDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(AppLocalizations.of(context)!.defaultPlaybackSpeed),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((speed) {
-                return RadioListTile<double>(
-                  title: Text('${speed}x'),
-                  value: speed,
-                  groupValue: SettingsService().defaultPlaybackSpeed,
-                  onChanged: (value) async {
-                    if (value != null) {
-                      await SettingsService().setDefaultPlaybackSpeed(value);
+    void _showSpeedDialog() {
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text(AppLocalizations.of(context)!.defaultPlaybackSpeed),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((speed) {
+                  return RadioListTile<double>(
+                    title: Text('${speed}x'),
+                    value: speed,
+                    groupValue: SettingsService().defaultPlaybackSpeed,
+                    onChanged: (value) async {
+                      if (value != null) {
+                        await SettingsService().setDefaultPlaybackSpeed(value);
+                        if (mounted) {
+                          setState(() {});
+                          Navigator.pop(context);
+                        }
+                      }
+                    },
+                  );
+                }).toList(),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(AppLocalizations.of(context)!.cancel),
+              ),
+            ],
+          );
+        },
+      );
+    }
+  
+    void _showLanguageDialog() {
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text(AppLocalizations.of(context)!.selectLanguage),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RadioListTile<String?>(
+                    title: Text(AppLocalizations.of(context)!.followSystem),
+                    value: null,
+                    groupValue: SettingsService().localeCode,
+                    onChanged: (value) async {
+                      await SettingsService().setLocale(null);
                       if (mounted) {
                         setState(() {});
                         Navigator.pop(context);
                       }
-                    }
-                  },
-                );
-              }).toList(),
+                    },
+                  ),
+                  RadioListTile<String?>(
+                    title: const Text('English'),
+                    value: 'en',
+                    groupValue: SettingsService().localeCode,
+                    onChanged: (value) async {
+                      await SettingsService().setLocale('en');
+                      if (mounted) {
+                        setState(() {});
+                        Navigator.pop(context);
+                      }
+                    },
+                  ),
+                  RadioListTile<String?>(
+                    title: const Text('中文'),
+                    value: 'zh',
+                    groupValue: SettingsService().localeCode,
+                    onChanged: (value) async {
+                      await SettingsService().setLocale('zh');
+                      if (mounted) {
+                        setState(() {});
+                        Navigator.pop(context);
+                      }
+                    },
+                  ),
+                ],
+              ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(AppLocalizations.of(context)!.cancel),
-            ),
-          ],
-        );
-      },
-    );
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(AppLocalizations.of(context)!.cancel),
+              ),
+            ],
+          );
+        },
+      );
+    }
+  
+    String _getLanguageName(String? code) {
+      switch (code) {
+        case 'en':
+          return 'English';
+        case 'zh':
+          return '中文';
+        default:
+          return AppLocalizations.of(context)!.followSystem;
+      }
+    }
   }
-}
+  
