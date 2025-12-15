@@ -5,18 +5,17 @@ import '../widgets/error_view.dart';
 import '../services/bili_api_service.dart';
 import '../services/database_service.dart';
 import 'video_player_screen.dart';
-import '../widgets/custom_search_bar.dart';
 
-class FolderContentScreen extends StatefulWidget {
-  final Folder folder;
+class SeasonContentScreen extends StatefulWidget {
+  final Season season;
 
-  const FolderContentScreen({super.key, required this.folder});
+  const SeasonContentScreen({super.key, required this.season});
 
   @override
-  State<FolderContentScreen> createState() => _FolderContentScreenState();
+  State<SeasonContentScreen> createState() => _SeasonContentScreenState();
 }
 
-class _FolderContentScreenState extends State<FolderContentScreen> {
+class _SeasonContentScreenState extends State<SeasonContentScreen> {
   final BiliApiService _biliApiService = BiliApiService();
   final DatabaseService _databaseService = DatabaseService();
   final ScrollController _scrollController = ScrollController();
@@ -26,9 +25,6 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
   String? _error;
   int _page = 1;
   bool _hasMore = true;
-  bool _isSearching = false;
-  String _searchKeyword = '';
-  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -40,11 +36,9 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
-    _searchController.dispose();
     super.dispose();
   }
 
-  /// 滚动监听，触底加载更多
   void _onScroll() {
     if (_scrollController.position.pixels >=
             _scrollController.position.maxScrollExtent - 200 &&
@@ -54,7 +48,6 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
     }
   }
 
-  /// 获取收藏夹内的视频列表 (支持分页和搜索)
   Future<void> _fetchVideos({bool refresh = false}) async {
     if (refresh) {
       setState(() {
@@ -71,15 +64,15 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
     }
 
     try {
-      final videos = await _biliApiService.getFolderVideos(
-        widget.folder.id,
+      final videos = await _biliApiService.getSeasonVideos(
+        widget.season.id,
+        widget.season.upper.mid,
         pn: _page,
-        keyword: _searchKeyword,
       );
       
       if (mounted) {
         if (videos.isNotEmpty) {
-           _databaseService.insertVideos(videos, folderId: widget.folder.id);
+           _databaseService.insertVideos(videos, seasonId: widget.season.id);
         }
 
         setState(() {
@@ -123,42 +116,7 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: _isSearching
-            ? CustomSearchBar(
-                controller: _searchController,
-                hintText: '在线搜索此收藏夹...',
-                onSubmitted: (value) {
-                  setState(() {
-                    _searchKeyword = value;
-                    _fetchVideos(refresh: true);
-                  });
-                },
-                onClear: () {
-                  setState(() {
-                     _searchController.clear();
-                     _searchKeyword = '';
-                     _fetchVideos(refresh: true);
-                  });
-                },
-              )
-            : Text(widget.folder.title),
-        actions: [
-          IconButton(
-            icon: Icon(_isSearching ? Icons.close : Icons.search),
-            onPressed: () {
-              setState(() {
-                if (_isSearching) {
-                  _isSearching = false;
-                  _searchKeyword = '';
-                  _searchController.clear();
-                  _fetchVideos(refresh: true);
-                } else {
-                  _isSearching = true;
-                }
-              });
-            },
-          ),
-        ],
+        title: Text(widget.season.title),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -171,7 +129,7 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
                   onRefresh: () => _fetchVideos(refresh: true),
                   child: _videos.isEmpty
                       ? const Center(
-                          child: Text('此收藏夹中没有视频。'),
+                          child: Text('此合集中没有视频。'),
                         )
                       : ListView.builder(
                           controller: _scrollController,

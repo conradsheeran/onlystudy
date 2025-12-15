@@ -161,6 +161,20 @@ class AuthService {
     return list.map((e) => int.tryParse(e) ?? 0).where((e) => e != 0).toList();
   }
 
+  /// 保存用户选择显示的合集ID列表
+  Future<void> saveVisibleSeasonIds(List<int> ids) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('visible_season_ids', ids.map((e) => e.toString()).toList());
+  }
+
+  /// 获取用户选择显示的合集ID列表
+  Future<List<int>> getVisibleSeasonIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList('visible_season_ids');
+    if (list == null) return [];
+    return list.map((e) => int.tryParse(e) ?? 0).where((e) => e != 0).toList();
+  }
+
   /// 获取请求头需要的 Cookie 字符串
   Future<String> getCookieString() async {
     final prefs = await SharedPreferences.getInstance();

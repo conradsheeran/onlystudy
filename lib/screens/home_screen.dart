@@ -7,6 +7,7 @@ import '../widgets/video_tile.dart';
 import '../widgets/custom_search_bar.dart';
 import '../widgets/skeletons.dart';
 import '../widgets/error_view.dart';
+import 'season_content_screen.dart';
 import 'folder_content_screen.dart';
 import 'download_screen.dart';
 import '../services/auth_service.dart';
@@ -26,14 +27,15 @@ class _HomeScreenState extends State<HomeScreen> {
   final BiliApiService _biliApiService = BiliApiService();
   final DatabaseService _databaseService = DatabaseService();
   final ScrollController _scrollController = ScrollController();
-  List<Folder> _folders = [];
-  List<Video> _searchResults = [];
+  
+  List<dynamic> _items = [];
+  
   List<int> _visibleFolderIds = [];
+  List<int> _visibleSeasonIds = [];
+  
+  List<Video> _searchResults = [];
   bool _isLoading = true;
-  bool _isLoadingMore = false;
   String? _error;
-  int _page = 1;
-  bool _hasMore = true;
   bool _isSearching = false;
   String _searchKeyword = '';
   final TextEditingController _searchController = TextEditingController();
@@ -41,7 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLocked = false;
 
 
-  /// 执行搜索逻辑，支持按可见收藏夹过滤
+  /// 执行搜索逻辑，支持按可见收藏夹/合集过滤
   Future<void> _performSearch(String keyword) async {
     if (keyword.isEmpty) {
       if (mounted) {
@@ -53,7 +55,11 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     
     try {
-      final videos = await _databaseService.searchVideos(keyword, visibleFolderIds: _visibleFolderIds);
+      final videos = await _databaseService.searchVideos(
+         keyword, 
+         visibleFolderIds: _visibleFolderIds,
+         visibleSeasonIds: _visibleSeasonIds,
+      );
       if (mounted) {
         setState(() {
           _searchResults = videos;
@@ -81,17 +87,18 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _initData();
-    _scrollController.addListener(_onScroll);
   }
 
-  /// 初始化数据：获取可见收藏夹ID和锁定状态
+  /// 初始化数据：获取可见ID和锁定状态
   Future<void> _initData() async {
-    _visibleFolderIds = await AuthService().getVisibleFolderIds();
     final locked = await AuthService().isFolderSelectionLocked();
+    _visibleFolderIds = await AuthService().getVisibleFolderIds();
+    _visibleSeasonIds = await AuthService().getVisibleSeasonIds();
+    
     setState(() {
       _isLocked = locked;
     });
-    _fetchFolders(refresh: true);
+    _fetchContent(refresh: true);
   }
 
   @override
@@ -102,94 +109,109 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _onScroll() {
-    if (_scrollController.position.pixels >= 
-            _scrollController.position.maxScrollExtent - 200 &&
-        !_isLoadingMore &&
-        _hasMore) {
-      _fetchFolders(refresh: false);
-    }
-  }
-
-  /// 获取收藏夹列表 (支持分页和可见性过滤)
-  Future<void> _fetchFolders({bool refresh = false}) async {
+  /// 获取内容列表 (收藏夹 + 合集)
+  Future<void> _fetchContent({bool refresh = false}) async {
     if (refresh) {
       setState(() {
         _isLoading = true;
         _error = null;
-        _page = 1;
-        _hasMore = true;
-        _folders.clear();
+        _items.clear();
       });
       // Refresh visible IDs on refresh
       _visibleFolderIds = await AuthService().getVisibleFolderIds();
-    } else {
-      setState(() {
-        _isLoadingMore = true;
-      });
+      _visibleSeasonIds = await AuthService().getVisibleSeasonIds();
     }
 
     try {
-      final folders = await _biliApiService.getFavoriteFolders(pn: _page);
-      
-      List<Folder> filteredFolders = folders;
+      List<Folder> visibleFolders = [];
       if (_visibleFolderIds.isNotEmpty) {
-        filteredFolders = folders.where((f) => _visibleFolderIds.contains(f.id)).toList();
+          int page = 1;
+          Set<int> foundIds = {};
+          while(foundIds.length < _visibleFolderIds.length) {
+             final folders = await _biliApiService.getFavoriteFolders(pn: page, ps: 20);
+             if (folders.isEmpty) break;
+             
+             for (var f in folders) {
+               if (_visibleFolderIds.contains(f.id)) {
+                 visibleFolders.add(f);
+                 foundIds.add(f.id);
+               }
+             }
+             if (folders.length < 20) break;
+             page++;
+             if (page > 5) break;
+          }
       }
 
+      List<Season> visibleSeasons = [];
+      if (_visibleSeasonIds.isNotEmpty) {
+          int page = 1;
+          Set<int> foundIds = {};
+          while(foundIds.length < _visibleSeasonIds.length) {
+             final seasons = await _biliApiService.getSubscribedSeasons(pn: page, ps: 20);
+             if (seasons.isEmpty) break;
+             
+             for (var s in seasons) {
+               if (_visibleSeasonIds.contains(s.id)) {
+                 visibleSeasons.add(s);
+                 foundIds.add(s.id);
+               }
+             }
+             if (seasons.length < 20) break;
+             page++;
+             if (page > 5) break;
+          }
+      }
+      
       if (mounted) {
         setState(() {
-          if (refresh) {
-            _folders = filteredFolders;
-          } else {
-            _folders.addAll(filteredFolders);
-          }
-          
-          if (folders.length < 20) {
-            _hasMore = false;
-          } else {
-            _page++;
-          }
+          _items = [...visibleFolders, ...visibleSeasons];
         });
-
+        
         if (refresh) {
-          _syncAllVideos(List.from(_folders));
+          _syncAllContent(visibleFolders, visibleSeasons);
         }
       }
     } catch (e) {
       if (mounted) {
-        if (refresh) {
-          setState(() {
-            _error = '加载收藏夹失败: ${e.toString()}';
-          });
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('加载更多失败: ${e.toString()}')),
-          );
-        }
+        setState(() {
+          _error = '加载内容失败: ${e.toString()}';
+        });
       }
     } finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _isLoadingMore = false;
         });
       }
     }
   }
 
-  /// 后台同步所有(可见)收藏夹的视频数据到本地数据库
-  Future<void> _syncAllVideos(List<Folder> folders) async {
+  /// 后台同步所有可见内容的视频数据到本地数据库
+  Future<void> _syncAllContent(List<Folder> folders, List<Season> seasons) async {
     for (var folder in folders) {
       if (!mounted) return;
       try {
         final videos = await _biliApiService.getFolderVideos(folder.id, pn: 1, ps: 20);
         if (videos.isNotEmpty) {
-           await _databaseService.insertVideos(videos, folder.id);
+           await _databaseService.insertVideos(videos, folderId: folder.id);
         }
         await Future.delayed(const Duration(milliseconds: 500));
       } catch (e) {
         debugPrint('Sync failed for folder ${folder.id}: $e');
+      }
+    }
+    
+    for (var season in seasons) {
+      if (!mounted) return;
+      try {
+        final videos = await _biliApiService.getSeasonVideos(season.id, season.upper.mid, pn: 1, ps: 20);
+        if (videos.isNotEmpty) {
+           await _databaseService.insertVideos(videos, seasonId: season.id);
+        }
+        await Future.delayed(const Duration(milliseconds: 500));
+      } catch (e) {
+        debugPrint('Sync failed for season ${season.id}: $e');
       }
     }
   }
@@ -211,7 +233,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _isLocked = true;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('已锁定收藏夹修改')),
+            const SnackBar(content: Text('已锁定修改')),
           );
         }
       }
@@ -272,7 +294,7 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('解锁收藏夹修改'),
+        title: const Text('解锁修改'),
         content: TextField(
           controller: controller,
           obscureText: true,
@@ -396,18 +418,18 @@ class _HomeScreenState extends State<HomeScreen> {
           : _error != null
               ? ErrorView(
                   message: _error!,
-                  onRetry: () => _fetchFolders(refresh: true),
+                  onRetry: () => _fetchContent(refresh: true),
                 )
               : AnimatedSwitcher(
                   duration: const Duration(milliseconds: 150),
                   child: _isSearching
                       ? _buildSearchResults()
                       : RefreshIndicator(
-                          key: const ValueKey('FolderList'),
-                          onRefresh: () => _fetchFolders(refresh: true),
-                          child: _folders.isEmpty
+                          key: const ValueKey('ContentList'),
+                          onRefresh: () => _fetchContent(refresh: true),
+                          child: _items.isEmpty
                               ? const Center(
-                                  child: Text('没有找到收藏夹，请登录或刷新\n或点击右上角筛选按钮选择显示的收藏夹'),
+                                  child: Text('没有找到收藏夹或合集，请登录或刷新\n或点击右下角锁定按钮旁的筛选(如果解锁)'),
                                 )
                               : Padding(
                                   padding: const EdgeInsets.all(12.0),
@@ -419,28 +441,47 @@ class _HomeScreenState extends State<HomeScreen> {
                                       crossAxisSpacing: 12,
                                       mainAxisSpacing: 12,
                                     ),
-                                    itemCount: _folders.length + (_hasMore ? 1 : 0),
+                                    itemCount: _items.length,
                                     itemBuilder: (context, index) {
-                                      if (index == _folders.length) {
-                                        return const Center(
-                                          child: Padding(
-                                            padding: EdgeInsets.all(8.0),
-                                            child: CircularProgressIndicator(),
-                                          ),
-                                        );
-                                      }
-                                      return FolderCard(
-                                        folder: _folders[index],
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  FolderContentScreen(folder: _folders[index]),
-                                            ),
+                                      final item = _items[index];
+                                      if (item is Folder) {
+                                          return FolderCard(
+                                            folder: item,
+                                            onTap: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      FolderContentScreen(folder: item),
+                                                ),
+                                              );
+                                            },
                                           );
-                                        },
-                                      );
+                                      } else if (item is Season) {
+                                          // Reuse FolderCard for Season, but might want to differentiate visually
+                                          // Constructing a "Folder" like object for UI reuse or create SeasonCard
+                                          // For simplicity, reusing FolderCard with mapping.
+                                          return FolderCard(
+                                            folder: Folder(
+                                              id: item.id,
+                                              title: item.title,
+                                              cover: item.cover,
+                                              mediaCount: item.mediaCount,
+                                              upper: item.upper,
+                                              favState: 1,
+                                            ),
+                                            onTap: () {
+                                               Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      SeasonContentScreen(season: item),
+                                                ),
+                                              );
+                                            },
+                                          );
+                                      }
+                                      return const SizedBox();
                                     },
                                   ),
                                 ),

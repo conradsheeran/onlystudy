@@ -100,6 +100,93 @@ class BiliApiService {
     }
   }
 
+  /// 获取用户订阅的合集列表
+  Future<List<Season>> getSubscribedSeasons({int pn = 1, int ps = 20}) async {
+    final uid = await getUserId();
+    if (uid == null) {
+      throw Exception('用户未登录或无法获取UID');
+    }
+
+    try {
+      final response = await _dio.get(
+        '/x/v3/fav/folder/collected/list',
+        queryParameters: {
+          'up_mid': uid,
+          'pn': pn,
+          'ps': ps,
+          'platform': 'web',
+        },
+        options: Options(headers: {'Cookie': await _getCookieHeader()}),
+      );
+
+      if (response.data['code'] == 0) {
+        List<Season> seasons = [];
+        final list = response.data['data']['list'];
+        if (list != null) {
+          for (var item in list) {
+            // 尝试适配合集和收藏夹的数据结构
+            seasons.add(Season(
+              id: item['id'],
+              title: item['title'],
+              cover: item['cover'] ?? '',
+              mediaCount: item['media_count'] ?? 0,
+              upper: BiliUpper(
+                 mid: item['upper']?['mid'] ?? 0,
+                 name: item['upper']?['name'] ?? '未知UP主',
+              ),
+            ));
+          }
+        }
+        return seasons;
+      } else {
+        throw Exception('获取订阅合集失败: ${response.data['message']}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// 获取合集内的视频列表
+  Future<List<Video>> getSeasonVideos(int seasonId, int mid, {int pn = 1, int ps = 20}) async {
+    try {
+      final response = await _dio.get(
+        '/x/polymer/web-space/seasons_archives_list',
+        queryParameters: {
+          'mid': mid,
+          'season_id': seasonId,
+          'sort_reverse': false,
+          'page_num': pn,
+          'page_size': ps,
+        },
+        options: Options(headers: {'Cookie': await _getCookieHeader()}),
+      );
+
+      if (response.data['code'] == 0) {
+        List<Video> videos = [];
+        final archives = response.data['data']['archives'];
+        if (archives != null) {
+          for (var item in archives) {
+             videos.add(Video(
+               bvid: item['bvid'],
+               title: item['title'],
+               cover: item['cover'],
+               duration: item['duration'],
+               upper: BiliUpper(mid: mid, name: item['author'] ?? ''),
+               view: item['stat']['view'],
+               danmaku: item['stat']['danmaku'],
+               pubTimestamp: item['pubdate'],
+             ));
+          }
+        }
+        return videos;
+      } else {
+        throw Exception('获取合集视频失败: ${response.data['message']}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   /// 获取视频详情 (包含 CID, AID, 历史进度)
   Future<VideoDetail> getVideoDetail(String bvid) async {
     try {

@@ -46,6 +46,33 @@ class Folder {
   }
 }
 
+/// 合集信息模型 (订阅的合集)
+class Season {
+  final int id;
+  final String title;
+  final String cover;
+  final BiliUpper upper;
+  final int mediaCount;
+
+  Season({
+    required this.id,
+    required this.title,
+    required this.cover,
+    required this.upper,
+    required this.mediaCount,
+  });
+
+  factory Season.fromJson(Map<String, dynamic> json) {
+    return Season(
+      id: json['season_id'] ?? 0,
+      title: json['title'] ?? '未知合集',
+      cover: json['cover'] ?? '',
+      upper: BiliUpper.fromJson(json['upper'] ?? {}),
+      mediaCount: json['media_count'] ?? 0,
+    );
+  }
+}
+
 /// 视频基本信息模型 (用于列表展示)
 class Video {
   final String bvid;

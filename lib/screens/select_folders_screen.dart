@@ -17,7 +17,9 @@ class SelectFoldersScreen extends StatefulWidget {
 class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
   final BiliApiService _apiService = BiliApiService();
   List<Folder> _allFolders = [];
+  List<Season> _allSeasons = [];
   Set<int> _selectedIds = {};
+  Set<int> _selectedSeasonIds = {};
   bool _isLoading = true;
   String? _error;
 
@@ -27,7 +29,7 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
     _loadData();
   }
 
-  /// 加载所有收藏夹数据及当前选中状态
+  /// 加载所有收藏夹及合集数据
   Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
@@ -35,10 +37,6 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
     });
 
     try {
-      // Fetch all folders
-      // Note: This fetches page 1, strictly speaking we should fetch ALL pages if user has many folders.
-      // For now, assuming user has < 20 folders or we implement paging.
-      // Implementing paging here to be safe.
       List<Folder> allFolders = [];
       int page = 1;
       while (true) {
@@ -47,21 +45,40 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
         if (folders.length < 20) break;
         page++;
       }
-      final savedIds = await AuthService().getVisibleFolderIds();
+      
+      List<Season> allSeasons = [];
+      try {
+        int seasonPage = 1;
+        while(true) {
+          final seasons = await _apiService.getSubscribedSeasons(pn: seasonPage, ps: 20);
+          allSeasons.addAll(seasons);
+          if (seasons.length < 20) break;
+          seasonPage++;
+        }
+      } catch (e) {
+        debugPrint('Failed to load seasons: $e');
+      }
+
+      final savedFolderIds = await AuthService().getVisibleFolderIds();
+      final savedSeasonIds = await AuthService().getVisibleSeasonIds();
       
       setState(() {
         _allFolders = allFolders;
-        if (savedIds.isEmpty && widget.isFirstLogin) {
+        _allSeasons = allSeasons;
+        
+        if (savedFolderIds.isEmpty && savedSeasonIds.isEmpty && widget.isFirstLogin) {
           _selectedIds = allFolders.map((e) => e.id).toSet();
+          _selectedSeasonIds = allSeasons.map((e) => e.id).toSet();
         } else {
-          _selectedIds = savedIds.toSet();
+          _selectedIds = savedFolderIds.toSet();
+          _selectedSeasonIds = savedSeasonIds.toSet();
         }
         _isLoading = false;
       });
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = '加载收藏夹失败: $e';
+          _error = '加载失败: $e';
           _isLoading = false;
         });
       }
@@ -70,15 +87,16 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
 
   /// 确认选择，保存设置并重建缓存
   Future<void> _onConfirm() async {
-    if (_selectedIds.isEmpty) {
+    if (_selectedIds.isEmpty && _selectedSeasonIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请至少选择一个收藏夹')),
+        const SnackBar(content: Text('请至少选择一个收藏夹或合集')),
       );
       return;
     }
 
     try {
       await AuthService().saveVisibleFolderIds(_selectedIds.toList());
+      await AuthService().saveVisibleSeasonIds(_selectedSeasonIds.toList());
       
       await DatabaseService().clearAllCache();
 
@@ -101,7 +119,7 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('选择显示的收藏夹'),
+        title: const Text('选择显示的内容'),
         actions: [
           IconButton(
             icon: const Icon(Icons.check),
@@ -136,6 +154,7 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
                               onPressed: () {
                                 setState(() {
                                   _selectedIds = _allFolders.map((e) => e.id).toSet();
+                                  _selectedSeasonIds = _allSeasons.map((e) => e.id).toSet();
                                 });
                               },
                               icon: const Icon(Icons.select_all),
@@ -148,6 +167,7 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
                               onPressed: () {
                                 setState(() {
                                   _selectedIds.clear();
+                                  _selectedSeasonIds.clear();
                                 });
                               },
                               icon: const Icon(Icons.clear_all),
@@ -158,40 +178,100 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen> {
                       ),
                     ),
                     Expanded(
-                      child: ListView.builder(
-                        itemCount: _allFolders.length,
-                        itemBuilder: (context, index) {
-                          final folder = _allFolders[index];
-                          final isSelected = _selectedIds.contains(folder.id);
-                          return CheckboxListTile(
-                            value: isSelected,
-                            title: Text(folder.title),
-                            subtitle: Text('${folder.mediaCount}个视频'),
-                            secondary: ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: Image.network(
-                                folder.cover,
-                                width: 40,
-                                height: 40,
-                                fit: BoxFit.cover,
-                                errorBuilder: (ctx, err, stack) => Container(
-                                  width: 40,
-                                  height: 40,
-                                  color: Colors.grey,
+                      child: CustomScrollView(
+                        slivers: [
+                          if (_allFolders.isNotEmpty) ...[
+                            const SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                                  child: Text('收藏夹', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                                 ),
+                            ),
+                            SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                                  final folder = _allFolders[index];
+                                  final isSelected = _selectedIds.contains(folder.id);
+                                  return CheckboxListTile(
+                                    value: isSelected,
+                                    title: Text(folder.title),
+                                    subtitle: Text('${folder.mediaCount}个视频'),
+                                    secondary: ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: Image.network(
+                                        folder.cover,
+                                        width: 40,
+                                        height: 40,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (ctx, err, stack) => Container(
+                                          width: 40,
+                                          height: 40,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ),
+                                    onChanged: (val) {
+                                      setState(() {
+                                        if (val == true) {
+                                          _selectedIds.add(folder.id);
+                                        } else {
+                                          _selectedIds.remove(folder.id);
+                                        }
+                                      });
+                                    },
+                                  );
+                                },
+                                childCount: _allFolders.length,
                               ),
                             ),
-                            onChanged: (val) {
-                              setState(() {
-                                if (val == true) {
-                                  _selectedIds.add(folder.id);
-                                } else {
-                                  _selectedIds.remove(folder.id);
-                                }
-                              });
-                            },
-                          );
-                        },
+                          ],
+                          
+                          if (_allSeasons.isNotEmpty) ...[
+                            const SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                                  child: Text('订阅合集', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                ),
+                            ),
+                             SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                                  final season = _allSeasons[index];
+                                  final isSelected = _selectedSeasonIds.contains(season.id);
+                                  return CheckboxListTile(
+                                    value: isSelected,
+                                    title: Text(season.title),
+                                    subtitle: Text('${season.mediaCount}个视频 · ${season.upper.name}'),
+                                    secondary: ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: Image.network(
+                                        season.cover,
+                                        width: 40,
+                                        height: 40,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (ctx, err, stack) => Container(
+                                          width: 40,
+                                          height: 40,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ),
+                                    onChanged: (val) {
+                                      setState(() {
+                                        if (val == true) {
+                                          _selectedSeasonIds.add(season.id);
+                                        } else {
+                                          _selectedSeasonIds.remove(season.id);
+                                        }
+                                      });
+                                    },
+                                  );
+                                },
+                                childCount: _allSeasons.length,
+                              ),
+                            ),
+                          ]
+                        ],
                       ),
                     ),
                     Padding(

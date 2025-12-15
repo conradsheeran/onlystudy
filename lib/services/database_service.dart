@@ -22,7 +22,7 @@ class DatabaseService {
     String path = join(await getDatabasesPath(), 'onlystudy.db');
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE videos(
@@ -31,16 +31,22 @@ class DatabaseService {
             cover TEXT,
             upper_name TEXT,
             folder_id INTEGER,
+            season_id INTEGER,
             json_data TEXT,
             timestamp INTEGER
           )
         ''');
       },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('ALTER TABLE videos ADD COLUMN season_id INTEGER');
+        }
+      },
     );
   }
 
   /// 缓存视频信息到本地数据库
-  Future<void> insertVideos(List<Video> videos, int folderId) async {
+  Future<void> insertVideos(List<Video> videos, {int? folderId, int? seasonId}) async {
     final db = await database;
     final batch = db.batch();
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -54,6 +60,7 @@ class DatabaseService {
           'cover': video.cover,
           'upper_name': video.upper.name,
           'folder_id': folderId,
+          'season_id': seasonId,
           'json_data': jsonEncode({
              'bvid': video.bvid,
              'title': video.title,
@@ -71,15 +78,22 @@ class DatabaseService {
     await batch.commit(noResult: true);
   }
 
-  /// 本地搜索视频 (支持按可见收藏夹过滤)
-  Future<List<Video>> searchVideos(String keyword, {List<int>? visibleFolderIds}) async {
+  /// 本地搜索视频 (支持按可见收藏夹/合集过滤)
+  Future<List<Video>> searchVideos(String keyword, {List<int>? visibleFolderIds, List<int>? visibleSeasonIds}) async {
     final db = await database;
     
     String whereClause = 'title LIKE ?';
     List<dynamic> whereArgs = ['%$keyword%'];
-
+    List<String> subConditions = [];
     if (visibleFolderIds != null && visibleFolderIds.isNotEmpty) {
-      whereClause += ' AND folder_id IN (${visibleFolderIds.join(',')})';
+      subConditions.add('folder_id IN (${visibleFolderIds.join(',')})');
+    }
+    if (visibleSeasonIds != null && visibleSeasonIds.isNotEmpty) {
+      subConditions.add('season_id IN (${visibleSeasonIds.join(',')})');
+    }
+    
+    if (subConditions.isNotEmpty) {
+      whereClause += ' AND (${subConditions.join(' OR ')})';
     }
 
     final List<Map<String, dynamic>> maps = await db.query(
@@ -99,6 +113,12 @@ class DatabaseService {
   Future<void> clearFolderCache(int folderId) async {
     final db = await database;
     await db.delete('videos', where: 'folder_id = ?', whereArgs: [folderId]);
+  }
+
+  /// 清理指定合集的缓存数据
+  Future<void> clearSeasonCache(int seasonId) async {
+    final db = await database;
+    await db.delete('videos', where: 'season_id = ?', whereArgs: [seasonId]);
   }
 
   /// 清空所有视频缓存数据
