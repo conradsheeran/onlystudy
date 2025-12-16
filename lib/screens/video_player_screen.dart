@@ -47,6 +47,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   int _currentPartIndex = 0;
 
   late double _playbackSpeed;
+  late final ValueNotifier<double> _playbackSpeedNotifier;
+  final ValueNotifier<int?> _qualityNotifier = ValueNotifier(null);
   bool _showOverlay = false;
   String _overlayText = '';
   IconData _overlayIcon = Icons.info;
@@ -67,6 +69,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     super.initState();
     _currentIndex = widget.initialIndex;
     _playbackSpeed = SettingsService().defaultPlaybackSpeed;
+    _playbackSpeedNotifier = ValueNotifier(_playbackSpeed);
     
     WakelockPlus.enable();
     _player = Player();
@@ -102,6 +105,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   @override
   void dispose() {
+    _playbackSpeedNotifier.dispose();
+    _qualityNotifier.dispose();
     _saveHistoryTimer?.cancel();
     _overlayTimer?.cancel();
     _saveProgress();
@@ -340,6 +345,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         setState(() {
           _playInfo = updatedInfo;
         });
+        _qualityNotifier.value = updatedInfo.quality;
       }
     } catch (e) {
       if (mounted) {
@@ -355,6 +361,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     setState(() {
       _playbackSpeed = speed;
     });
+    _playbackSpeedNotifier.value = speed;
     _player.setRate(speed);
     _showOverlayInfo(Icons.speed, '${AppLocalizations.of(context)!.speed} ${speed}x');
   }
@@ -460,7 +467,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             '${AppLocalizations.of(context)!.speed} 2.0x',
             autoHide: false 
          );
-         // Hide overlay after 1.5 seconds even if held
          _overlayTimer?.cancel();
          _overlayTimer = Timer(const Duration(milliseconds: 1500), () {
             if (mounted && _showOverlay) {
@@ -471,7 +477,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
          });
       },
       onLongPressEnd: (_) {
-         _player.setRate(_playbackSpeed); // Restore to selected speed
+         _player.setRate(_playbackSpeed);
          if (_showOverlay) {
              setState(() {
                  _showOverlay = false;
@@ -486,20 +492,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         _isAdjustingVolume = false;
         _isAdjustingBrightness = false;
 
-        // Determine area once at start
         if (x > screenWidth / 2) {
            _isAdjustingVolume = true;
-           // Fetch initial volume
            FlutterVolumeController.getVolume().then((v) {
               _startVolume = v ?? 0.5;
            });
         } else {
            _isAdjustingBrightness = true;
-           // Fetch initial brightness
            ScreenBrightness().application.then((v) {
               _startBrightness = v;
            }).catchError((e) {
-              _startBrightness = 0.5; // Fallback
+              _startBrightness = 0.5;
            });
         }
       },
@@ -508,7 +511,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
         _accumulatedDy += details.primaryDelta ?? 0;
         
-        // Sensitivity: 200px = 100% change
         double change = -_accumulatedDy / 200.0;
 
         if (_isAdjustingVolume && _startVolume != null) {
@@ -524,7 +526,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 await ScreenBrightness().setApplicationScreenBrightness(newB);
                 _showOverlayInfo(Icons.brightness_medium, '${(newB * 100).toInt()}%');
              } catch (e) {
-                // Ignore platform errors
              }
         }
       },
@@ -534,7 +535,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       onHorizontalDragUpdate: (details) {
          final delta = details.primaryDelta ?? 0;
          final currentMs = _seekTarget.inMilliseconds;
-         // Drag sensitivity: 1px = 200ms
          final newMs = (currentMs + delta * 200).clamp(0, _player.state.duration.inMilliseconds).toInt();
          _seekTarget = Duration(milliseconds: newMs);
          
@@ -598,7 +598,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           tooltip: AppLocalizations.of(context)!.partsList,
           onPressed: _showPartsList,
         ),
-      // Speed Control
       PopupMenuButton<double>(
         initialValue: _playbackSpeed,
         tooltip: AppLocalizations.of(context)!.playbackSpeed,
@@ -615,12 +614,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12.0),
           child: Center(
-            child: Text(
-              '${_playbackSpeed}x',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
+            child: ValueListenableBuilder<double>(
+              valueListenable: _playbackSpeedNotifier,
+              builder: (context, value, child) {
+                return Text(
+                  '${value}x',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                );
+              },
             ),
           ),
         ),
@@ -662,12 +666,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Center(
-              child: Text(
-                _getCurrentQualityDesc(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+              child: ValueListenableBuilder<int?>(
+                valueListenable: _qualityNotifier,
+                builder: (context, value, child) {
+                  return Text(
+                    _getCurrentQualityDesc(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  );
+                },
               ),
             ),
           ),
@@ -679,7 +688,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      // Removed AppBar to use custom TopBar in controls
       body: SafeArea(
         child: Center(
           child: _isLoading
