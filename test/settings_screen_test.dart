@@ -7,11 +7,12 @@ import 'package:onlystudy/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  testWidgets('Logout requires password when folder is locked', (WidgetTester tester) async {
+  testWidgets('Logout requires password when folder is locked',
+      (WidgetTester tester) async {
     const password = '123';
     final bytes = utf8.encode(password);
     final digest = sha256.convert(bytes);
-    
+
     SharedPreferences.setMockInitialValues({
       'folder_is_locked': true,
       'folder_lock_password': digest.toString(),
@@ -22,6 +23,7 @@ void main() {
       const MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
+        locale: Locale('zh'),
         home: SettingsScreen(),
       ),
     );
@@ -38,7 +40,7 @@ void main() {
     await tester.enterText(find.byType(TextField), 'wrong');
     await tester.tap(find.text('确定'));
     await tester.pump();
-    
+
     expect(find.text('密码错误'), findsOneWidget);
     expect(find.text('验证密码'), findsOneWidget);
 
@@ -49,7 +51,7 @@ void main() {
     expect(find.text('确定要退出登录吗？'), findsOneWidget);
     await tester.tap(find.text('取消'));
     await tester.pumpAndSettle();
-    
+
     expect(find.text('确定要退出登录吗？'), findsNothing);
   });
 }
