@@ -24,8 +24,17 @@ jobs:
           
       - name: Get Dependencies
         run: flutter pub get
+
+      - name: Decode Android Keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/upload-keystore.jks
         
       - name: Build Android APK
+        env:
+          KEY_STORE_PATH: upload-keystore.jks
+          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: flutter build apk --release --split-per-abi --obfuscate --split-debug-info=./debug-info
         
       - name: Upload APK Artifacts
