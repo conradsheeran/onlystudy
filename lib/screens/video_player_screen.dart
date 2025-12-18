@@ -31,7 +31,7 @@ class VideoPlayerScreen extends StatefulWidget {
 class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   late final Player _player;
   late final mkv.VideoController _controller;
-  
+
   late int _currentIndex;
   bool _isLoading = true;
   String? _error;
@@ -39,10 +39,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   VideoPlayInfo? _playInfo;
   VideoDetail? _videoDetail;
   Timer? _saveHistoryTimer;
-  
+  Timer? _positionGuardTimer;
+
   List<int> _supportQualities = [];
   List<String> _supportQualityDescs = [];
-  
+
   List<VideoPage> _pages = [];
   int _currentPartIndex = 0;
 
@@ -70,14 +71,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _currentIndex = widget.initialIndex;
     _playbackSpeed = SettingsService().defaultPlaybackSpeed;
     _playbackSpeedNotifier = ValueNotifier(_playbackSpeed);
-    
+
     WakelockPlus.enable();
     _player = Player();
     _controller = mkv.VideoController(_player);
 
     _player.stream.completed.listen((completed) {
       if (completed) {
-         _checkVideoEnd();
+        _checkVideoEnd();
       }
     });
 
@@ -93,7 +94,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       _currentPartIndex = 0;
       _playbackSpeed = SettingsService().defaultPlaybackSpeed;
     });
-    
+
     await _addToHistory();
     await _initializePlayer();
   }
@@ -108,6 +109,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _playbackSpeedNotifier.dispose();
     _qualityNotifier.dispose();
     _saveHistoryTimer?.cancel();
+    _positionGuardTimer?.cancel();
     _overlayTimer?.cancel();
     _saveProgress();
     _player.dispose();
@@ -130,10 +132,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
       final api = BiliApiService();
       _videoDetail = await api.getVideoDetail(_currentVideo.bvid);
-      
+
       _pages = _videoDetail!.pages;
       _cid = _videoDetail!.cid;
-      
+
       if (_pages.isNotEmpty) {
         final index = _pages.indexWhere((p) => p.cid == _cid);
         if (index != -1) {
@@ -144,50 +146,52 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       try {
         _playInfo = await api.getVideoPlayUrl(_currentVideo.bvid, _cid!);
       } catch (e) {
-        debugPrint('Failed to get video url with default resolution: $e. Attempting fallback discovery...');
+        debugPrint(
+            'Failed to get video url with default resolution: $e. Attempting fallback discovery...');
         try {
-          final lowQualityInfo = await api.getVideoPlayUrl(_currentVideo.bvid, _cid!, qn: 16);
+          final lowQualityInfo =
+              await api.getVideoPlayUrl(_currentVideo.bvid, _cid!, qn: 16);
           if (lowQualityInfo.acceptQuality.isNotEmpty) {
-             final bestQuality = lowQualityInfo.acceptQuality.first;
-             if (bestQuality > 16) {
-                try {
-                   _playInfo = await api.getVideoPlayUrl(_currentVideo.bvid, _cid!, qn: bestQuality);
-                } catch (e3) {
-                   _playInfo = lowQualityInfo;
-                }
-             } else {
+            final bestQuality = lowQualityInfo.acceptQuality.first;
+            if (bestQuality > 16) {
+              try {
+                _playInfo = await api.getVideoPlayUrl(_currentVideo.bvid, _cid!,
+                    qn: bestQuality);
+              } catch (e3) {
                 _playInfo = lowQualityInfo;
-             }
+              }
+            } else {
+              _playInfo = lowQualityInfo;
+            }
           } else {
-             _playInfo = lowQualityInfo;
+            _playInfo = lowQualityInfo;
           }
         } catch (e2) {
           debugPrint('Fallback discovery failed: $e2');
           rethrow;
         }
       }
-      
+
       if (_playInfo != null) {
         _supportQualities = _playInfo!.acceptQuality;
         _supportQualityDescs = _playInfo!.acceptDescription;
       }
 
       final savedPosition = _videoDetail!.historyProgress;
-      
-      await _setupController(
-        _playInfo!.url, 
-        startAt: savedPosition > 0 ? Duration(seconds: savedPosition) : null
-      );
+
+      await _setupController(_playInfo!.url,
+          startAt: savedPosition > 0 ? Duration(seconds: savedPosition) : null);
 
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
-        
+
         if (savedPosition > 0) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(AppLocalizations.of(context)!.resumePlayback(_formatDuration(savedPosition))),
+              content: Text(AppLocalizations.of(context)!
+                  .resumePlayback(_formatDuration(savedPosition))),
               duration: const Duration(seconds: 2),
             ),
           );
@@ -198,7 +202,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       _saveHistoryTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
         _saveProgress();
       });
-
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -213,11 +216,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   Future<void> _saveProgress() async {
     final position = _player.state.position.inSeconds;
     if (position > 5 && _videoDetail != null && _cid != null) {
-        await BiliApiService().reportHistory(
-          aid: _videoDetail!.aid,
-          cid: _cid!,
-          progress: position,
-        );
+      await BiliApiService().reportHistory(
+        aid: _videoDetail!.aid,
+        cid: _cid!,
+        progress: position,
+      );
     }
   }
 
@@ -228,24 +231,95 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   /// 设置 media_kit 播放控制器
-  Future<void> _setupController(String url, {Duration? startAt, bool isLocal = false}) async {
+  Future<void> _setupController(
+    String url, {
+    Duration? startAt,
+    bool isLocal = false,
+    bool shouldPlay = true,
+  }) async {
     final httpHeaders = {
-        'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Referer': 'https://www.bilibili.com/video/${_currentVideo.bvid}',
+      'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Referer': 'https://www.bilibili.com/video/${_currentVideo.bvid}',
     };
 
     final media = Media(
-      url, 
+      url,
       httpHeaders: isLocal ? null : httpHeaders,
     );
 
-    await _player.open(media, play: true);
+    await _player.open(media, play: false);
     _player.setRate(_playbackSpeed);
-    
+
+    Duration? effectiveTarget;
+
     if (startAt != null) {
-      await _player.seek(startAt);
+      effectiveTarget = await _waitForReadyAndClamp(startAt);
+      await _player.seek(effectiveTarget);
     }
+
+    if (shouldPlay) {
+      await _player.play();
+    }
+
+    if (effectiveTarget != null) {
+      await _ensurePositionSticks(effectiveTarget);
+      _startPositionGuard(effectiveTarget);
+    }
+  }
+
+  Future<Duration> _waitForReadyAndClamp(Duration target) async {
+    final durationFuture = _player.stream.duration
+        .firstWhere((d) => d > Duration.zero)
+        .timeout(const Duration(seconds: 3), onTimeout: () => Duration.zero);
+
+    final bufferingFuture = _player.stream.buffering
+        .firstWhere((b) => b == false)
+        .timeout(const Duration(seconds: 3), onTimeout: () => false);
+
+    final duration = await durationFuture;
+    await bufferingFuture;
+
+    if (duration > Duration.zero && target > duration) {
+      target = duration - const Duration(milliseconds: 500);
+    }
+    if (target < Duration.zero) {
+      target = Duration.zero;
+    }
+    return target;
+  }
+
+  Future<void> _ensurePositionSticks(Duration target) async {
+    const attempts = 4;
+    const interval = Duration(milliseconds: 220);
+
+    for (var i = 0; i < attempts; i++) {
+      await Future.delayed(interval);
+      final current = _player.state.position;
+      if ((current - target).abs() <= const Duration(milliseconds: 500)) {
+        return;
+      }
+      await _player.seek(target);
+    }
+  }
+
+  void _startPositionGuard(Duration target) {
+    _positionGuardTimer?.cancel();
+    var remaining = 8;
+    _positionGuardTimer =
+        Timer.periodic(const Duration(milliseconds: 250), (timer) {
+      remaining--;
+      if (remaining <= 0) {
+        timer.cancel();
+        return;
+      }
+      final current = _player.state.position;
+      if ((current - target).abs() <= const Duration(milliseconds: 500)) {
+        timer.cancel();
+        return;
+      }
+      _player.seek(target);
+    });
   }
 
   /// 检查视频播放结束
@@ -262,24 +336,25 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(AppLocalizations.of(context)!.nextVideo(widget.playlist[_currentIndex + 1].title)),
+        content: Text(AppLocalizations.of(context)!
+            .nextVideo(widget.playlist[_currentIndex + 1].title)),
         duration: const Duration(seconds: 2),
       ),
     );
-    
+
     _saveProgress();
     setState(() {
       _currentIndex++;
     });
     _playCurrentVideo();
   }
-  
+
   /// 切换分P
   Future<void> _switchPart(int index) async {
     if (index < 0 || index >= _pages.length) return;
-    
+
     _saveProgress();
-    
+
     setState(() {
       _isLoading = true;
       _currentPartIndex = index;
@@ -288,7 +363,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(AppLocalizations.of(context)!.playingPart((index + 1).toString(), _pages[index].part)),
+        content: Text(AppLocalizations.of(context)!
+            .playingPart((index + 1).toString(), _pages[index].part)),
         duration: const Duration(seconds: 1),
       ),
     );
@@ -296,14 +372,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     try {
       final api = BiliApiService();
       _playInfo = await api.getVideoPlayUrl(_currentVideo.bvid, _cid!);
-      
+
       if (_playInfo != null) {
         _supportQualities = _playInfo!.acceptQuality;
         _supportQualityDescs = _playInfo!.acceptDescription;
       }
-      
+
       await _setupController(_playInfo!.url, startAt: Duration.zero);
-      
+
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -322,24 +398,32 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// 切换清晰度
   Future<void> _switchQuality(int quality) async {
     if (_cid == null || _playInfo == null) return;
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppLocalizations.of(context)!.switchingQuality), duration: const Duration(seconds: 1)),
+      SnackBar(
+          content: Text(AppLocalizations.of(context)!.switchingQuality),
+          duration: const Duration(seconds: 1)),
     );
 
     try {
       final position = _player.state.position;
+      final wasPlaying = _player.state.playing;
       final api = BiliApiService();
-      final newInfo = await api.getVideoPlayUrl(_currentVideo.bvid, _cid!, qn: quality);
-      
+      final newInfo =
+          await api.getVideoPlayUrl(_currentVideo.bvid, _cid!, qn: quality);
+
       final updatedInfo = VideoPlayInfo(
         url: newInfo.url,
         quality: newInfo.quality,
         acceptQuality: _playInfo!.acceptQuality,
         acceptDescription: _playInfo!.acceptDescription,
       );
-      
-      await _setupController(updatedInfo.url, startAt: position);
+
+      await _setupController(
+        updatedInfo.url,
+        startAt: position,
+        shouldPlay: wasPlaying,
+      );
 
       if (mounted) {
         setState(() {
@@ -350,7 +434,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.switchQualityFailed(e.toString()))),
+          SnackBar(
+              content: Text(AppLocalizations.of(context)!
+                  .switchQualityFailed(e.toString()))),
         );
       }
     }
@@ -363,7 +449,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     });
     _playbackSpeedNotifier.value = speed;
     _player.setRate(speed);
-    _showOverlayInfo(Icons.speed, '${AppLocalizations.of(context)!.speed} ${speed}x');
+    _showOverlayInfo(
+        Icons.speed, '${AppLocalizations.of(context)!.speed} ${speed}x');
   }
 
   /// 显示覆盖信息 (音量/亮度/倍速)
@@ -384,7 +471,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       });
     }
   }
-  
+
   void _showPartsList() {
     showModalBottomSheet(
       context: context,
@@ -418,13 +505,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     leading: Text(
                       'P${page.page}',
                       style: TextStyle(
-                        color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey,
+                        color: isSelected
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.grey,
                       ),
                     ),
                     title: Text(
                       page.part,
                       style: TextStyle(
-                        color: isSelected ? Theme.of(context).colorScheme.primary : Colors.white,
+                        color: isSelected
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.white,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -461,91 +552,90 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         }
       },
       onLongPressStart: (_) {
-         _player.setRate(2.0);
-         _showOverlayInfo(
-            Icons.fast_forward, 
-            '${AppLocalizations.of(context)!.speed} 2.0x',
-            autoHide: false 
-         );
-         _overlayTimer?.cancel();
-         _overlayTimer = Timer(const Duration(milliseconds: 1500), () {
-            if (mounted && _showOverlay) {
-                setState(() {
-                    _showOverlay = false;
-                });
-            }
-         });
+        _player.setRate(2.0);
+        _showOverlayInfo(
+            Icons.fast_forward, '${AppLocalizations.of(context)!.speed} 2.0x',
+            autoHide: false);
+        _overlayTimer?.cancel();
+        _overlayTimer = Timer(const Duration(milliseconds: 1500), () {
+          if (mounted && _showOverlay) {
+            setState(() {
+              _showOverlay = false;
+            });
+          }
+        });
       },
       onLongPressEnd: (_) {
-         _player.setRate(_playbackSpeed);
-         if (_showOverlay) {
-             setState(() {
-                 _showOverlay = false;
-             });
-         }
+        _player.setRate(_playbackSpeed);
+        if (_showOverlay) {
+          setState(() {
+            _showOverlay = false;
+          });
+        }
       },
       onVerticalDragStart: (details) {
         final screenWidth = MediaQuery.of(context).size.width;
         final x = details.globalPosition.dx;
-        
+
         _accumulatedDy = 0.0;
         _isAdjustingVolume = false;
         _isAdjustingBrightness = false;
 
         if (x > screenWidth / 2) {
-           _isAdjustingVolume = true;
-           FlutterVolumeController.getVolume().then((v) {
-              _startVolume = v ?? 0.5;
-           });
+          _isAdjustingVolume = true;
+          FlutterVolumeController.getVolume().then((v) {
+            _startVolume = v ?? 0.5;
+          });
         } else {
-           _isAdjustingBrightness = true;
-           ScreenBrightness().application.then((v) {
-              _startBrightness = v;
-           }).catchError((e) {
-              _startBrightness = 0.5;
-           });
+          _isAdjustingBrightness = true;
+          ScreenBrightness().application.then((v) {
+            _startBrightness = v;
+          }).catchError((e) {
+            _startBrightness = 0.5;
+          });
         }
       },
       onVerticalDragUpdate: (details) async {
         if (!_isAdjustingVolume && !_isAdjustingBrightness) return;
 
         _accumulatedDy += details.primaryDelta ?? 0;
-        
+
         double change = -_accumulatedDy / 200.0;
 
         if (_isAdjustingVolume && _startVolume != null) {
-            double newVol = (_startVolume! + change).clamp(0.0, 1.0);
-            await FlutterVolumeController.setVolume(newVol);
-            _showOverlayInfo(
-              newVol <= 0 ? Icons.volume_off : (newVol < 0.5 ? Icons.volume_down : Icons.volume_up), 
-              '${(newVol * 100).toInt()}%'
-            );
+          double newVol = (_startVolume! + change).clamp(0.0, 1.0);
+          await FlutterVolumeController.setVolume(newVol);
+          _showOverlayInfo(
+              newVol <= 0
+                  ? Icons.volume_off
+                  : (newVol < 0.5 ? Icons.volume_down : Icons.volume_up),
+              '${(newVol * 100).toInt()}%');
         } else if (_isAdjustingBrightness && _startBrightness != null) {
-             try {
-                double newB = (_startBrightness! + change).clamp(0.0, 1.0);
-                await ScreenBrightness().setApplicationScreenBrightness(newB);
-                _showOverlayInfo(Icons.brightness_medium, '${(newB * 100).toInt()}%');
-             } catch (e) {
-             }
+          try {
+            double newB = (_startBrightness! + change).clamp(0.0, 1.0);
+            await ScreenBrightness().setApplicationScreenBrightness(newB);
+            _showOverlayInfo(
+                Icons.brightness_medium, '${(newB * 100).toInt()}%');
+          } catch (e) {}
         }
       },
       onHorizontalDragStart: (details) {
-         _seekTarget = _player.state.position;
+        _seekTarget = _player.state.position;
       },
       onHorizontalDragUpdate: (details) {
-         final delta = details.primaryDelta ?? 0;
-         final currentMs = _seekTarget.inMilliseconds;
-         final newMs = (currentMs + delta * 200).clamp(0, _player.state.duration.inMilliseconds).toInt();
-         _seekTarget = Duration(milliseconds: newMs);
-         
-         final isForward = delta > 0;
-         _showOverlayInfo(
-            isForward ? Icons.fast_forward : Icons.fast_rewind, 
-            _formatDuration(_seekTarget.inSeconds)
-         );
+        final delta = details.primaryDelta ?? 0;
+        final currentMs = _seekTarget.inMilliseconds;
+        final newMs = (currentMs + delta * 200)
+            .clamp(0, _player.state.duration.inMilliseconds)
+            .toInt();
+        _seekTarget = Duration(milliseconds: newMs);
+
+        final isForward = delta > 0;
+        _showOverlayInfo(isForward ? Icons.fast_forward : Icons.fast_rewind,
+            _formatDuration(_seekTarget.inSeconds));
       },
       onHorizontalDragEnd: (details) {
-         _player.seek(_seekTarget);
+        _player.seek(_seekTarget);
       },
     );
   }
@@ -567,7 +657,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             const SizedBox(height: 8),
             Text(
               _overlayText,
-              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -593,7 +686,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         ),
       ),
       if (_pages.isNotEmpty && _pages.length > 1)
-         IconButton(
+        IconButton(
           icon: const Icon(Icons.list, color: Colors.white),
           tooltip: AppLocalizations.of(context)!.partsList,
           onPressed: _showPartsList,
@@ -607,7 +700,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           return [0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((speed) {
             return PopupMenuItem(
               value: speed,
-              child: Text('${speed}x', style: const TextStyle(color: Colors.white)),
+              child: Text('${speed}x',
+                  style: const TextStyle(color: Colors.white)),
             );
           }).toList();
         },
@@ -633,17 +727,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         icon: const Icon(Icons.download, color: Colors.white),
         tooltip: AppLocalizations.of(context)!.downloadCache,
         onPressed: () {
-           if (_cid != null && _videoDetail != null) {
-              DownloadService().startDownload(
-                  _currentVideo, 
-                  _cid!, 
-                  _videoDetail!.aid,
-                  qn: _playInfo?.quality ?? 64, 
-              );
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(AppLocalizations.of(context)!.addToDownload)),
-              );
-           }
+          if (_cid != null && _videoDetail != null) {
+            DownloadService().startDownload(
+              _currentVideo,
+              _cid!,
+              _videoDetail!.aid,
+              qn: _playInfo?.quality ?? 64,
+            );
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  content: Text(AppLocalizations.of(context)!.addToDownload)),
+            );
+          }
         },
       ),
       if (_playInfo != null && _supportQualities.isNotEmpty)
@@ -654,12 +749,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           itemBuilder: (context) {
             return List.generate(_supportQualities.length, (index) {
               final quality = _supportQualities[index];
-              final description = index < _supportQualityDescs.length 
-                  ? _supportQualityDescs[index] 
+              final description = index < _supportQualityDescs.length
+                  ? _supportQualityDescs[index]
                   : '$quality';
               return PopupMenuItem(
                 value: quality,
-                child: Text(description, style: const TextStyle(color: Colors.white)),
+                child: Text(description,
+                    style: const TextStyle(color: Colors.white)),
               );
             });
           },
@@ -699,26 +795,30 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     )
                   : mkv.MaterialVideoControlsTheme(
                       normal: mkv.MaterialVideoControlsThemeData(
-                        seekBarPositionColor: Theme.of(context).colorScheme.primary,
-                        seekBarThumbColor: Theme.of(context).colorScheme.primary,
+                        seekBarPositionColor:
+                            Theme.of(context).colorScheme.primary,
+                        seekBarThumbColor:
+                            Theme.of(context).colorScheme.primary,
                         seekBarMargin: const EdgeInsets.fromLTRB(12, 0, 12, 60),
                         topButtonBar: _buildTopBarActions(),
-                        topButtonBarMargin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                        topButtonBarMargin:
+                            const EdgeInsets.fromLTRB(16, 16, 16, 0),
                       ),
                       fullscreen: mkv.MaterialVideoControlsThemeData(
                         topButtonBar: _buildTopBarActions(),
-                        topButtonBarMargin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                        topButtonBarMargin:
+                            const EdgeInsets.fromLTRB(16, 16, 16, 0),
                       ),
                       child: mkv.Video(
                         controller: _controller,
                         controls: (state) {
-                           return Stack(
-                             children: [
-                               mkv.MaterialVideoControls(state),
-                               _buildGestureLayer(state),
-                               _buildOverlay(),
-                             ],
-                           );
+                          return Stack(
+                            children: [
+                              mkv.MaterialVideoControls(state),
+                              _buildGestureLayer(state),
+                              _buildOverlay(),
+                            ],
+                          );
                         },
                       ),
                     ),
