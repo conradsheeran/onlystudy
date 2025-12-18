@@ -42,3 +42,8 @@
   - Surface it in `lib/screens/settings_screen.dart`.
   - Consider adding/adjusting a widget test like `test/settings_screen_test.dart` when behavior depends on prefs.
 - If you add API calls, keep cookie/header behavior consistent with `BiliApiService` and prefer returning typed models from `lib/models/bili_models.dart`.
+
+## Code comment & UX copy rules
+- Comments must be in Chinese; no English comments or inline comments.
+- Every function (including getters/setters) needs a concise Chinese doc comment stating its purpose.
+- User-facing UI copy (non-debug) must be localized via existing l10n strings or added to `lib/l10n/`.

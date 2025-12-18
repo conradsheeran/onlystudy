@@ -12,6 +12,7 @@ import '../services/history_service.dart';
 import '../services/download_service.dart';
 import '../services/settings_service.dart';
 
+/// 视频播放器页面
 class VideoPlayerScreen extends StatefulWidget {
   final List<Video> playlist;
   final int initialIndex;
@@ -63,8 +64,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   Duration _seekTarget = Duration.zero;
 
+  /// 获取当前播放中的视频
   Video get _currentVideo => widget.playlist[_currentIndex];
 
+  /// 初始化组件状态并准备播放器
   @override
   void initState() {
     super.initState();
@@ -85,7 +88,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _playCurrentVideo();
   }
 
-  /// 开始播放当前视频 (初始化状态、记录历史、加载播放器)
+  /// 开始播放当前视频（初始化状态、记录历史、加载播放器）
   Future<void> _playCurrentVideo() async {
     setState(() {
       _isLoading = true;
@@ -104,6 +107,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     await HistoryService().addWatchedVideo(_currentVideo);
   }
 
+  /// 释放播放器及相关资源
   @override
   void dispose() {
     _playbackSpeedNotifier.dispose();
@@ -178,20 +182,25 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       }
 
       final savedPosition = _videoDetail!.historyProgress;
+      final localPosition =
+          await HistoryService().getProgress(_currentVideo.bvid, _cid!);
+      final resumeSeconds = localPosition > 0 ? localPosition : savedPosition;
 
-      await _setupController(_playInfo!.url,
-          startAt: savedPosition > 0 ? Duration(seconds: savedPosition) : null);
+      await _setupController(
+        _playInfo!.url,
+        startAt: resumeSeconds > 0 ? Duration(seconds: resumeSeconds) : null,
+      );
 
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
 
-        if (savedPosition > 0) {
+        if (resumeSeconds > 0) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(AppLocalizations.of(context)!
-                  .resumePlayback(_formatDuration(savedPosition))),
+                  .resumePlayback(_formatDuration(resumeSeconds))),
               duration: const Duration(seconds: 2),
             ),
           );
@@ -212,7 +221,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
-  /// 保存当前播放进度到 Bilibili 服务器
+  /// 保存当前播放进度到 B 站服务器
   Future<void> _saveProgress() async {
     final position = _player.state.position.inSeconds;
     if (position > 5 && _videoDetail != null && _cid != null) {
@@ -221,16 +230,20 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         cid: _cid!,
         progress: position,
       );
+      await HistoryService().saveProgress(_currentVideo.bvid, _cid!, position);
+    } else if (_cid != null) {
+      await HistoryService().saveProgress(_currentVideo.bvid, _cid!, position);
     }
   }
 
+  /// 将秒数格式化为分秒字符串
   String _formatDuration(int seconds) {
     final m = seconds ~/ 60;
     final s = seconds % 60;
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
-  /// 设置 media_kit 播放控制器
+  /// 配置并启动播放器控制器
   Future<void> _setupController(
     String url, {
     Duration? startAt,
@@ -268,6 +281,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
+  /// 等待媒体就绪并对起始时间进行合理化处理
   Future<Duration> _waitForReadyAndClamp(Duration target) async {
     final durationFuture = _player.stream.duration
         .firstWhere((d) => d > Duration.zero)
@@ -289,6 +303,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     return target;
   }
 
+  /// 确保跳转位置稳定粘住
   Future<void> _ensurePositionSticks(Duration target) async {
     const attempts = 4;
     const interval = Duration(milliseconds: 220);
@@ -303,6 +318,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
+  /// 短时间内守护位置防止回跳
   void _startPositionGuard(Duration target) {
     _positionGuardTimer?.cancel();
     var remaining = 8;
@@ -349,7 +365,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _playCurrentVideo();
   }
 
-  /// 切换分P
+  /// 切换分集
   Future<void> _switchPart(int index) async {
     if (index < 0 || index >= _pages.length) return;
 
@@ -378,7 +394,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         _supportQualityDescs = _playInfo!.acceptDescription;
       }
 
-      await _setupController(_playInfo!.url, startAt: Duration.zero);
+      final localPosition =
+          await HistoryService().getProgress(_currentVideo.bvid, _cid!);
+
+      await _setupController(
+        _playInfo!.url,
+        startAt: localPosition > 0
+            ? Duration(seconds: localPosition)
+            : Duration.zero,
+      );
 
       if (mounted) {
         setState(() {
@@ -453,7 +477,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         Icons.speed, '${AppLocalizations.of(context)!.speed} ${speed}x');
   }
 
-  /// 显示覆盖信息 (音量/亮度/倍速)
+  /// 显示覆盖信息（音量/亮度/倍速）
   void _showOverlayInfo(IconData icon, String text, {bool autoHide = true}) {
     setState(() {
       _showOverlay = true;
@@ -472,6 +496,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
+  /// 展示分集选择列表
   void _showPartsList() {
     showModalBottomSheet(
       context: context,
@@ -668,7 +693,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
-  /// 构建顶部 App Bar 按钮列表
+  /// 构建顶部按钮区域
   List<Widget> _buildTopBarActions() {
     return [
       IconButton(
@@ -780,6 +805,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     ];
   }
 
+  /// 构建播放器界面
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -827,6 +853,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
+  /// 获取当前清晰度的描述文本
   String _getCurrentQualityDesc() {
     if (_playInfo == null) return AppLocalizations.of(context)!.quality;
     final index = _supportQualities.indexOf(_playInfo!.quality);

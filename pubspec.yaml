@@ -1,7 +1,7 @@
 name: onlystudy
 description: "OnlyStudy is an immersive Bilibili video player designed specifically for learning, featuring a lock function to ensure a focused study environment."
 publish_to: 'none'
-version: 0.5.1+22
+version: 0.5.2+25
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
