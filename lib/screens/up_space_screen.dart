@@ -161,16 +161,6 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
     _loadVideos(reset: true);
   }
 
-  /// 数字格式化，千位以上使用万/亿
-  String _formatCount(int count) {
-    if (count >= 100000000) {
-      return '${(count / 100000000).toStringAsFixed(1)}亿';
-    } else if (count >= 10000) {
-      return '${(count / 10000).toStringAsFixed(1)}万';
-    }
-    return count.toString();
-  }
-
   /// 构建用户信息卡片
   Widget _buildHeader() {
     if (_loadingInfo && _info == null) {
@@ -192,52 +182,32 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Row(
-              children: [
-                CommonImage(info.face, width: 64, height: 64, radius: 12),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        info.name,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        info.sign.isEmpty
-                            ? AppLocalizations.of(context)!.upIntroDefault
-                            : info.sign,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
+            CommonImage(info.face, width: 64, height: 64, radius: 12),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    info.name,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 16,
-              runSpacing: 8,
-              children: [
-                _buildStat(AppLocalizations.of(context)!.followers, info.fans),
-                _buildStat(
-                    AppLocalizations.of(context)!.following, info.following),
-                _buildStat(AppLocalizations.of(context)!.likes, info.likes),
-                _buildStat(
-                    AppLocalizations.of(context)!.plays, info.archiveView),
-                _buildStat(
-                    AppLocalizations.of(context)!.videosCount, info.videoCount),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    info.sign.isEmpty
+                        ? AppLocalizations.of(context)!.upIntroDefault
+                        : info.sign,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -245,57 +215,21 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
     );
   }
 
-  /// 构建统计项
-  Widget _buildStat(String label, int value) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          _formatCount(value),
-          style: Theme.of(context)
-              .textTheme
-              .bodyLarge
-              ?.copyWith(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 2),
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
-      ],
-    );
-  }
-
   /// 构建排序与筛选控件
   Widget _buildFilters() {
     final locale = AppLocalizations.of(context)!;
-    final orderOptions = [
-      {'value': 'pubdate', 'label': locale.sortLatest},
-      {'value': 'click', 'label': locale.sortPlay},
-    ];
+    final isLatest = _order == 'pubdate';
+    final label = isLatest ? locale.sortLatest : locale.sortPlay;
+    final icon = isLatest ? Icons.schedule : Icons.local_fire_department;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        Row(
-          children: [
-            Text('${locale.sortLabel}: '),
-            const SizedBox(width: 8),
-            DropdownButton<String>(
-              value: _order,
-              items: orderOptions
-                  .map(
-                    (item) => DropdownMenuItem<String>(
-                      value: item['value']!,
-                      child: Text(item['label']!),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  _onOrderChanged(value);
-                }
-              },
-            ),
-          ],
+        Text(locale.sortLabel),
+        const Spacer(),
+        TextButton.icon(
+          icon: Icon(icon),
+          label: Text(label),
+          onPressed: () => _onOrderChanged(isLatest ? 'click' : 'pubdate'),
         ),
       ],
     );

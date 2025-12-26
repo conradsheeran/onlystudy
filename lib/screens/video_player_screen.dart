@@ -641,7 +641,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             await ScreenBrightness().setApplicationScreenBrightness(newB);
             _showOverlayInfo(
                 Icons.brightness_medium, '${(newB * 100).toInt()}%');
-          } catch (e) {}
+          } catch (e) {
+            debugPrint('调整亮度失败: $e');
+          }
         }
       },
       onHorizontalDragStart: (details) {

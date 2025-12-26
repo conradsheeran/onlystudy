@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/bili_models.dart';
 
@@ -86,7 +87,9 @@ class HistoryService {
       try {
         final Map<String, dynamic> json = jsonDecode(item);
         videos.add(Video.fromJson(json));
-      } catch (e) {}
+      } catch (e) {
+        debugPrint('解析历史记录失败: $e');
+      }
     }
     return videos;
   }

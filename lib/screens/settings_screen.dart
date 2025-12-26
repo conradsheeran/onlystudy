@@ -27,7 +27,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ListTile(
             leading: const Icon(Icons.video_settings),
             title: Text(AppLocalizations.of(context)!.defaultResolution),
-            subtitle: Text(SettingsService.resolutionMap[SettingsService().defaultResolution] ?? '720P'),
+            subtitle: Text(SettingsService
+                    .resolutionMap[SettingsService().defaultResolution] ??
+                '720P'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: _showResolutionDialog,
           ),
@@ -89,7 +91,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final isLocked = await AuthService().isFolderSelectionLocked();
     if (isLocked) {
       if (mounted) {
-         _showUnlockDialog();
+        _showUnlockDialog();
       }
     } else {
       if (mounted) {
@@ -111,7 +113,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         content: TextField(
           controller: controller,
           obscureText: true,
-          decoration: InputDecoration(hintText: AppLocalizations.of(context)!.enterPassword),
+          decoration: InputDecoration(
+              hintText: AppLocalizations.of(context)!.enterPassword),
           autofocus: true,
         ),
         actions: [
@@ -121,25 +124,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           FilledButton(
             onPressed: () async {
-              final isCorrect = await AuthService().checkFolderLockPassword(controller.text);
+              final isCorrect =
+                  await AuthService().checkFolderLockPassword(controller.text);
               if (!context.mounted) return;
-              
+
               if (isCorrect) {
-                 await AuthService().setFolderSelectionLocked(false);
-                 if (context.mounted) {
-                   Navigator.pop(context); // Close dialog
-                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(AppLocalizations.of(context)!.unlocked)),
-                   );
-                   Navigator.push(
+                await AuthService().setFolderSelectionLocked(false);
+                if (context.mounted) {
+                  Navigator.pop(context); // Close dialog
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(AppLocalizations.of(context)!.unlocked)),
+                  );
+                  Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const SelectFoldersScreen()),
-                   );
-                 }
+                    MaterialPageRoute(
+                        builder: (context) => const SelectFoldersScreen()),
+                  );
+                }
               } else {
-                 ScaffoldMessenger.of(context).showSnackBar(
-                   SnackBar(content: Text(AppLocalizations.of(context)!.passwordIncorrect)),
-                 );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content: Text(
+                          AppLocalizations.of(context)!.passwordIncorrect)),
+                );
               }
             },
             child: Text(AppLocalizations.of(context)!.unlock),
@@ -190,7 +198,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         content: TextField(
           controller: controller,
           obscureText: true,
-          decoration: InputDecoration(hintText: AppLocalizations.of(context)!.enterPassword),
+          decoration: InputDecoration(
+              hintText: AppLocalizations.of(context)!.enterPassword),
           autofocus: true,
         ),
         actions: [
@@ -200,13 +209,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           FilledButton(
             onPressed: () async {
-              final isCorrect = await AuthService().checkFolderLockPassword(controller.text);
+              final isCorrect =
+                  await AuthService().checkFolderLockPassword(controller.text);
               if (context.mounted) {
                 if (isCorrect) {
                   Navigator.pop(context, true);
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(AppLocalizations.of(context)!.passwordIncorrect)),
+                    SnackBar(
+                        content: Text(
+                            AppLocalizations.of(context)!.passwordIncorrect)),
                   );
                 }
               }
@@ -263,6 +275,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   /// 显示默认清晰度选择对话框
   void _showResolutionDialog() {
+    final navigator = Navigator.of(context);
+    final current = SettingsService().defaultResolution;
     showDialog(
       context: context,
       builder: (context) {
@@ -272,18 +286,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: SettingsService.resolutionMap.entries.map((entry) {
-                return RadioListTile<int>(
+                final selected = entry.key == current;
+                return ListTile(
                   title: Text(entry.value),
-                  value: entry.key,
-                  groupValue: SettingsService().defaultResolution,
-                  onChanged: (value) async {
-                    if (value != null) {
-                      await SettingsService().setDefaultResolution(value);
-                      if (mounted) {
-                        setState(() {});
-                        Navigator.pop(context);
-                      }
-                    }
+                  trailing: selected
+                      ? const Icon(Icons.check, color: Colors.green)
+                      : null,
+                  selected: selected,
+                  onTap: () async {
+                    await SettingsService().setDefaultResolution(entry.key);
+                    if (!mounted) return;
+                    setState(() {});
+                    navigator.pop();
                   },
                 );
               }).toList(),
@@ -301,113 +315,100 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   /// 显示默认倍速选择对话框
-    void _showSpeedDialog() {
-      showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: Text(AppLocalizations.of(context)!.defaultPlaybackSpeed),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((speed) {
-                  return RadioListTile<double>(
-                    title: Text('${speed}x'),
-                    value: speed,
-                    groupValue: SettingsService().defaultPlaybackSpeed,
-                    onChanged: (value) async {
-                      if (value != null) {
-                        await SettingsService().setDefaultPlaybackSpeed(value);
-                        if (mounted) {
-                          setState(() {});
-                          Navigator.pop(context);
-                        }
-                      }
-                    },
-                  );
-                }).toList(),
-              ),
+  void _showSpeedDialog() {
+    final navigator = Navigator.of(context);
+    final current = SettingsService().defaultPlaybackSpeed;
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(AppLocalizations.of(context)!.defaultPlaybackSpeed),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((speed) {
+                final selected = speed == current;
+                return ListTile(
+                  title: Text('${speed}x'),
+                  trailing: selected
+                      ? const Icon(Icons.check, color: Colors.green)
+                      : null,
+                  selected: selected,
+                  onTap: () async {
+                    await SettingsService().setDefaultPlaybackSpeed(speed);
+                    if (!mounted) return;
+                    setState(() {});
+                    navigator.pop();
+                  },
+                );
+              }).toList(),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(AppLocalizations.of(context)!.cancel),
-              ),
-            ],
-          );
-        },
-      );
-    }
-  
-    void _showLanguageDialog() {
-      showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: Text(AppLocalizations.of(context)!.selectLanguage),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  RadioListTile<String?>(
-                    title: Text(AppLocalizations.of(context)!.followSystem),
-                    value: null,
-                    groupValue: SettingsService().localeCode,
-                    onChanged: (value) async {
-                      await SettingsService().setLocale(null);
-                      if (mounted) {
-                        setState(() {});
-                        Navigator.pop(context);
-                      }
-                    },
-                  ),
-                  RadioListTile<String?>(
-                    title: const Text('English'),
-                    value: 'en',
-                    groupValue: SettingsService().localeCode,
-                    onChanged: (value) async {
-                      await SettingsService().setLocale('en');
-                      if (mounted) {
-                        setState(() {});
-                        Navigator.pop(context);
-                      }
-                    },
-                  ),
-                  RadioListTile<String?>(
-                    title: const Text('中文'),
-                    value: 'zh',
-                    groupValue: SettingsService().localeCode,
-                    onChanged: (value) async {
-                      await SettingsService().setLocale('zh');
-                      if (mounted) {
-                        setState(() {});
-                        Navigator.pop(context);
-                      }
-                    },
-                  ),
-                ],
-              ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(AppLocalizations.of(context)!.cancel),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(AppLocalizations.of(context)!.cancel),
-              ),
-            ],
-          );
-        },
-      );
-    }
-  
-    String _getLanguageName(String? code) {
-      switch (code) {
-        case 'en':
-          return 'English';
-        case 'zh':
-          return '中文';
-        default:
-          return AppLocalizations.of(context)!.followSystem;
-      }
+          ],
+        );
+      },
+    );
+  }
+
+  void _showLanguageDialog() {
+    final navigator = Navigator.of(context);
+    final current = SettingsService().localeCode;
+    final options = <String?, String>{
+      null: AppLocalizations.of(context)!.followSystem,
+      'en': 'English',
+      'zh': '中文',
+    };
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(AppLocalizations.of(context)!.selectLanguage),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: options.entries.map((entry) {
+                final selected = entry.key == current;
+                return ListTile(
+                  title: Text(entry.value),
+                  trailing: selected
+                      ? const Icon(Icons.check, color: Colors.green)
+                      : null,
+                  selected: selected,
+                  onTap: () async {
+                    await SettingsService().setLocale(entry.key);
+                    if (!mounted) return;
+                    setState(() {});
+                    navigator.pop();
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(AppLocalizations.of(context)!.cancel),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _getLanguageName(String? code) {
+    switch (code) {
+      case 'en':
+        return 'English';
+      case 'zh':
+        return '中文';
+      default:
+        return AppLocalizations.of(context)!.followSystem;
     }
   }
-  
+}

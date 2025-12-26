@@ -178,6 +178,7 @@ class _HomeScreenState extends State<HomeScreen> {
               name: info.name,
               face: info.face,
               sign: info.sign,
+              videoCount: info.videoCount,
             ));
           } catch (e) {
             debugPrint('Failed to load up $mid: $e');
@@ -529,16 +530,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                             id: item.mid,
                                             title: item.name,
                                             cover: item.face,
-                                            mediaCount: 0,
+                                            mediaCount: item.videoCount,
                                             upper: BiliUpper(
                                               mid: item.mid,
                                               name: item.name,
                                             ),
                                             favState: 1,
                                           ),
-                                          subtitle: item.sign.isEmpty
-                                              ? locale.upIntroDefault
-                                              : item.sign,
+                                          subtitle: locale
+                                              .videoCount(item.videoCount),
                                           onTap: () {
                                             Navigator.push(
                                               context,

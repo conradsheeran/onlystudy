@@ -110,12 +110,14 @@ class FollowUser {
   final String name;
   final String face;
   final String sign;
+  final int videoCount;
 
   FollowUser({
     required this.mid,
     required this.name,
     required this.face,
     required this.sign,
+    this.videoCount = 0,
   });
 
   /// 从关注列表接口构造精简信息
@@ -125,6 +127,7 @@ class FollowUser {
       name: json['uname'] ?? json['name'] ?? '未知UP主',
       face: json['face'] ?? '',
       sign: json['sign'] ?? '',
+      videoCount: json['video_count'] ?? json['videos'] ?? 0,
     );
   }
 }
