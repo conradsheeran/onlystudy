@@ -6,8 +6,10 @@ import 'common_image.dart';
 class FolderCard extends StatelessWidget {
   final Folder folder;
   final VoidCallback onTap;
+  final String? subtitle;
 
-  const FolderCard({super.key, required this.folder, required this.onTap});
+  const FolderCard(
+      {super.key, required this.folder, required this.onTap, this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -49,10 +51,14 @@ class FolderCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${folder.mediaCount} 个视频',
+                      subtitle?.isNotEmpty == true
+                          ? subtitle!
+                          : '${folder.mediaCount} 个视频',
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
                             color: Colors.grey[600],
                           ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),

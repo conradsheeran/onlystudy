@@ -70,10 +70,10 @@ class _SeasonContentScreenState extends State<SeasonContentScreen> {
         widget.season.upper.mid,
         pn: _page,
       );
-      
+
       if (mounted) {
         if (videos.isNotEmpty) {
-           _databaseService.insertVideos(videos, seasonId: widget.season.id);
+          _databaseService.insertVideos(videos, seasonId: widget.season.id);
         }
 
         setState(() {
@@ -82,7 +82,7 @@ class _SeasonContentScreenState extends State<SeasonContentScreen> {
           } else {
             _videos.addAll(videos);
           }
-          
+
           if (videos.length < 20) {
             _hasMore = false;
           } else {
@@ -98,12 +98,13 @@ class _SeasonContentScreenState extends State<SeasonContentScreen> {
           });
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppLocalizations.of(context)!.loadMoreFailed(e.toString()))),
+            SnackBar(
+                content: Text(AppLocalizations.of(context)!
+                    .loadMoreFailed(e.toString()))),
           );
         }
       }
-    }
-    finally {
+    } finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -130,7 +131,8 @@ class _SeasonContentScreenState extends State<SeasonContentScreen> {
                   onRefresh: () => _fetchVideos(refresh: true),
                   child: _videos.isEmpty
                       ? Center(
-                          child: Text(AppLocalizations.of(context)!.noVideosInSeason),
+                          child: Text(
+                              AppLocalizations.of(context)!.noVideosInSeason),
                         )
                       : ListView.builder(
                           controller: _scrollController,
@@ -138,12 +140,12 @@ class _SeasonContentScreenState extends State<SeasonContentScreen> {
                           itemCount: _videos.length + (_hasMore ? 1 : 0),
                           itemBuilder: (context, index) {
                             if (index == _videos.length) {
-                               return const Center(
-                                  child: Padding(
-                                    padding: EdgeInsets.all(8.0),
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                );
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(8.0),
+                                  child: CircularProgressIndicator(),
+                                ),
+                              );
                             }
                             final video = _videos[index];
                             return VideoTile(

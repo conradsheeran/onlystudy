@@ -8,10 +8,148 @@ class BiliUpper {
     required this.name,
   });
 
+  /// 从通用 JSON 构造 UP 主基础信息
   factory BiliUpper.fromJson(Map<String, dynamic> json) {
     return BiliUpper(
       mid: json['mid'] ?? 0,
       name: json['name'] ?? '未知UP主',
+    );
+  }
+}
+
+/// UP 主主页用户信息模型
+class BiliUserInfo {
+  final int mid;
+  final String name;
+  final String face;
+  final String sign;
+  final int level;
+  final int fans;
+  final int following;
+  final int likes;
+  final int archiveView;
+  final int videoCount;
+
+  BiliUserInfo({
+    required this.mid,
+    required this.name,
+    required this.face,
+    required this.sign,
+    required this.level,
+    required this.fans,
+    required this.following,
+    required this.likes,
+    required this.archiveView,
+    required this.videoCount,
+  });
+
+  /// 合并多个接口数据生成用户信息模型
+  factory BiliUserInfo.fromApis({
+    required Map<String, dynamic> info,
+    required Map<String, dynamic> relation,
+    required Map<String, dynamic> upstat,
+    required Map<String, dynamic> navnum,
+  }) {
+    return BiliUserInfo(
+      mid: info['mid'] ?? 0,
+      name: info['name'] ?? '未知UP主',
+      face: info['face'] ?? '',
+      sign: info['sign'] ?? '',
+      level: info['level'] ?? 0,
+      fans: relation['follower'] ?? 0,
+      following: relation['following'] ?? 0,
+      likes: upstat['likes'] ?? 0,
+      archiveView: upstat['archive']?['view'] ?? 0,
+      videoCount: navnum['video'] ?? 0,
+    );
+  }
+}
+
+/// UP 主分区统计模型
+class UpSpaceCategory {
+  final int tid;
+  final String name;
+  final int count;
+
+  UpSpaceCategory({
+    required this.tid,
+    required this.name,
+    required this.count,
+  });
+
+  /// 从空间分区统计 JSON 构造模型
+  factory UpSpaceCategory.fromJson(Map<String, dynamic> json) {
+    return UpSpaceCategory(
+      tid: json['tid'] ?? 0,
+      name: json['name'] ?? '未知分区',
+      count: json['count'] ?? 0,
+    );
+  }
+}
+
+/// UP 主投稿分页模型
+class UpSpaceVideoPage {
+  final List<Video> videos;
+  final List<UpSpaceCategory> categories;
+  final bool hasMore;
+  final int totalCount;
+  final int pageNumber;
+
+  UpSpaceVideoPage({
+    required this.videos,
+    required this.categories,
+    required this.hasMore,
+    required this.totalCount,
+    required this.pageNumber,
+  });
+}
+
+/// 关注列表中的 UP 主精简信息模型
+class FollowUser {
+  final int mid;
+  final String name;
+  final String face;
+  final String sign;
+
+  FollowUser({
+    required this.mid,
+    required this.name,
+    required this.face,
+    required this.sign,
+  });
+
+  /// 从关注列表接口构造精简信息
+  factory FollowUser.fromJson(Map<String, dynamic> json) {
+    return FollowUser(
+      mid: json['mid'] ?? 0,
+      name: json['uname'] ?? json['name'] ?? '未知UP主',
+      face: json['face'] ?? '',
+      sign: json['sign'] ?? '',
+    );
+  }
+}
+
+/// UP 主合集（系列）模型
+class UpSeries {
+  final int id;
+  final String title;
+  final String cover;
+  final int videoCount;
+
+  UpSeries({
+    required this.id,
+    required this.title,
+    required this.cover,
+    required this.videoCount,
+  });
+
+  /// 从合集列表接口构造模型
+  factory UpSeries.fromJson(Map<String, dynamic> json) {
+    return UpSeries(
+      id: json['series_id'] ?? json['id'] ?? 0,
+      title: json['title'] ?? json['name'] ?? '未命名合集',
+      cover: json['cover'] ?? json['pic'] ?? 'https://via.placeholder.com/150',
+      videoCount: json['video_count'] ?? json['count'] ?? json['number'] ?? 0,
     );
   }
 }
@@ -95,25 +233,39 @@ class Video {
     required this.pubTimestamp,
   });
 
+  /// 兼容收藏夹/空间稿件等多种数据格式的解析
   factory Video.fromJson(Map<String, dynamic> json) {
+    final upperJson = json['upper'] ??
+        json['owner'] ??
+        {
+          'mid': json['mid'] ?? 0,
+          'name': json['author'] ?? '未知UP主',
+        };
+    final pubTime = json['pub_time'] ?? json['pubdate'] ?? 0;
+    final viewCount = json['cnt_info']?['play'] ?? json['stat']?['view'] ?? 0;
+    final danmakuCount =
+        json['cnt_info']?['danmaku'] ?? json['stat']?['danmaku'] ?? 0;
+
     return Video(
       bvid: json['bvid'] ?? '',
       title: json['title'] ?? '未知视频',
-      cover: json['cover'] ?? 'https://via.placeholder.com/150',
+      cover: json['cover'] ?? json['pic'] ?? 'https://via.placeholder.com/150',
       duration: json['duration'] ?? 0,
-      upper: BiliUpper.fromJson(json['upper'] ?? {}),
-      view: json['cnt_info']?['play'] ?? 0, // 播放量在 cnt_info 中
-      danmaku: json['cnt_info']?['danmaku'] ?? 0,
-      pubTimestamp: json['pub_time'] ?? 0,
+      upper: BiliUpper.fromJson(upperJson),
+      view: viewCount,
+      danmaku: danmakuCount,
+      pubTimestamp: pubTime,
     );
   }
 
+  /// 返回格式化后的视频时长 mm:ss
   String get formattedDuration {
     final minutes = duration ~/ 60;
     final seconds = duration % 60;
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
+  /// 返回格式化后的播放量字符串
   String get formattedViewCount {
     if (view >= 100000000) {
       return '${(view / 100000000).toStringAsFixed(1)}亿';
@@ -124,6 +276,7 @@ class Video {
     }
   }
 
+  /// 返回格式化后的弹幕数量字符串
   String get formattedDanmakuCount {
     if (danmaku >= 10000) {
       return '${(danmaku / 10000).toStringAsFixed(1)}万';
@@ -132,14 +285,15 @@ class Video {
     }
   }
 
+  /// 返回格式化后的发布时间
   String get formattedPubDate {
     if (pubTimestamp == 0) return '';
     final date = DateTime.fromMillisecondsSinceEpoch(pubTimestamp * 1000);
     final now = DateTime.now();
     if (now.year == date.year) {
-        return '${date.month}-${date.day}';
+      return '${date.month}-${date.day}';
     } else {
-        return '${date.year}-${date.month}-${date.day}';
+      return '${date.year}-${date.month}-${date.day}';
     }
   }
 }
@@ -163,7 +317,7 @@ class VideoPlayInfo {
     if (json['durl'] != null && (json['durl'] as List).isNotEmpty) {
       url = json['durl'][0]['url'];
     }
-    
+
     return VideoPlayInfo(
       url: url,
       quality: json['quality'] ?? 0,
@@ -208,7 +362,7 @@ class VideoDetail {
   VideoDetail({
     required this.aid,
     required this.cid,
-    this.bvid = 0, 
+    this.bvid = 0,
     this.historyProgress = 0,
     this.pages = const [],
   });
@@ -220,7 +374,7 @@ class VideoDetail {
         pagesList.add(VideoPage.fromJson(p));
       }
     }
-    
+
     return VideoDetail(
       aid: json['aid'] ?? 0,
       cid: json['cid'] ?? 0,

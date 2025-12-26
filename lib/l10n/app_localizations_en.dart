@@ -213,6 +213,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get favorites => 'Favorites';
 
   @override
+  String get upTab => 'UP主';
+
+  @override
   String get subscribedSeasons => 'Subscribed Seasons';
 
   @override
@@ -280,6 +283,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String loadUpsFailed(Object error) {
+    return '加载UP主列表失败: $error';
+  }
+
+  @override
   String get noVideosInFolder => 'No videos in this folder.';
 
   @override
@@ -299,6 +307,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get selectAtLeastOne => 'Please select at least one folder or season';
+
+  @override
+  String get noUps => '暂无关注的UP主';
 
   @override
   String get noVideosInSeason => 'No videos in this season.';
@@ -332,4 +343,78 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get selectLanguage => 'Select Language';
+
+  @override
+  String upHomeTitle(Object name) {
+    return '$name\'s Space';
+  }
+
+  @override
+  String get upHomeFallback => 'Creator Space';
+
+  @override
+  String get followers => 'Followers';
+
+  @override
+  String get following => 'Following';
+
+  @override
+  String get likes => 'Likes';
+
+  @override
+  String get plays => 'Views';
+
+  @override
+  String get videosCount => 'Videos';
+
+  @override
+  String get upIntroDefault => 'No bio yet.';
+
+  @override
+  String get upVideosTab => 'Videos';
+
+  @override
+  String get upCollectionsTab => 'Collections';
+
+  @override
+  String get sortLabel => 'Sort';
+
+  @override
+  String get filterLabel => 'Filter';
+
+  @override
+  String get allCategories => 'All';
+
+  @override
+  String get sortLatest => 'Latest';
+
+  @override
+  String get sortPlay => 'Most Viewed';
+
+  @override
+  String get sortFavorite => 'Most Collected';
+
+  @override
+  String get sortDanmaku => 'Most Danmaku';
+
+  @override
+  String get emptyUpVideos => 'No videos yet';
+
+  @override
+  String get emptyCollections => 'No collections';
+
+  @override
+  String loadUpFailed(Object error) {
+    return 'Failed to load profile: $error';
+  }
+
+  @override
+  String loadUpVideosFailed(Object error) {
+    return 'Failed to load videos: $error';
+  }
+
+  @override
+  String loadCollectionFailed(Object error) {
+    return 'Failed to load collections: $error';
+  }
 }

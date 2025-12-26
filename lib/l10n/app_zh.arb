@@ -66,6 +66,7 @@
   "searchHint": "请输入关键词搜索视频",
   "noResult": "没有找到相关视频",
   "favorites": "收藏夹",
+  "upTab": "UP主",
   "subscribedSeasons": "订阅合集",
   "offlineCache": "离线缓存",
   "completed": "已完成",
@@ -86,13 +87,15 @@
   "searchFolder": "在线搜索此收藏夹...",
   "loadFailed": "加载视频失败: {error}",
   "loadMoreFailed": "加载更多失败: {error}",
+  "loadUpsFailed": "加载UP主列表失败: {error}",
   "noVideosInFolder": "此收藏夹中没有视频。",
   "selectContent": "选择显示的内容",
   "retry": "重试",
   "selectAll": "全选",
   "clear": "清空",
   "confirmAndEnter": "确认并进入",
-  "selectAtLeastOne": "请至少选择一个收藏夹或合集",
+  "selectAtLeastOne": "请至少选择一个收藏夹、合集或UP主",
+  "noUps": "暂无关注的UP主",
   "noVideosInSeason": "此合集中没有视频。",
   "partsList": "分集列表",
   "playingPart": "即将播放 P{part}: {title}",
@@ -102,4 +105,26 @@
   "language": "语言",
   "followSystem": "跟随系统",
   "selectLanguage": "选择语言"
+  ,"upHomeTitle": "{name} 的主页"
+  ,"upHomeFallback": "UP主主页"
+  ,"followers": "粉丝"
+  ,"following": "关注"
+  ,"likes": "获赞"
+  ,"plays": "总播放"
+  ,"videosCount": "投稿数"
+  ,"upIntroDefault": "这个UP很懒，还没有签名"
+  ,"upVideosTab": "投稿"
+  ,"upCollectionsTab": "合集"
+  ,"sortLabel": "排序"
+  ,"filterLabel": "筛选"
+  ,"allCategories": "全部分区"
+  ,"sortLatest": "最新发布"
+  ,"sortPlay": "最多播放"
+  ,"sortFavorite": "最多收藏"
+  ,"sortDanmaku": "最多弹幕"
+  ,"emptyUpVideos": "暂无投稿"
+  ,"emptyCollections": "暂无合集"
+  ,"loadUpFailed": "加载UP主信息失败: {error}"
+  ,"loadUpVideosFailed": "加载投稿失败: {error}"
+  ,"loadCollectionFailed": "加载合集失败: {error}"
 }

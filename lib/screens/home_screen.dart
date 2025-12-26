@@ -15,6 +15,7 @@ import '../services/bili_api_service.dart';
 import '../services/database_service.dart';
 import 'history_screen.dart';
 import 'video_player_screen.dart';
+import 'up_space_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,12 +28,13 @@ class _HomeScreenState extends State<HomeScreen> {
   final BiliApiService _biliApiService = BiliApiService();
   final DatabaseService _databaseService = DatabaseService();
   final ScrollController _scrollController = ScrollController();
-  
+
   List<dynamic> _items = [];
-  
+
   List<int> _visibleFolderIds = [];
   List<int> _visibleSeasonIds = [];
-  
+  List<int> _visibleUpIds = [];
+
   List<Video> _searchResults = [];
   bool _isLoading = true;
   String? _error;
@@ -41,7 +43,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
   bool _isLocked = false;
-
 
   /// 执行搜索逻辑，支持按可见收藏夹/合集过滤
   Future<void> _performSearch(String keyword) async {
@@ -53,12 +54,12 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       return;
     }
-    
+
     try {
       final videos = await _databaseService.searchVideos(
-         keyword, 
-         visibleFolderIds: _visibleFolderIds,
-         visibleSeasonIds: _visibleSeasonIds,
+        keyword,
+        visibleFolderIds: _visibleFolderIds,
+        visibleSeasonIds: _visibleSeasonIds,
       );
       if (mounted) {
         setState(() {
@@ -75,10 +76,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () {
       if (value != _searchKeyword) {
-          setState(() {
-            _searchKeyword = value;
-          });
-          _performSearch(value);
+        setState(() {
+          _searchKeyword = value;
+        });
+        _performSearch(value);
       }
     });
   }
@@ -94,7 +95,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final locked = await AuthService().isFolderSelectionLocked();
     _visibleFolderIds = await AuthService().getVisibleFolderIds();
     _visibleSeasonIds = await AuthService().getVisibleSeasonIds();
-    
+    _visibleUpIds = await AuthService().getVisibleUpIds();
+
     setState(() {
       _isLocked = locked;
     });
@@ -120,54 +122,74 @@ class _HomeScreenState extends State<HomeScreen> {
       // Refresh visible IDs on refresh
       _visibleFolderIds = await AuthService().getVisibleFolderIds();
       _visibleSeasonIds = await AuthService().getVisibleSeasonIds();
+      _visibleUpIds = await AuthService().getVisibleUpIds();
     }
 
     try {
       List<Folder> visibleFolders = [];
       if (_visibleFolderIds.isNotEmpty) {
-          int page = 1;
-          Set<int> foundIds = {};
-          while(foundIds.length < _visibleFolderIds.length) {
-             final folders = await _biliApiService.getFavoriteFolders(pn: page, ps: 20);
-             if (folders.isEmpty) break;
-             
-             for (var f in folders) {
-               if (_visibleFolderIds.contains(f.id)) {
-                 visibleFolders.add(f);
-                 foundIds.add(f.id);
-               }
-             }
-             if (folders.length < 20) break;
-             page++;
-             if (page > 5) break;
+        int page = 1;
+        Set<int> foundIds = {};
+        while (foundIds.length < _visibleFolderIds.length) {
+          final folders =
+              await _biliApiService.getFavoriteFolders(pn: page, ps: 20);
+          if (folders.isEmpty) break;
+
+          for (var f in folders) {
+            if (_visibleFolderIds.contains(f.id)) {
+              visibleFolders.add(f);
+              foundIds.add(f.id);
+            }
           }
+          if (folders.length < 20) break;
+          page++;
+          if (page > 5) break;
+        }
       }
 
       List<Season> visibleSeasons = [];
       if (_visibleSeasonIds.isNotEmpty) {
-          int page = 1;
-          Set<int> foundIds = {};
-          while(foundIds.length < _visibleSeasonIds.length) {
-             final seasons = await _biliApiService.getSubscribedSeasons(pn: page, ps: 20);
-             if (seasons.isEmpty) break;
-             
-             for (var s in seasons) {
-               if (_visibleSeasonIds.contains(s.id)) {
-                 visibleSeasons.add(s);
-                 foundIds.add(s.id);
-               }
-             }
-             if (seasons.length < 20) break;
-             page++;
-             if (page > 5) break;
+        int page = 1;
+        Set<int> foundIds = {};
+        while (foundIds.length < _visibleSeasonIds.length) {
+          final seasons =
+              await _biliApiService.getSubscribedSeasons(pn: page, ps: 20);
+          if (seasons.isEmpty) break;
+
+          for (var s in seasons) {
+            if (_visibleSeasonIds.contains(s.id)) {
+              visibleSeasons.add(s);
+              foundIds.add(s.id);
+            }
           }
+          if (seasons.length < 20) break;
+          page++;
+          if (page > 5) break;
+        }
       }
-      
+
+      List<FollowUser> visibleUps = [];
+      if (_visibleUpIds.isNotEmpty) {
+        for (final mid in _visibleUpIds) {
+          try {
+            final info = await _biliApiService.getUpInfo(mid);
+            visibleUps.add(FollowUser(
+              mid: info.mid,
+              name: info.name,
+              face: info.face,
+              sign: info.sign,
+            ));
+          } catch (e) {
+            debugPrint('Failed to load up $mid: $e');
+          }
+        }
+      }
+
       if (mounted) {
         setState(() {
-          _items = [...visibleFolders, ...visibleSeasons];
+          _items = [...visibleFolders, ...visibleSeasons, ...visibleUps];
         });
-        
+
         if (refresh) {
           _syncAllContent(visibleFolders, visibleSeasons);
         }
@@ -188,26 +210,29 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// 后台同步所有可见内容的视频数据到本地数据库
-  Future<void> _syncAllContent(List<Folder> folders, List<Season> seasons) async {
+  Future<void> _syncAllContent(
+      List<Folder> folders, List<Season> seasons) async {
     for (var folder in folders) {
       if (!mounted) return;
       try {
-        final videos = await _biliApiService.getFolderVideos(folder.id, pn: 1, ps: 20);
+        final videos =
+            await _biliApiService.getFolderVideos(folder.id, pn: 1, ps: 20);
         if (videos.isNotEmpty) {
-           await _databaseService.insertVideos(videos, folderId: folder.id);
+          await _databaseService.insertVideos(videos, folderId: folder.id);
         }
         await Future.delayed(const Duration(milliseconds: 500));
       } catch (e) {
         debugPrint('Sync failed for folder ${folder.id}: $e');
       }
     }
-    
+
     for (var season in seasons) {
       if (!mounted) return;
       try {
-        final videos = await _biliApiService.getSeasonVideos(season.id, season.upper.mid, pn: 1, ps: 20);
+        final videos = await _biliApiService
+            .getSeasonVideos(season.id, season.upper.mid, pn: 1, ps: 20);
         if (videos.isNotEmpty) {
-           await _databaseService.insertVideos(videos, seasonId: season.id);
+          await _databaseService.insertVideos(videos, seasonId: season.id);
         }
         await Future.delayed(const Duration(milliseconds: 500));
       } catch (e) {
@@ -215,7 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
   }
-    
+
   /// 处理锁定按钮点击事件 (锁定/设置密码/提示解锁)
   Future<void> _handleLockPress() async {
     if (_isLocked) {
@@ -257,7 +282,8 @@ class _HomeScreenState extends State<HomeScreen> {
         content: TextField(
           controller: controller,
           obscureText: true,
-          decoration: InputDecoration(hintText: AppLocalizations.of(context)!.enterPassword),
+          decoration: InputDecoration(
+              hintText: AppLocalizations.of(context)!.enterPassword),
           autofocus: true,
         ),
         actions: [
@@ -271,12 +297,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 await AuthService().setFolderLockPassword(controller.text);
                 await AuthService().setFolderSelectionLocked(true);
                 if (context.mounted) {
-                   setState(() {
+                  setState(() {
                     _isLocked = true;
                   });
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(AppLocalizations.of(context)!.passwordSet)),
+                    SnackBar(
+                        content:
+                            Text(AppLocalizations.of(context)!.passwordSet)),
                   );
                 }
               }
@@ -298,7 +326,8 @@ class _HomeScreenState extends State<HomeScreen> {
         content: TextField(
           controller: controller,
           obscureText: true,
-          decoration: InputDecoration(hintText: AppLocalizations.of(context)!.enterPassword),
+          decoration: InputDecoration(
+              hintText: AppLocalizations.of(context)!.enterPassword),
           autofocus: true,
         ),
         actions: [
@@ -308,25 +337,30 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           FilledButton(
             onPressed: () async {
-                            final isCorrect = await AuthService().checkFolderLockPassword(controller.text);
-                            if (!context.mounted) return;
-                            
-                            if (isCorrect) {
-                               await AuthService().setFolderSelectionLocked(false);
-                               if (context.mounted) {
-                                 setState(() {
-                                  _isLocked = false;
-                                 });
-                                 Navigator.pop(context);
-                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(AppLocalizations.of(context)!.unlocked)),
-                                 );
-                               }
-                            } else {
-                               ScaffoldMessenger.of(context).showSnackBar(
-                                 SnackBar(content: Text(AppLocalizations.of(context)!.passwordIncorrect)),
-                               );
-                            }            },
+              final isCorrect =
+                  await AuthService().checkFolderLockPassword(controller.text);
+              if (!context.mounted) return;
+
+              if (isCorrect) {
+                await AuthService().setFolderSelectionLocked(false);
+                if (context.mounted) {
+                  setState(() {
+                    _isLocked = false;
+                  });
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(AppLocalizations.of(context)!.unlocked)),
+                  );
+                }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content: Text(
+                          AppLocalizations.of(context)!.passwordIncorrect)),
+                );
+              }
+            },
             child: Text(AppLocalizations.of(context)!.unlock),
           ),
         ],
@@ -372,17 +406,19 @@ class _HomeScreenState extends State<HomeScreen> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const DownloadScreen()),
+                  MaterialPageRoute(
+                      builder: (context) => const DownloadScreen()),
                 );
               },
             ),
             IconButton(
               icon: const Icon(Icons.history),
-              tooltip: AppLocalizations.of(context)!.watchHistory, 
+              tooltip: AppLocalizations.of(context)!.watchHistory,
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const HistoryScreen()),
+                  MaterialPageRoute(
+                      builder: (context) => const HistoryScreen()),
                 );
               },
             ),
@@ -430,13 +466,15 @@ class _HomeScreenState extends State<HomeScreen> {
                           onRefresh: () => _fetchContent(refresh: true),
                           child: _items.isEmpty
                               ? Center(
-                                  child: Text(AppLocalizations.of(context)!.noContentFound),
+                                  child: Text(AppLocalizations.of(context)!
+                                      .noContentFound),
                                 )
                               : Padding(
                                   padding: const EdgeInsets.all(12.0),
                                   child: GridView.builder(
                                     controller: _scrollController,
-                                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                    gridDelegate:
+                                        const SliverGridDelegateWithFixedCrossAxisCount(
                                       crossAxisCount: 2,
                                       childAspectRatio: 0.85,
                                       crossAxisSpacing: 12,
@@ -446,41 +484,72 @@ class _HomeScreenState extends State<HomeScreen> {
                                     itemBuilder: (context, index) {
                                       final item = _items[index];
                                       if (item is Folder) {
-                                          return FolderCard(
-                                            folder: item,
-                                            onTap: () {
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (context) =>
-                                                      FolderContentScreen(folder: item),
-                                                ),
-                                              );
-                                            },
-                                          );
+                                        return FolderCard(
+                                          folder: item,
+                                          onTap: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    FolderContentScreen(
+                                                        folder: item),
+                                              ),
+                                            );
+                                          },
+                                        );
                                       } else if (item is Season) {
-                                          // Reuse FolderCard for Season, but might want to differentiate visually
-                                          // Constructing a "Folder" like object for UI reuse or create SeasonCard
-                                          // For simplicity, reusing FolderCard with mapping.
-                                          return FolderCard(
-                                            folder: Folder(
-                                              id: item.id,
-                                              title: item.title,
-                                              cover: item.cover,
-                                              mediaCount: item.mediaCount,
-                                              upper: item.upper,
-                                              favState: 1,
+                                        // Reuse FolderCard for Season, but might want to differentiate visually
+                                        // Constructing a "Folder" like object for UI reuse or create SeasonCard
+                                        // For simplicity, reusing FolderCard with mapping.
+                                        return FolderCard(
+                                          folder: Folder(
+                                            id: item.id,
+                                            title: item.title,
+                                            cover: item.cover,
+                                            mediaCount: item.mediaCount,
+                                            upper: item.upper,
+                                            favState: 1,
+                                          ),
+                                          onTap: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    SeasonContentScreen(
+                                                        season: item),
+                                              ),
+                                            );
+                                          },
+                                        );
+                                      } else if (item is FollowUser) {
+                                        final locale =
+                                            AppLocalizations.of(context)!;
+                                        return FolderCard(
+                                          folder: Folder(
+                                            id: item.mid,
+                                            title: item.name,
+                                            cover: item.face,
+                                            mediaCount: 0,
+                                            upper: BiliUpper(
+                                              mid: item.mid,
+                                              name: item.name,
                                             ),
-                                            onTap: () {
-                                               Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (context) =>
-                                                      SeasonContentScreen(season: item),
-                                                ),
-                                              );
-                                            },
-                                          );
+                                            favState: 1,
+                                          ),
+                                          subtitle: item.sign.isEmpty
+                                              ? locale.upIntroDefault
+                                              : item.sign,
+                                          onTap: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    UpSpaceScreen(
+                                                        mid: item.mid),
+                                              ),
+                                            );
+                                          },
+                                        );
                                       }
                                       return const SizedBox();
                                     },
@@ -492,8 +561,12 @@ class _HomeScreenState extends State<HomeScreen> {
         onLongPress: _handleUnlockLongPress,
         child: FloatingActionButton(
           onPressed: _handleLockPress,
-          backgroundColor: _isLocked ? Colors.red : Theme.of(context).colorScheme.primaryContainer,
-          foregroundColor: _isLocked ? Colors.white : Theme.of(context).colorScheme.onPrimaryContainer,
+          backgroundColor: _isLocked
+              ? Colors.red
+              : Theme.of(context).colorScheme.primaryContainer,
+          foregroundColor: _isLocked
+              ? Colors.white
+              : Theme.of(context).colorScheme.onPrimaryContainer,
           child: Icon(_isLocked ? Icons.lock : Icons.lock_open_outlined),
         ),
       ),
@@ -507,7 +580,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Center(child: Text(AppLocalizations.of(context)!.searchHint)),
       );
     }
-    
+
     if (_searchResults.isEmpty) {
       return Container(
         key: const ValueKey('SearchResults'),
@@ -525,7 +598,7 @@ class _HomeScreenState extends State<HomeScreen> {
           return VideoTile(
             video: video,
             onTap: () {
-               Navigator.push(
+              Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => VideoPlayerScreen(

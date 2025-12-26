@@ -213,6 +213,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get favorites => '收藏夹';
 
   @override
+  String get upTab => 'UP主';
+
+  @override
   String get subscribedSeasons => '订阅合集';
 
   @override
@@ -279,6 +282,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String loadUpsFailed(Object error) {
+    return '加载UP主列表失败: $error';
+  }
+
+  @override
   String get noVideosInFolder => '此收藏夹中没有视频。';
 
   @override
@@ -297,7 +305,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get confirmAndEnter => '确认并进入';
 
   @override
-  String get selectAtLeastOne => '请至少选择一个收藏夹或合集';
+  String get selectAtLeastOne => '请至少选择一个收藏夹、合集或UP主';
+
+  @override
+  String get noUps => '暂无关注的UP主';
 
   @override
   String get noVideosInSeason => '此合集中没有视频。';
@@ -331,4 +342,78 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get selectLanguage => '选择语言';
+
+  @override
+  String upHomeTitle(Object name) {
+    return '$name 的主页';
+  }
+
+  @override
+  String get upHomeFallback => 'UP主主页';
+
+  @override
+  String get followers => '粉丝';
+
+  @override
+  String get following => '关注';
+
+  @override
+  String get likes => '获赞';
+
+  @override
+  String get plays => '总播放';
+
+  @override
+  String get videosCount => '投稿数';
+
+  @override
+  String get upIntroDefault => '这个UP很懒，还没有签名';
+
+  @override
+  String get upVideosTab => '投稿';
+
+  @override
+  String get upCollectionsTab => '合集';
+
+  @override
+  String get sortLabel => '排序';
+
+  @override
+  String get filterLabel => '筛选';
+
+  @override
+  String get allCategories => '全部分区';
+
+  @override
+  String get sortLatest => '最新发布';
+
+  @override
+  String get sortPlay => '最多播放';
+
+  @override
+  String get sortFavorite => '最多收藏';
+
+  @override
+  String get sortDanmaku => '最多弹幕';
+
+  @override
+  String get emptyUpVideos => '暂无投稿';
+
+  @override
+  String get emptyCollections => '暂无合集';
+
+  @override
+  String loadUpFailed(Object error) {
+    return '加载UP主信息失败: $error';
+  }
+
+  @override
+  String loadUpVideosFailed(Object error) {
+    return '加载投稿失败: $error';
+  }
+
+  @override
+  String loadCollectionFailed(Object error) {
+    return '加载合集失败: $error';
+  }
 }

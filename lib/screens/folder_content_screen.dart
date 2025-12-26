@@ -77,10 +77,10 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
         pn: _page,
         keyword: _searchKeyword,
       );
-      
+
       if (mounted) {
         if (videos.isNotEmpty) {
-           _databaseService.insertVideos(videos, folderId: widget.folder.id);
+          _databaseService.insertVideos(videos, folderId: widget.folder.id);
         }
 
         setState(() {
@@ -89,7 +89,7 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
           } else {
             _videos.addAll(videos);
           }
-          
+
           if (videos.length < 20) {
             _hasMore = false;
           } else {
@@ -105,12 +105,13 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
           });
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppLocalizations.of(context)!.loadMoreFailed(e.toString()))),
+            SnackBar(
+                content: Text(AppLocalizations.of(context)!
+                    .loadMoreFailed(e.toString()))),
           );
         }
       }
-    }
-    finally {
+    } finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -136,9 +137,9 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
                 },
                 onClear: () {
                   setState(() {
-                     _searchController.clear();
-                     _searchKeyword = '';
-                     _fetchVideos(refresh: true);
+                    _searchController.clear();
+                    _searchKeyword = '';
+                    _fetchVideos(refresh: true);
                   });
                 },
               )
@@ -172,7 +173,8 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
                   onRefresh: () => _fetchVideos(refresh: true),
                   child: _videos.isEmpty
                       ? Center(
-                          child: Text(AppLocalizations.of(context)!.noVideosInFolder),
+                          child: Text(
+                              AppLocalizations.of(context)!.noVideosInFolder),
                         )
                       : ListView.builder(
                           controller: _scrollController,
@@ -180,12 +182,12 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
                           itemCount: _videos.length + (_hasMore ? 1 : 0),
                           itemBuilder: (context, index) {
                             if (index == _videos.length) {
-                               return const Center(
-                                  child: Padding(
-                                    padding: EdgeInsets.all(8.0),
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                );
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(8.0),
+                                  child: CircularProgressIndicator(),
+                                ),
+                              );
                             }
                             final video = _videos[index];
                             return VideoTile(

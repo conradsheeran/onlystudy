@@ -40,7 +40,7 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     final storedHash = prefs.getString(_prefLockPassword);
     if (storedHash == null) return false;
-    
+
     final bytes = utf8.encode(password);
     final digest = sha256.convert(bytes);
     return storedHash == digest.toString();
@@ -73,7 +73,7 @@ class AuthService {
   }
 
   /// 轮询二维码扫码状态
-  /// 返回值: 
+  /// 返回值:
   /// null: 继续轮询
   /// Map: 登录成功，包含 url (内含 cookie)
   /// throw: 失败或过期
@@ -100,7 +100,7 @@ class AuthService {
         return data;
       } else if (code == 86101 || code == 86090) {
         // 等待中
-        return null; 
+        return null;
       } else if (code == 86038) {
         throw Exception('二维码已过期，请刷新');
       } else {
@@ -130,7 +130,7 @@ class AuthService {
     if (uid != null) {
       await prefs.setString('uid', uid);
     }
-    
+
     // 设置登录标记
     await prefs.setBool('isLoggedIn', true);
   }
@@ -150,7 +150,8 @@ class AuthService {
   /// 保存用户选择显示的收藏夹ID列表
   Future<void> saveVisibleFolderIds(List<int> ids) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('visible_folder_ids', ids.map((e) => e.toString()).toList());
+    await prefs.setStringList(
+        'visible_folder_ids', ids.map((e) => e.toString()).toList());
   }
 
   /// 获取用户选择显示的收藏夹ID列表
@@ -164,7 +165,8 @@ class AuthService {
   /// 保存用户选择显示的合集ID列表
   Future<void> saveVisibleSeasonIds(List<int> ids) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('visible_season_ids', ids.map((e) => e.toString()).toList());
+    await prefs.setStringList(
+        'visible_season_ids', ids.map((e) => e.toString()).toList());
   }
 
   /// 获取用户选择显示的合集ID列表
@@ -175,12 +177,27 @@ class AuthService {
     return list.map((e) => int.tryParse(e) ?? 0).where((e) => e != 0).toList();
   }
 
+  /// 保存用户选择显示的 UP 主ID列表
+  Future<void> saveVisibleUpIds(List<int> ids) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+        'visible_up_ids', ids.map((e) => e.toString()).toList());
+  }
+
+  /// 获取用户选择显示的 UP 主ID列表
+  Future<List<int>> getVisibleUpIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList('visible_up_ids');
+    if (list == null) return [];
+    return list.map((e) => int.tryParse(e) ?? 0).where((e) => e != 0).toList();
+  }
+
   /// 获取请求头需要的 Cookie 字符串
   Future<String> getCookieString() async {
     final prefs = await SharedPreferences.getInstance();
     final sessData = prefs.getString('SESSDATA') ?? '';
     final biliJct = prefs.getString('bili_jct') ?? '';
-    return 'SESSDATA=$sessData; bili_jct=$biliJct'; 
+    return 'SESSDATA=$sessData; bili_jct=$biliJct';
   }
 
   /// 获取 CSRF Token (bili_jct)

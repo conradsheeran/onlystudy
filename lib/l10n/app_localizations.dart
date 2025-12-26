@@ -482,6 +482,12 @@ abstract class AppLocalizations {
   /// **'收藏夹'**
   String get favorites;
 
+  /// No description provided for @upTab.
+  ///
+  /// In zh, this message translates to:
+  /// **'UP主'**
+  String get upTab;
+
   /// No description provided for @subscribedSeasons.
   ///
   /// In zh, this message translates to:
@@ -602,6 +608,12 @@ abstract class AppLocalizations {
   /// **'加载更多失败: {error}'**
   String loadMoreFailed(Object error);
 
+  /// No description provided for @loadUpsFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'加载UP主列表失败: {error}'**
+  String loadUpsFailed(Object error);
+
   /// No description provided for @noVideosInFolder.
   ///
   /// In zh, this message translates to:
@@ -641,8 +653,14 @@ abstract class AppLocalizations {
   /// No description provided for @selectAtLeastOne.
   ///
   /// In zh, this message translates to:
-  /// **'请至少选择一个收藏夹或合集'**
+  /// **'请至少选择一个收藏夹、合集或UP主'**
   String get selectAtLeastOne;
+
+  /// No description provided for @noUps.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无关注的UP主'**
+  String get noUps;
 
   /// No description provided for @noVideosInSeason.
   ///
@@ -697,6 +715,138 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'选择语言'**
   String get selectLanguage;
+
+  /// No description provided for @upHomeTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'{name} 的主页'**
+  String upHomeTitle(Object name);
+
+  /// No description provided for @upHomeFallback.
+  ///
+  /// In zh, this message translates to:
+  /// **'UP主主页'**
+  String get upHomeFallback;
+
+  /// No description provided for @followers.
+  ///
+  /// In zh, this message translates to:
+  /// **'粉丝'**
+  String get followers;
+
+  /// No description provided for @following.
+  ///
+  /// In zh, this message translates to:
+  /// **'关注'**
+  String get following;
+
+  /// No description provided for @likes.
+  ///
+  /// In zh, this message translates to:
+  /// **'获赞'**
+  String get likes;
+
+  /// No description provided for @plays.
+  ///
+  /// In zh, this message translates to:
+  /// **'总播放'**
+  String get plays;
+
+  /// No description provided for @videosCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'投稿数'**
+  String get videosCount;
+
+  /// No description provided for @upIntroDefault.
+  ///
+  /// In zh, this message translates to:
+  /// **'这个UP很懒，还没有签名'**
+  String get upIntroDefault;
+
+  /// No description provided for @upVideosTab.
+  ///
+  /// In zh, this message translates to:
+  /// **'投稿'**
+  String get upVideosTab;
+
+  /// No description provided for @upCollectionsTab.
+  ///
+  /// In zh, this message translates to:
+  /// **'合集'**
+  String get upCollectionsTab;
+
+  /// No description provided for @sortLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'排序'**
+  String get sortLabel;
+
+  /// No description provided for @filterLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'筛选'**
+  String get filterLabel;
+
+  /// No description provided for @allCategories.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部分区'**
+  String get allCategories;
+
+  /// No description provided for @sortLatest.
+  ///
+  /// In zh, this message translates to:
+  /// **'最新发布'**
+  String get sortLatest;
+
+  /// No description provided for @sortPlay.
+  ///
+  /// In zh, this message translates to:
+  /// **'最多播放'**
+  String get sortPlay;
+
+  /// No description provided for @sortFavorite.
+  ///
+  /// In zh, this message translates to:
+  /// **'最多收藏'**
+  String get sortFavorite;
+
+  /// No description provided for @sortDanmaku.
+  ///
+  /// In zh, this message translates to:
+  /// **'最多弹幕'**
+  String get sortDanmaku;
+
+  /// No description provided for @emptyUpVideos.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无投稿'**
+  String get emptyUpVideos;
+
+  /// No description provided for @emptyCollections.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无合集'**
+  String get emptyCollections;
+
+  /// No description provided for @loadUpFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'加载UP主信息失败: {error}'**
+  String loadUpFailed(Object error);
+
+  /// No description provided for @loadUpVideosFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'加载投稿失败: {error}'**
+  String loadUpVideosFailed(Object error);
+
+  /// No description provided for @loadCollectionFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'加载合集失败: {error}'**
+  String loadCollectionFailed(Object error);
 }
 
 class _AppLocalizationsDelegate

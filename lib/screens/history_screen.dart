@@ -4,6 +4,7 @@ import '../models/bili_models.dart';
 import '../services/history_service.dart';
 import '../widgets/video_tile.dart';
 import 'video_player_screen.dart';
+// import 'up_space_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -32,7 +33,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       });
     }
   }
-  
+
   /// 清空本地观看历史记录
   Future<void> _clearHistory() async {
     await HistoryService().clearHistory();
@@ -53,7 +54,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 context: context,
                 builder: (context) => AlertDialog(
                   title: Text(AppLocalizations.of(context)!.clearHistory),
-                  content: Text(AppLocalizations.of(context)!.confirmClearHistory),
+                  content:
+                      Text(AppLocalizations.of(context)!.confirmClearHistory),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),

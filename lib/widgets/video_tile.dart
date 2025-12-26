@@ -7,8 +7,13 @@ class VideoTile extends StatelessWidget {
   final Video video;
   final VoidCallback onTap;
 
-  const VideoTile({super.key, required this.video, required this.onTap});
+  const VideoTile({
+    super.key,
+    required this.video,
+    required this.onTap,
+  });
 
+  /// 构建视频列表项
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -35,7 +40,8 @@ class VideoTile extends StatelessWidget {
                     bottom: 4,
                     right: 4,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 1),
                       decoration: BoxDecoration(
                         color: Color.fromARGB((255 * 0.65).round(), 0, 0, 0),
                         borderRadius: BorderRadius.circular(4),
@@ -70,7 +76,8 @@ class VideoTile extends StatelessWidget {
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        const Icon(Icons.person_outline, size: 13, color: Colors.grey),
+                        const Icon(Icons.person_outline,
+                            size: 13, color: Colors.grey),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
@@ -88,23 +95,28 @@ class VideoTile extends StatelessWidget {
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        const Icon(Icons.play_circle_outline, size: 13, color: Colors.grey),
+                        const Icon(Icons.play_circle_outline,
+                            size: 13, color: Colors.grey),
                         const SizedBox(width: 3),
                         Text(
                           video.formattedViewCount,
-                          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                          style:
+                              TextStyle(fontSize: 11, color: Colors.grey[600]),
                         ),
                         const SizedBox(width: 12),
-                        const Icon(Icons.subtitles_outlined, size: 13, color: Colors.grey),
+                        const Icon(Icons.subtitles_outlined,
+                            size: 13, color: Colors.grey),
                         const SizedBox(width: 3),
                         Text(
                           video.formattedDanmakuCount,
-                          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                          style:
+                              TextStyle(fontSize: 11, color: Colors.grey[600]),
                         ),
                         const Spacer(),
                         Text(
                           video.formattedPubDate,
-                          style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                          style:
+                              TextStyle(fontSize: 11, color: Colors.grey[500]),
                         ),
                       ],
                     ),
