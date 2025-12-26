@@ -244,16 +244,36 @@ class Video {
           'mid': json['mid'] ?? 0,
           'name': json['author'] ?? '未知UP主',
         };
-    final pubTime = json['pub_time'] ?? json['pubdate'] ?? 0;
-    final viewCount = json['cnt_info']?['play'] ?? json['stat']?['view'] ?? 0;
-    final danmakuCount =
-        json['cnt_info']?['danmaku'] ?? json['stat']?['danmaku'] ?? 0;
+    final pubTime = json['pub_time'] ?? json['pubdate'] ?? json['created'] ?? 0;
+
+    int durationSeconds = json['duration'] ?? 0;
+    if (durationSeconds == 0 && json['length'] is String) {
+      final parts = (json['length'] as String).split(':');
+      if (parts.length == 2) {
+        final minutes = int.tryParse(parts[0]) ?? 0;
+        final seconds = int.tryParse(parts[1]) ?? 0;
+        durationSeconds = minutes * 60 + seconds;
+      }
+    }
+
+    final viewCount = json['cnt_info']?['play'] ??
+        json['stat']?['view'] ??
+        json['play'] ??
+        json['play_count'] ??
+        json['view'] ??
+        0;
+    final danmakuCount = json['cnt_info']?['danmaku'] ??
+        json['stat']?['danmaku'] ??
+        json['video_review'] ??
+        json['dm'] ??
+        json['danmaku'] ??
+        0;
 
     return Video(
       bvid: json['bvid'] ?? '',
       title: json['title'] ?? '未知视频',
       cover: json['cover'] ?? json['pic'] ?? 'https://via.placeholder.com/150',
-      duration: json['duration'] ?? 0,
+      duration: durationSeconds,
       upper: BiliUpper.fromJson(upperJson),
       view: viewCount,
       danmaku: danmakuCount,
