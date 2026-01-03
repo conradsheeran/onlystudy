@@ -3,6 +3,9 @@ import 'package:path/path.dart';
 import 'dart:convert';
 import '../models/bili_models.dart';
 
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'dart:io';
+
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
   factory DatabaseService() => _instance;
@@ -19,6 +22,10 @@ class DatabaseService {
 
   /// 初始化数据库表结构
   Future<Database> _initDatabase() async {
+    if (Platform.isWindows || Platform.isLinux) {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    }
     String path = join(await getDatabasesPath(), 'onlystudy.db');
     return await openDatabase(
       path,
@@ -46,7 +53,8 @@ class DatabaseService {
   }
 
   /// 缓存视频信息到本地数据库
-  Future<void> insertVideos(List<Video> videos, {int? folderId, int? seasonId}) async {
+  Future<void> insertVideos(List<Video> videos,
+      {int? folderId, int? seasonId}) async {
     final db = await database;
     final batch = db.batch();
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -62,14 +70,14 @@ class DatabaseService {
           'folder_id': folderId,
           'season_id': seasonId,
           'json_data': jsonEncode({
-             'bvid': video.bvid,
-             'title': video.title,
-             'cover': video.cover,
-             'duration': video.duration,
-             'upper': {'mid': video.upper.mid, 'name': video.upper.name},
-             'cnt_info': {'play': video.view, 'danmaku': video.danmaku},
-             'pub_time': video.pubTimestamp,
-          }), 
+            'bvid': video.bvid,
+            'title': video.title,
+            'cover': video.cover,
+            'duration': video.duration,
+            'upper': {'mid': video.upper.mid, 'name': video.upper.name},
+            'cnt_info': {'play': video.view, 'danmaku': video.danmaku},
+            'pub_time': video.pubTimestamp,
+          }),
           'timestamp': now,
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
@@ -79,9 +87,10 @@ class DatabaseService {
   }
 
   /// 本地搜索视频 (支持按可见收藏夹/合集过滤)
-  Future<List<Video>> searchVideos(String keyword, {List<int>? visibleFolderIds, List<int>? visibleSeasonIds}) async {
+  Future<List<Video>> searchVideos(String keyword,
+      {List<int>? visibleFolderIds, List<int>? visibleSeasonIds}) async {
     final db = await database;
-    
+
     String whereClause = 'title LIKE ?';
     List<dynamic> whereArgs = ['%$keyword%'];
     List<String> subConditions = [];
@@ -91,7 +100,7 @@ class DatabaseService {
     if (visibleSeasonIds != null && visibleSeasonIds.isNotEmpty) {
       subConditions.add('season_id IN (${visibleSeasonIds.join(',')})');
     }
-    
+
     if (subConditions.isNotEmpty) {
       whereClause += ' AND (${subConditions.join(' OR ')})';
     }
