@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
@@ -574,7 +575,7 @@ class BiliApiService {
           'bvid': bvid,
           'cid': cid,
           'qn': qn ?? SettingsService().defaultResolution,
-          'fnval': 1, // mp4 格式
+          'fnval': 1,
           'fnver': 0,
           'fourk': 1,
         },

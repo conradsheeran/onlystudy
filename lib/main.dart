@@ -8,15 +8,17 @@ import 'theme/app_theme.dart';
 import 'screens/main_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
+import 'services/audio_handler.dart';
 import 'services/download_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // 设置图片缓存限制为 500MB，避免内存溢出
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 500 * 1024 * 1024; 
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 500 * 1024 * 1024;
   MediaKit.ensureInitialized();
   await DownloadService().init();
   await CacheService().checkAndClearCache();
+  await initAudioService();
   await SettingsService().init();
   final bool isLoggedIn = await AuthService().isLoggedIn();
 

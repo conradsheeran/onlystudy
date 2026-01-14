@@ -324,12 +324,14 @@ class Video {
 /// 视频播放地址信息模型 (包含清晰度信息)
 class VideoPlayInfo {
   final String url;
+  final String? audioUrl;
   final int quality;
   final List<int> acceptQuality;
   final List<String> acceptDescription;
 
   VideoPlayInfo({
     required this.url,
+    this.audioUrl,
     required this.quality,
     required this.acceptQuality,
     required this.acceptDescription,
@@ -341,8 +343,30 @@ class VideoPlayInfo {
       url = json['durl'][0]['url'];
     }
 
+    // 尝试解析 DASH 音频
+    String? audioUrl;
+    if (json['dash'] != null) {
+      if (url.isEmpty && json['dash']['video'] != null) {
+        final videoList = json['dash']['video'] as List;
+        if (videoList.isNotEmpty) {
+          url = videoList[0]['baseUrl'] ?? '';
+        }
+      }
+
+      final audioList = json['dash']['audio'];
+      if (audioList != null && (audioList as List).isNotEmpty) {
+        final firstAudio = audioList[0];
+        audioUrl = firstAudio['baseUrl'] ??
+            (firstAudio['backup_url'] != null &&
+                    (firstAudio['backup_url'] as List).isNotEmpty
+                ? firstAudio['backup_url'][0]
+                : null);
+      }
+    }
+
     return VideoPlayInfo(
       url: url,
+      audioUrl: audioUrl,
       quality: json['quality'] ?? 0,
       acceptQuality: List<int>.from(json['accept_quality'] ?? []),
       acceptDescription: List<String>.from(json['accept_description'] ?? []),

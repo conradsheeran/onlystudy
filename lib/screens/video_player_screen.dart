@@ -11,6 +11,10 @@ import '../services/bili_api_service.dart';
 import '../services/history_service.dart';
 import '../services/download_service.dart';
 import '../services/settings_service.dart';
+import '../services/audio_handler.dart';
+import 'package:audio_service/audio_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:ui';
 
 /// 视频播放器页面
 class VideoPlayerScreen extends StatefulWidget {
@@ -61,6 +65,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   double? _startBrightness;
   bool _isAdjustingVolume = false;
   bool _isAdjustingBrightness = false;
+
+  bool _isAudioMode = false; // 是否为音频播放模式
 
   Duration _seekTarget = Duration.zero;
 
@@ -116,7 +122,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _positionGuardTimer?.cancel();
     _overlayTimer?.cancel();
     _saveProgress();
+    _overlayTimer?.cancel();
+    _saveProgress();
     _player.dispose();
+    audioHandler.stop(); // 停止后台播放
     WakelockPlus.disable();
     super.dispose();
   }
@@ -262,6 +271,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
 
     await _player.open(media, play: false);
+
+    if (_playInfo?.audioUrl != null && _playInfo!.audioUrl!.isNotEmpty) {
+      await _player.setAudioTrack(AudioTrack.uri(_playInfo!.audioUrl!));
+    }
+
     _player.setRate(_playbackSpeed);
 
     Duration? effectiveTarget;
@@ -768,6 +782,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           }
         },
       ),
+      IconButton(
+        icon: const Icon(Icons.headphones, color: Colors.white),
+        tooltip: _isAudioMode ? '切换回视频' : '后台播放',
+        onPressed: _toggleAudioMode,
+      ),
       if (_playInfo != null && _supportQualities.isNotEmpty)
         PopupMenuButton<int>(
           initialValue: _playInfo!.quality,
@@ -810,6 +829,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// 构建播放器界面
   @override
   Widget build(BuildContext context) {
+    if (_isAudioMode) {
+      return _buildAudioModeUI();
+    }
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
@@ -853,6 +875,235 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         ),
       ),
     );
+  }
+
+  /// 构建音频模式 UI
+  Widget _buildAudioModeUI() {
+    return Scaffold(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 背景图
+          if (_currentVideo.cover.isNotEmpty)
+            CachedNetworkImage(
+              imageUrl: _currentVideo.cover,
+              fit: BoxFit.cover,
+            ),
+          BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Container(
+              color: Colors.black.withOpacity(0.6),
+            ),
+          ),
+          // 内容区域
+          SafeArea(
+            child: Column(
+              children: [
+                // 顶部栏
+                AppBar(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  leading: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  actions: [
+                    IconButton(
+                      icon: const Icon(Icons.tv, color: Colors.white),
+                      tooltip: '切换回视频',
+                      onPressed: _toggleAudioMode,
+                    ),
+                  ],
+                ),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // 封面图
+                      Container(
+                        width: 280,
+                        height: 180,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.4),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                          image: DecorationImage(
+                            image:
+                                CachedNetworkImageProvider(_currentVideo.cover),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      // 标题
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Text(
+                          _currentVideo.title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _currentVideo.upper.name,
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 16),
+                      ),
+                      const SizedBox(height: 48),
+                      // 播放控制
+                      StreamBuilder<PlaybackState>(
+                        stream: audioHandler.playbackState,
+                        builder: (context, snapshot) {
+                          final state = snapshot.data;
+                          final playing = state?.playing ?? false;
+                          final buffering = state?.processingState ==
+                              AudioProcessingState.buffering;
+
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              IconButton(
+                                iconSize: 48,
+                                icon: const Icon(Icons.replay_10,
+                                    color: Colors.white),
+                                onPressed: () {
+                                  final pos =
+                                      audioHandler.playbackState.value.position;
+                                  audioHandler
+                                      .seek(pos - const Duration(seconds: 10));
+                                },
+                              ),
+                              const SizedBox(width: 24),
+                              Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: IconButton(
+                                  iconSize: 48,
+                                  icon: buffering
+                                      ? const CircularProgressIndicator(
+                                          color: Colors.white)
+                                      : Icon(
+                                          playing
+                                              ? Icons.pause
+                                              : Icons.play_arrow,
+                                          color: Colors.white,
+                                        ),
+                                  onPressed: () {
+                                    if (playing) {
+                                      audioHandler.pause();
+                                    } else {
+                                      audioHandler.play();
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 24),
+                              IconButton(
+                                iconSize: 48,
+                                icon: const Icon(Icons.forward_10,
+                                    color: Colors.white),
+                                onPressed: () {
+                                  final pos =
+                                      audioHandler.playbackState.value.position;
+                                  audioHandler
+                                      .seek(pos + const Duration(seconds: 10));
+                                },
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 切换音频/视频模式
+  Future<void> _toggleAudioMode() async {
+    if (_isAudioMode) {
+      // 切换回视频
+      final pos = audioHandler.playbackState.value.position;
+      await audioHandler.stop();
+
+      if (mounted) {
+        setState(() {
+          _isAudioMode = false;
+        });
+      }
+
+      // 恢复视频播放
+      await _player.seek(pos);
+      await _player.play();
+    } else {
+      // 切换到音频
+      final pos = _player.state.position;
+      await _player.pause();
+
+      if (mounted) {
+        setState(() {
+          _isAudioMode = true;
+        });
+      }
+
+      final audioUrl = _playInfo?.audioUrl ?? _playInfo?.url;
+      if (audioUrl != null) {
+        try {
+          await (audioHandler as BiliAudioHandler).playAudio(
+            url: audioUrl,
+            title: _currentVideo.title,
+            artist: _currentVideo.upper.name,
+            coverUrl: _currentVideo.cover,
+            startAt: pos,
+            headers: {
+              'User-Agent':
+                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Referer': 'https://www.bilibili.com/video/${_currentVideo.bvid}',
+            },
+          );
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('启动后台播放失败: $e')),
+            );
+            // 回滚状态
+            setState(() {
+              _isAudioMode = false;
+            });
+          }
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('无法获取音频地址')),
+          );
+          setState(() {
+            _isAudioMode = false;
+          });
+        }
+      }
+    }
   }
 
   /// 获取当前清晰度的描述文本
