@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
-import '../models/bili_models.dart';
+import '../models/history_entry.dart';
 import '../services/history_service.dart';
-import '../widgets/video_tile.dart';
+import '../widgets/history_tile.dart';
 import 'video_player_screen.dart';
-// import 'up_space_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -14,7 +13,7 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  List<Video> _videos = [];
+  List<HistoryEntry> _entries = [];
   bool _isLoading = true;
 
   @override
@@ -23,18 +22,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _loadHistory();
   }
 
-  /// 加载本地观看历史记录
   Future<void> _loadHistory() async {
-    final videos = await HistoryService().getWatchedVideos();
+    final entries = await HistoryService().getHistoryEntries();
     if (mounted) {
       setState(() {
-        _videos = videos;
+        _entries = entries;
         _isLoading = false;
       });
     }
   }
 
-  /// 清空本地观看历史记录
   Future<void> _clearHistory() async {
     await HistoryService().clearHistory();
     _loadHistory();
@@ -77,22 +74,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _videos.isEmpty
+          : _entries.isEmpty
               ? Center(child: Text(AppLocalizations.of(context)!.noHistory))
               : ListView.builder(
                   padding: const EdgeInsets.all(12),
-                  itemCount: _videos.length,
+                  itemCount: _entries.length,
                   itemBuilder: (context, index) {
-                    final video = _videos[index];
-                    return VideoTile(
-                      video: video,
+                    final entry = _entries[index];
+                    return HistoryTile(
+                      entry: entry,
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => VideoPlayerScreen(
-                              playlist: _videos,
-                              initialIndex: index,
+                              playlist: [entry.toVideo()],
+                              initialIndex: 0,
+                              initialHistoryEntry: entry,
                             ),
                           ),
                         ).then((_) => _loadHistory());

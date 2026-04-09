@@ -8,6 +8,7 @@ import 'package:screen_brightness/screen_brightness.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/bili_models.dart';
+import '../models/history_entry.dart';
 import '../services/bili_api_service.dart';
 import '../services/download_service.dart';
 import '../services/history_service.dart';
@@ -19,12 +20,14 @@ class VideoPlayerScreen extends StatefulWidget {
   final List<Video> playlist;
   final int initialIndex;
   final String? localFilePath;
+  final HistoryEntry? initialHistoryEntry;
 
   const VideoPlayerScreen({
     super.key,
     required this.playlist,
     required this.initialIndex,
     this.localFilePath,
+    this.initialHistoryEntry,
   });
 
   @override
@@ -70,6 +73,38 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 获取当前播放中的视频
   Video get _currentVideo => widget.playlist[_currentIndex];
 
+  HistoryEntry? get _resumeHistoryEntry {
+    final entry = widget.initialHistoryEntry;
+    if (entry == null || entry.bvid != _currentVideo.bvid) {
+      return null;
+    }
+    return entry;
+  }
+
+  int get _currentPageNumber {
+    if (_pages.isNotEmpty && _currentPartIndex < _pages.length) {
+      return _pages[_currentPartIndex].page;
+    }
+    return 1;
+  }
+
+  String get _currentPartTitle {
+    if (_pages.isNotEmpty && _currentPartIndex < _pages.length) {
+      return _pages[_currentPartIndex].part;
+    }
+    return '';
+  }
+
+  int get _currentDurationSeconds {
+    if (_pages.isNotEmpty && _currentPartIndex < _pages.length) {
+      final pageDuration = _pages[_currentPartIndex].duration;
+      if (pageDuration > 0) {
+        return pageDuration;
+      }
+    }
+    return _currentVideo.duration;
+  }
+
   /// 初始化组件状态并准备播放器
   @override
   void initState() {
@@ -103,13 +138,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       _playbackSpeed = SettingsService().defaultPlaybackSpeed;
     });
 
-    await _addToHistory();
+    await HistoryService().seedHistory(_currentVideo);
     await _initializePlayer();
-  }
-
-  /// 将当前视频添加到观看历史
-  Future<void> _addToHistory() async {
-    await HistoryService().addWatchedVideo(_currentVideo);
   }
 
   /// 释放播放器及相关资源
@@ -161,12 +191,23 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       _videoDetail = await api.getVideoDetail(_currentVideo.bvid);
 
       _pages = _videoDetail!.pages;
-      _cid = _videoDetail!.cid;
+      final localHistory = await HistoryService().getHistoryEntry(
+        _currentVideo.bvid,
+      );
+      final resumeHistory = _resumeHistoryEntry ?? localHistory;
+      final preferredCid = resumeHistory?.cid ?? _videoDetail!.cid;
+      _cid = preferredCid > 0 ? preferredCid : _videoDetail!.cid;
 
       if (_pages.isNotEmpty) {
         final index = _pages.indexWhere((p) => p.cid == _cid);
         if (index != -1) {
           _currentPartIndex = index;
+        } else {
+          _cid = _videoDetail!.cid;
+          final defaultIndex = _pages.indexWhere((p) => p.cid == _cid);
+          if (defaultIndex != -1) {
+            _currentPartIndex = defaultIndex;
+          }
         }
       }
 
@@ -204,16 +245,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         _supportQualityDescs = _playInfo!.acceptDescription;
       }
 
-      final savedPosition = _videoDetail!.historyProgress;
-      final localPosition =
+      final resumeSeconds = resumeHistory?.progressForCid(_cid!) ??
           await HistoryService().getProgress(_currentVideo.bvid, _cid!);
-      final resumeSeconds = localPosition > 0 ? localPosition : savedPosition;
 
       await _setupController(
         _playInfo!.url,
         startAt: resumeSeconds > 0 ? Duration(seconds: resumeSeconds) : null,
       );
       _syncBackgroundPlaybackMetadata();
+      await _syncHistoryContext(progressSeconds: resumeSeconds);
 
       if (mounted) {
         setState(() {
@@ -245,19 +285,48 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
   }
 
+  Future<void> _syncHistoryContext({
+    required int progressSeconds,
+    bool isFinished = false,
+  }) async {
+    if (_cid == null) {
+      return;
+    }
+
+    await HistoryService().savePlaybackProgress(
+      video: _currentVideo,
+      aid: _videoDetail?.aid ?? 0,
+      cid: _cid!,
+      page: _currentPageNumber,
+      partTitle: _currentPartTitle,
+      duration: _currentDurationSeconds,
+      seconds: progressSeconds,
+      isFinished: isFinished,
+    );
+  }
+
   /// 保存当前播放进度到 B 站服务器
-  Future<void> _saveProgress() async {
+  Future<void> _saveProgress({bool markFinished = false}) async {
     final position = _player.state.position.inSeconds;
-    if (position > 5 && _videoDetail != null && _cid != null) {
+    final durationSeconds = _currentDurationSeconds;
+    final effectivePosition = markFinished && durationSeconds > 0
+        ? durationSeconds
+        : position;
+    final isFinished = markFinished ||
+        (durationSeconds > 0 && effectivePosition >= durationSeconds - 3);
+
+    if (effectivePosition > 5 && _videoDetail != null && _cid != null) {
       await BiliApiService().reportHistory(
         aid: _videoDetail!.aid,
         cid: _cid!,
-        progress: position,
+        progress: effectivePosition,
       );
-      await HistoryService().saveProgress(_currentVideo.bvid, _cid!, position);
-    } else if (_cid != null) {
-      await HistoryService().saveProgress(_currentVideo.bvid, _cid!, position);
     }
+
+    await _syncHistoryContext(
+      progressSeconds: effectivePosition,
+      isFinished: isFinished,
+    );
   }
 
   /// 将秒数格式化为分秒字符串
@@ -386,6 +455,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   /// 检查视频播放结束
   void _checkVideoEnd() {
+    _saveProgress(markFinished: true);
     if (_pages.isNotEmpty && _currentPartIndex < _pages.length - 1) {
       _switchPart(_currentPartIndex + 1);
     } else if (_currentIndex < widget.playlist.length - 1) {
@@ -450,6 +520,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             : Duration.zero,
       );
       _syncBackgroundPlaybackMetadata();
+      await _syncHistoryContext(progressSeconds: localPosition);
 
       if (mounted) {
         setState(() {
