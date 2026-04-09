@@ -42,6 +42,8 @@
   "seekForward": "快进",
   "seekBackward": "后退",
   "defaultPlaybackSpeed": "默认播放倍速",
+  "backgroundPlayback": "后台播放",
+  "backgroundPlaybackDescription": "应用切到后台时继续播放音频，并显示系统媒体控制",
   "unlockFolderSelection": "解锁收藏夹修改",
   "enterPassword": "输入密码",
   "verifyPassword": "验证密码",

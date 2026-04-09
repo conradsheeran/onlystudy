@@ -141,6 +141,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get defaultPlaybackSpeed => 'Default Playback Speed';
 
   @override
+  String get backgroundPlayback => 'Background Playback';
+
+  @override
+  String get backgroundPlaybackDescription =>
+      'Keep audio playing and expose lock screen controls when the app goes to the background';
+
+  @override
   String get unlockFolderSelection => 'Unlock Folder Selection';
 
   @override
@@ -213,7 +220,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get favorites => 'Favorites';
 
   @override
-  String get upTab => 'UP主';
+  String get upTab => 'Creators';
 
   @override
   String get subscribedSeasons => 'Subscribed Seasons';
@@ -284,7 +291,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String loadUpsFailed(Object error) {
-    return '加载UP主列表失败: $error';
+    return 'Failed to load creators: $error';
   }
 
   @override
@@ -309,7 +316,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get selectAtLeastOne => 'Please select at least one folder or season';
 
   @override
-  String get noUps => '暂无关注的UP主';
+  String get noUps => 'No followed creators yet';
 
   @override
   String get noVideosInSeason => 'No videos in this season.';

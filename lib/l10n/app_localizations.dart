@@ -338,6 +338,18 @@ abstract class AppLocalizations {
   /// **'默认播放倍速'**
   String get defaultPlaybackSpeed;
 
+  /// No description provided for @backgroundPlayback.
+  ///
+  /// In zh, this message translates to:
+  /// **'后台播放'**
+  String get backgroundPlayback;
+
+  /// No description provided for @backgroundPlaybackDescription.
+  ///
+  /// In zh, this message translates to:
+  /// **'应用切到后台时继续播放音频，并显示系统媒体控制'**
+  String get backgroundPlaybackDescription;
+
   /// No description provided for @unlockFolderSelection.
   ///
   /// In zh, this message translates to:
