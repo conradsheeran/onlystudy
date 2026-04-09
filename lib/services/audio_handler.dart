@@ -5,6 +5,18 @@ import 'playback_bridge.dart';
 
 late OnlyStudyAudioHandler audioHandler;
 
+const _rewind10Control = MediaControl(
+  androidIcon: 'drawable/ic_notification_replay_10',
+  label: 'Rewind 10 seconds',
+  action: MediaAction.rewind,
+);
+
+const _fastForward10Control = MediaControl(
+  androidIcon: 'drawable/ic_notification_forward_10',
+  label: 'Fast forward 10 seconds',
+  action: MediaAction.fastForward,
+);
+
 Future<OnlyStudyAudioHandler> initAudioService() async {
   audioHandler = await AudioService.init(
     builder: OnlyStudyAudioHandler.new,
@@ -62,9 +74,9 @@ class OnlyStudyAudioHandler extends BaseAudioHandler
     playbackState.add(
       playbackState.value.copyWith(
         controls: [
-          MediaControl.rewind,
+          _rewind10Control,
           if (playing) MediaControl.pause else MediaControl.play,
-          MediaControl.fastForward,
+          _fastForward10Control,
         ],
         systemActions: const {
           MediaAction.seek,

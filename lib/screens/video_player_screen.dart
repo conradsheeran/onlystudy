@@ -130,10 +130,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!SettingsService().enableBackgroundPlayback &&
-        (state == AppLifecycleState.paused ||
-            state == AppLifecycleState.hidden ||
-            state == AppLifecycleState.inactive) &&
+    if (SettingsService().enableBackgroundPlayback) {
+      return;
+    }
+
+    // Only pause once the app is actually backgrounded. `inactive` is a
+    // transient state that also fires for system overlays.
+    if ((state == AppLifecycleState.paused ||
+            state == AppLifecycleState.hidden) &&
         _player.state.playing) {
       PlaybackBridgeService().pause();
     }
