@@ -54,30 +54,7 @@ class _MainScreenState extends State<MainScreen> {
       body: isWideLayout
           ? Row(
               children: [
-                SafeArea(
-                  child: NavigationRail(
-                    selectedIndex: _currentIndex,
-                    groupAlignment: centerRailDestinations ? 0 : -1,
-                    labelType: NavigationRailLabelType.all,
-                    onDestinationSelected: (index) {
-                      setState(() {
-                        _currentIndex = index;
-                      });
-                    },
-                    destinations: [
-                      NavigationRailDestination(
-                        icon: destinations[0].icon,
-                        selectedIcon: destinations[0].selectedIcon,
-                        label: Text(destinations[0].label),
-                      ),
-                      NavigationRailDestination(
-                        icon: destinations[1].icon,
-                        selectedIcon: destinations[1].selectedIcon,
-                        label: Text(destinations[1].label),
-                      ),
-                    ],
-                  ),
-                ),
+                _buildSideNavigation(destinations, centerRailDestinations),
                 const VerticalDivider(width: 1),
                 Expanded(
                   child: IndexedStack(
@@ -102,6 +79,92 @@ class _MainScreenState extends State<MainScreen> {
               },
               destinations: destinations,
             ),
+    );
+  }
+
+  Widget _buildSideNavigation(
+    List<NavigationDestination> destinations,
+    bool centerRailDestinations,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return SafeArea(
+      child: SizedBox(
+        width: 92,
+        child: Column(
+          mainAxisAlignment: centerRailDestinations
+              ? MainAxisAlignment.center
+              : MainAxisAlignment.start,
+          children: [
+            for (int index = 0; index < destinations.length; index++) ...[
+              _buildSideNavigationItem(
+                destination: destinations[index],
+                selected: _currentIndex == index,
+                indicatorColor: colorScheme.secondaryContainer,
+                selectedIconColor: colorScheme.onSecondaryContainer,
+                unselectedIconColor: colorScheme.onSurfaceVariant,
+                onTap: () {
+                  setState(() {
+                    _currentIndex = index;
+                  });
+                },
+              ),
+              if (index != destinations.length - 1)
+                SizedBox(height: centerRailDestinations ? 14 : 10),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSideNavigationItem({
+    required NavigationDestination destination,
+    required bool selected,
+    required Color indicatorColor,
+    required Color selectedIconColor,
+    required Color unselectedIconColor,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              width: 56,
+              height: 32,
+              decoration: BoxDecoration(
+                color: selected ? indicatorColor : Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: IconTheme(
+                data: IconThemeData(
+                  color: selected ? selectedIconColor : unselectedIconColor,
+                ),
+                child: selected
+                    ? destination.selectedIcon ?? destination.icon
+                    : destination.icon,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              destination.label,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: selected
+                        ? Theme.of(context).colorScheme.onSurface
+                        : unselectedIconColor,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
