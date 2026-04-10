@@ -15,6 +15,8 @@ class HistoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final progress = entry.duration > 0
         ? (entry.progressSeconds / entry.duration).clamp(0.0, 1.0).toDouble()
         : 0.0;
@@ -22,14 +24,15 @@ class HistoryTile extends StatelessWidget {
     return Card(
       elevation: 0,
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
-      color: Colors.transparent,
+      color: colorScheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(10),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Stack(
                 children: [
@@ -37,19 +40,41 @@ class HistoryTile extends StatelessWidget {
                     entry.cover,
                     width: 128,
                     height: 72,
-                    radius: 6,
+                    radius: 10,
                   ),
                   Positioned(
-                    bottom: 4,
-                    right: 4,
+                    left: 6,
+                    top: 6,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 1,
+                        horizontal: 6,
+                        vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: Color.fromARGB((255 * 0.65).round(), 0, 0, 0),
-                        borderRadius: BorderRadius.circular(4),
+                        color: Colors.black.withValues(alpha: 0.45),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        'P${entry.page}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 6,
+                    right: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         _formatDuration(entry.duration),
@@ -72,11 +97,11 @@ class HistoryTile extends StatelessWidget {
                       entry.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            height: 1.25,
-                          ),
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        height: 1.25,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     Text(
@@ -85,31 +110,39 @@ class HistoryTile extends StatelessWidget {
                           : 'P${entry.page}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[500],
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        const Icon(Icons.person_outline,
-                            size: 13, color: Colors.grey),
+                        Icon(
+                          Icons.person_outline,
+                          size: 13,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             entry.upperName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
                             ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _formatViewedAt(entry.viewedAt),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     Row(
                       children: [
                         Expanded(
@@ -117,20 +150,29 @@ class HistoryTile extends StatelessWidget {
                             _progressLabel(entry),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey[500],
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _formatViewedAt(entry.viewedAt),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey[500],
+                        if (entry.isFinished)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colorScheme.primary.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              '已看完',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: colorScheme.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 6),
@@ -139,6 +181,7 @@ class HistoryTile extends StatelessWidget {
                       child: LinearProgressIndicator(
                         minHeight: 4,
                         value: progress,
+                        backgroundColor: colorScheme.surfaceContainerHighest,
                       ),
                     ),
                   ],

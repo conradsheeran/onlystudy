@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
+
 import '../models/history_entry.dart';
 import '../services/history_service.dart';
 import '../widgets/history_tile.dart';
@@ -37,8 +38,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _loadHistory();
   }
 
+  void _openEntry(HistoryEntry entry) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VideoPlayerScreen(
+          playlist: [entry.toVideo()],
+          initialIndex: 0,
+          initialHistoryEntry: entry,
+        ),
+      ),
+    ).then((_) => _loadHistory());
+  }
+
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(AppLocalizations.of(context)!.watchHistory),
@@ -75,28 +91,42 @@ class _HistoryScreenState extends State<HistoryScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _entries.isEmpty
-              ? Center(child: Text(AppLocalizations.of(context)!.noHistory))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: _entries.length,
-                  itemBuilder: (context, index) {
-                    final entry = _entries[index];
-                    return HistoryTile(
-                      entry: entry,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => VideoPlayerScreen(
-                              playlist: [entry.toVideo()],
-                              initialIndex: 0,
-                              initialHistoryEntry: entry,
-                            ),
-                          ),
-                        ).then((_) => _loadHistory());
-                      },
-                    );
-                  },
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.history_toggle_off,
+                          size: 42,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          AppLocalizations.of(context)!.noHistory,
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadHistory,
+                  child: ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+                    itemCount: _entries.length,
+                    itemBuilder: (context, index) {
+                      final entry = _entries[index];
+                      return HistoryTile(
+                        entry: entry,
+                        onTap: () => _openEntry(entry),
+                      );
+                    },
+                  ),
                 ),
     );
   }
