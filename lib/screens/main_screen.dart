@@ -96,6 +96,7 @@ class _MainScreenState extends State<MainScreen> {
               ? MainAxisAlignment.center
               : MainAxisAlignment.start,
           children: [
+            if (!centerRailDestinations) const SizedBox(height: 20),
             for (int index = 0; index < destinations.length; index++) ...[
               _buildSideNavigationItem(
                 destination: destinations[index],
