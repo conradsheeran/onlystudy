@@ -14,7 +14,6 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   static const double _railBreakpoint = 900;
-  static const double _desktopRailBreakpoint = 1200;
   int _currentIndex = 0;
   final List<Widget> _screens = [
     const HomeScreen(),
@@ -35,8 +34,6 @@ class _MainScreenState extends State<MainScreen> {
     final locale = AppLocalizations.of(context)!;
     final screenWidth = MediaQuery.sizeOf(context).width;
     final isWideLayout = screenWidth >= _railBreakpoint;
-    final centerRailDestinations =
-        screenWidth >= _railBreakpoint && screenWidth < _desktopRailBreakpoint;
     final destinations = [
       NavigationDestination(
         icon: const Icon(Icons.home_outlined),
@@ -54,7 +51,7 @@ class _MainScreenState extends State<MainScreen> {
       body: isWideLayout
           ? Row(
               children: [
-                _buildSideNavigation(destinations, centerRailDestinations),
+                _buildSideNavigation(destinations),
                 const VerticalDivider(width: 1),
                 Expanded(
                   child: IndexedStack(
@@ -82,21 +79,15 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Widget _buildSideNavigation(
-    List<NavigationDestination> destinations,
-    bool centerRailDestinations,
-  ) {
+  Widget _buildSideNavigation(List<NavigationDestination> destinations) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return SafeArea(
       child: SizedBox(
         width: 92,
         child: Column(
-          mainAxisAlignment: centerRailDestinations
-              ? MainAxisAlignment.center
-              : MainAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (!centerRailDestinations) const SizedBox(height: 20),
             for (int index = 0; index < destinations.length; index++) ...[
               _buildSideNavigationItem(
                 destination: destinations[index],
@@ -111,7 +102,7 @@ class _MainScreenState extends State<MainScreen> {
                 },
               ),
               if (index != destinations.length - 1)
-                SizedBox(height: centerRailDestinations ? 14 : 10),
+                const SizedBox(height: 24),
             ],
           ],
         ),
