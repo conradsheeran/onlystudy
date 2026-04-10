@@ -14,6 +14,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   static const double _railBreakpoint = 900;
+  static const double _desktopRailBreakpoint = 1200;
   int _currentIndex = 0;
   final List<Widget> _screens = [
     const HomeScreen(),
@@ -32,7 +33,10 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     final locale = AppLocalizations.of(context)!;
-    final isWideLayout = MediaQuery.sizeOf(context).width >= _railBreakpoint;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isWideLayout = screenWidth >= _railBreakpoint;
+    final centerRailDestinations =
+        screenWidth >= _railBreakpoint && screenWidth < _desktopRailBreakpoint;
     final destinations = [
       NavigationDestination(
         icon: const Icon(Icons.home_outlined),
@@ -53,6 +57,7 @@ class _MainScreenState extends State<MainScreen> {
                 SafeArea(
                   child: NavigationRail(
                     selectedIndex: _currentIndex,
+                    groupAlignment: centerRailDestinations ? 0 : -1,
                     labelType: NavigationRailLabelType.all,
                     onDestinationSelected: (index) {
                       setState(() {
