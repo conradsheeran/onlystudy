@@ -9,6 +9,8 @@ class SettingsService {
 
   static const String _keyDefaultResolution = 'default_resolution';
   static const String _keyAutoCheckUpdate = 'auto_check_update';
+  static const String _keyLastPromptedUpdateVersion =
+      'last_prompted_update_version';
   static const String _keyDefaultPlaybackSpeed = 'default_playback_speed';
   static const String _keyEnableBackgroundPlayback =
       'enable_background_playback';
@@ -16,6 +18,7 @@ class SettingsService {
 
   int _defaultResolution = 64;
   bool _autoCheckUpdate = true;
+  String? _lastPromptedUpdateVersion;
   double _defaultPlaybackSpeed = 1.0;
   bool _enableBackgroundPlayback = true;
   String? _localeCode;
@@ -24,6 +27,7 @@ class SettingsService {
 
   int get defaultResolution => _defaultResolution;
   bool get autoCheckUpdate => _autoCheckUpdate;
+  String? get lastPromptedUpdateVersion => _lastPromptedUpdateVersion;
   double get defaultPlaybackSpeed => _defaultPlaybackSpeed;
   bool get enableBackgroundPlayback => _enableBackgroundPlayback;
   String? get localeCode => _localeCode;
@@ -42,6 +46,7 @@ class SettingsService {
     final prefs = await SharedPreferences.getInstance();
     _defaultResolution = prefs.getInt(_keyDefaultResolution) ?? 64;
     _autoCheckUpdate = prefs.getBool(_keyAutoCheckUpdate) ?? true;
+    _lastPromptedUpdateVersion = prefs.getString(_keyLastPromptedUpdateVersion);
     _defaultPlaybackSpeed = prefs.getDouble(_keyDefaultPlaybackSpeed) ?? 1.0;
     _enableBackgroundPlayback =
         prefs.getBool(_keyEnableBackgroundPlayback) ?? true;
@@ -63,6 +68,16 @@ class SettingsService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyAutoCheckUpdate, value);
     _autoCheckUpdate = value;
+  }
+
+  Future<void> setLastPromptedUpdateVersion(String? version) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (version == null || version.isEmpty) {
+      await prefs.remove(_keyLastPromptedUpdateVersion);
+    } else {
+      await prefs.setString(_keyLastPromptedUpdateVersion, version);
+    }
+    _lastPromptedUpdateVersion = version;
   }
 
   /// 设置默认播放倍速

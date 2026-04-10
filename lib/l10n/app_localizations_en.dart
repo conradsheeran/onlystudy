@@ -105,6 +105,17 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String latestVersion(Object version) {
+    return 'Latest version: $version';
+  }
+
+  @override
+  String get releaseNotes => 'Release Notes';
+
+  @override
+  String get noReleaseNotes => 'No release notes available.';
+
+  @override
   String get update => 'Update';
 
   @override

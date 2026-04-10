@@ -105,6 +105,17 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String latestVersion(Object version) {
+    return '最新版本: $version';
+  }
+
+  @override
+  String get releaseNotes => '更新内容';
+
+  @override
+  String get noReleaseNotes => '暂无更新说明';
+
+  @override
   String get update => '立即更新';
 
   @override

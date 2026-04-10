@@ -266,6 +266,24 @@ abstract class AppLocalizations {
   /// **'当前版本: {version}'**
   String currentVersion(Object version);
 
+  /// No description provided for @latestVersion.
+  ///
+  /// In zh, this message translates to:
+  /// **'最新版本: {version}'**
+  String latestVersion(Object version);
+
+  /// No description provided for @releaseNotes.
+  ///
+  /// In zh, this message translates to:
+  /// **'更新内容'**
+  String get releaseNotes;
+
+  /// No description provided for @noReleaseNotes.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无更新说明'**
+  String get noReleaseNotes;
+
   /// No description provided for @update.
   ///
   /// In zh, this message translates to:
