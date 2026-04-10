@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
-import '../models/bili_models.dart';
+
+import '../models/history_entry.dart';
 import '../services/history_service.dart';
-import '../widgets/video_tile.dart';
+import '../widgets/history_tile.dart';
 import 'video_player_screen.dart';
-// import 'up_space_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -14,7 +14,7 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  List<Video> _videos = [];
+  List<HistoryEntry> _entries = [];
   bool _isLoading = true;
 
   @override
@@ -23,25 +23,38 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _loadHistory();
   }
 
-  /// 加载本地观看历史记录
   Future<void> _loadHistory() async {
-    final videos = await HistoryService().getWatchedVideos();
+    final entries = await HistoryService().getHistoryEntries();
     if (mounted) {
       setState(() {
-        _videos = videos;
+        _entries = entries;
         _isLoading = false;
       });
     }
   }
 
-  /// 清空本地观看历史记录
   Future<void> _clearHistory() async {
     await HistoryService().clearHistory();
     _loadHistory();
   }
 
+  void _openEntry(HistoryEntry entry) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VideoPlayerScreen(
+          playlist: [entry.toVideo()],
+          initialIndex: 0,
+          initialHistoryEntry: entry,
+        ),
+      ),
+    ).then((_) => _loadHistory());
+  }
+
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(AppLocalizations.of(context)!.watchHistory),
@@ -77,28 +90,43 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _videos.isEmpty
-              ? Center(child: Text(AppLocalizations.of(context)!.noHistory))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: _videos.length,
-                  itemBuilder: (context, index) {
-                    final video = _videos[index];
-                    return VideoTile(
-                      video: video,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => VideoPlayerScreen(
-                              playlist: _videos,
-                              initialIndex: index,
-                            ),
-                          ),
-                        ).then((_) => _loadHistory());
-                      },
-                    );
-                  },
+          : _entries.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.history_toggle_off,
+                          size: 42,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          AppLocalizations.of(context)!.noHistory,
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadHistory,
+                  child: ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+                    itemCount: _entries.length,
+                    itemBuilder: (context, index) {
+                      final entry = _entries[index];
+                      return HistoryTile(
+                        entry: entry,
+                        onTap: () => _openEntry(entry),
+                      );
+                    },
+                  ),
                 ),
     );
   }

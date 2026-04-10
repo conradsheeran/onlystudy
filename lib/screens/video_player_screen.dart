@@ -1,39 +1,41 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:onlystudy/l10n/app_localizations.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart' as mkv;
-import 'package:screen_brightness/screen_brightness.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
+import 'package:onlystudy/l10n/app_localizations.dart';
+import 'package:screen_brightness/screen_brightness.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+
 import '../models/bili_models.dart';
+import '../models/history_entry.dart';
 import '../services/bili_api_service.dart';
-import '../services/history_service.dart';
 import '../services/download_service.dart';
+import '../services/history_service.dart';
+import '../services/playback_bridge.dart';
 import '../services/settings_service.dart';
-import '../services/audio_handler.dart';
-import 'package:audio_service/audio_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'dart:ui';
 
 /// 视频播放器页面
 class VideoPlayerScreen extends StatefulWidget {
   final List<Video> playlist;
   final int initialIndex;
   final String? localFilePath;
+  final HistoryEntry? initialHistoryEntry;
 
   const VideoPlayerScreen({
     super.key,
     required this.playlist,
     required this.initialIndex,
     this.localFilePath,
+    this.initialHistoryEntry,
   });
 
   @override
   State<VideoPlayerScreen> createState() => _VideoPlayerScreenState();
 }
 
-class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
+class _VideoPlayerScreenState extends State<VideoPlayerScreen>
+    with WidgetsBindingObserver {
   late final Player _player;
   late final mkv.VideoController _controller;
 
@@ -66,23 +68,55 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _isAdjustingVolume = false;
   bool _isAdjustingBrightness = false;
 
-  bool _isAudioMode = false; // 是否为音频播放模式
-
   Duration _seekTarget = Duration.zero;
 
   /// 获取当前播放中的视频
   Video get _currentVideo => widget.playlist[_currentIndex];
 
+  HistoryEntry? get _resumeHistoryEntry {
+    final entry = widget.initialHistoryEntry;
+    if (entry == null || entry.bvid != _currentVideo.bvid) {
+      return null;
+    }
+    return entry;
+  }
+
+  int get _currentPageNumber {
+    if (_pages.isNotEmpty && _currentPartIndex < _pages.length) {
+      return _pages[_currentPartIndex].page;
+    }
+    return 1;
+  }
+
+  String get _currentPartTitle {
+    if (_pages.isNotEmpty && _currentPartIndex < _pages.length) {
+      return _pages[_currentPartIndex].part;
+    }
+    return '';
+  }
+
+  int get _currentDurationSeconds {
+    if (_pages.isNotEmpty && _currentPartIndex < _pages.length) {
+      final pageDuration = _pages[_currentPartIndex].duration;
+      if (pageDuration > 0) {
+        return pageDuration;
+      }
+    }
+    return _currentVideo.duration;
+  }
+
   /// 初始化组件状态并准备播放器
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _currentIndex = widget.initialIndex;
     _playbackSpeed = SettingsService().defaultPlaybackSpeed;
     _playbackSpeedNotifier = ValueNotifier(_playbackSpeed);
 
     WakelockPlus.enable();
     _player = Player();
+    PlaybackBridgeService().attachPlayer(_player);
     _controller = mkv.VideoController(_player);
 
     _player.stream.completed.listen((completed) {
@@ -104,30 +138,39 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       _playbackSpeed = SettingsService().defaultPlaybackSpeed;
     });
 
-    await _addToHistory();
+    await HistoryService().seedHistory(_currentVideo);
     await _initializePlayer();
-  }
-
-  /// 将当前视频添加到观看历史
-  Future<void> _addToHistory() async {
-    await HistoryService().addWatchedVideo(_currentVideo);
   }
 
   /// 释放播放器及相关资源
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _playbackSpeedNotifier.dispose();
     _qualityNotifier.dispose();
     _saveHistoryTimer?.cancel();
     _positionGuardTimer?.cancel();
     _overlayTimer?.cancel();
     _saveProgress();
-    _overlayTimer?.cancel();
-    _saveProgress();
+    PlaybackBridgeService().detachPlayer(_player, stopPlayback: true);
     _player.dispose();
-    audioHandler.stop(); // 停止后台播放
     WakelockPlus.disable();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (SettingsService().enableBackgroundPlayback) {
+      return;
+    }
+
+    // Only pause once the app is actually backgrounded. `inactive` is a
+    // transient state that also fires for system overlays.
+    if ((state == AppLifecycleState.paused ||
+            state == AppLifecycleState.hidden) &&
+        _player.state.playing) {
+      PlaybackBridgeService().pause();
+    }
   }
 
   /// 初始化播放器：获取详情、播放地址、设置控制器
@@ -135,6 +178,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     try {
       if (widget.localFilePath != null) {
         await _setupController(widget.localFilePath!, isLocal: true);
+        _syncBackgroundPlaybackMetadata();
         if (mounted) {
           setState(() {
             _isLoading = false;
@@ -147,12 +191,23 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       _videoDetail = await api.getVideoDetail(_currentVideo.bvid);
 
       _pages = _videoDetail!.pages;
-      _cid = _videoDetail!.cid;
+      final localHistory = await HistoryService().getHistoryEntry(
+        _currentVideo.bvid,
+      );
+      final resumeHistory = _resumeHistoryEntry ?? localHistory;
+      final preferredCid = resumeHistory?.cid ?? _videoDetail!.cid;
+      _cid = preferredCid > 0 ? preferredCid : _videoDetail!.cid;
 
       if (_pages.isNotEmpty) {
         final index = _pages.indexWhere((p) => p.cid == _cid);
         if (index != -1) {
           _currentPartIndex = index;
+        } else {
+          _cid = _videoDetail!.cid;
+          final defaultIndex = _pages.indexWhere((p) => p.cid == _cid);
+          if (defaultIndex != -1) {
+            _currentPartIndex = defaultIndex;
+          }
         }
       }
 
@@ -190,15 +245,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         _supportQualityDescs = _playInfo!.acceptDescription;
       }
 
-      final savedPosition = _videoDetail!.historyProgress;
-      final localPosition =
+      final resumeSeconds = resumeHistory?.progressForCid(_cid!) ??
           await HistoryService().getProgress(_currentVideo.bvid, _cid!);
-      final resumeSeconds = localPosition > 0 ? localPosition : savedPosition;
 
       await _setupController(
         _playInfo!.url,
         startAt: resumeSeconds > 0 ? Duration(seconds: resumeSeconds) : null,
       );
+      _syncBackgroundPlaybackMetadata();
+      await _syncHistoryContext(progressSeconds: resumeSeconds);
 
       if (mounted) {
         setState(() {
@@ -230,19 +285,48 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
+  Future<void> _syncHistoryContext({
+    required int progressSeconds,
+    bool isFinished = false,
+  }) async {
+    if (_cid == null) {
+      return;
+    }
+
+    await HistoryService().savePlaybackProgress(
+      video: _currentVideo,
+      aid: _videoDetail?.aid ?? 0,
+      cid: _cid!,
+      page: _currentPageNumber,
+      partTitle: _currentPartTitle,
+      duration: _currentDurationSeconds,
+      seconds: progressSeconds,
+      isFinished: isFinished,
+    );
+  }
+
   /// 保存当前播放进度到 B 站服务器
-  Future<void> _saveProgress() async {
+  Future<void> _saveProgress({bool markFinished = false}) async {
     final position = _player.state.position.inSeconds;
-    if (position > 5 && _videoDetail != null && _cid != null) {
+    final durationSeconds = _currentDurationSeconds;
+    final effectivePosition = markFinished && durationSeconds > 0
+        ? durationSeconds
+        : position;
+    final isFinished = markFinished ||
+        (durationSeconds > 0 && effectivePosition >= durationSeconds - 3);
+
+    if (effectivePosition > 5 && _videoDetail != null && _cid != null) {
       await BiliApiService().reportHistory(
         aid: _videoDetail!.aid,
         cid: _cid!,
-        progress: position,
+        progress: effectivePosition,
       );
-      await HistoryService().saveProgress(_currentVideo.bvid, _cid!, position);
-    } else if (_cid != null) {
-      await HistoryService().saveProgress(_currentVideo.bvid, _cid!, position);
     }
+
+    await _syncHistoryContext(
+      progressSeconds: effectivePosition,
+      isFinished: isFinished,
+    );
   }
 
   /// 将秒数格式化为分秒字符串
@@ -282,11 +366,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
     if (startAt != null) {
       effectiveTarget = await _waitForReadyAndClamp(startAt);
-      await _player.seek(effectiveTarget);
+      await PlaybackBridgeService().seek(effectiveTarget);
     }
 
     if (shouldPlay) {
-      await _player.play();
+      await PlaybackBridgeService().play();
     }
 
     if (effectiveTarget != null) {
@@ -328,7 +412,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       if ((current - target).abs() <= const Duration(milliseconds: 500)) {
         return;
       }
-      await _player.seek(target);
+      await PlaybackBridgeService().seek(target);
     }
   }
 
@@ -348,12 +432,30 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         timer.cancel();
         return;
       }
-      _player.seek(target);
+      PlaybackBridgeService().seek(target);
     });
+  }
+
+  void _syncBackgroundPlaybackMetadata() {
+    final durationSeconds = _pages.isNotEmpty
+        ? _pages[_currentPartIndex].duration
+        : _currentVideo.duration;
+    final title = _pages.length > 1
+        ? _pages[_currentPartIndex].part
+        : _currentVideo.title;
+
+    PlaybackBridgeService().updateMediaItem(
+      id: '${_currentVideo.bvid}:${_cid ?? _currentVideo.bvid}',
+      title: title,
+      artist: _currentVideo.upper.name,
+      coverUrl: _currentVideo.cover,
+      duration: durationSeconds > 0 ? Duration(seconds: durationSeconds) : null,
+    );
   }
 
   /// 检查视频播放结束
   void _checkVideoEnd() {
+    _saveProgress(markFinished: true);
     if (_pages.isNotEmpty && _currentPartIndex < _pages.length - 1) {
       _switchPart(_currentPartIndex + 1);
     } else if (_currentIndex < widget.playlist.length - 1) {
@@ -417,6 +519,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             ? Duration(seconds: localPosition)
             : Duration.zero,
       );
+      _syncBackgroundPlaybackMetadata();
+      await _syncHistoryContext(progressSeconds: localPosition);
 
       if (mounted) {
         setState(() {
@@ -462,6 +566,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         startAt: position,
         shouldPlay: wasPlaying,
       );
+      _syncBackgroundPlaybackMetadata();
 
       if (mounted) {
         setState(() {
@@ -487,6 +592,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     });
     _playbackSpeedNotifier.value = speed;
     _player.setRate(speed);
+    PlaybackBridgeService().refreshConfiguration();
     _showOverlayInfo(
         Icons.speed, '${AppLocalizations.of(context)!.speed} ${speed}x');
   }
@@ -585,13 +691,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       behavior: HitTestBehavior.translucent,
       onDoubleTap: () {
         if (_player.state.playing) {
-          _player.pause();
+          PlaybackBridgeService().pause();
         } else {
-          _player.play();
+          PlaybackBridgeService().play();
         }
       },
       onLongPressStart: (_) {
         _player.setRate(2.0);
+        PlaybackBridgeService().refreshConfiguration();
         _showOverlayInfo(
             Icons.fast_forward, '${AppLocalizations.of(context)!.speed} 2.0x',
             autoHide: false);
@@ -606,6 +713,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       },
       onLongPressEnd: (_) {
         _player.setRate(_playbackSpeed);
+        PlaybackBridgeService().refreshConfiguration();
         if (_showOverlay) {
           setState(() {
             _showOverlay = false;
@@ -676,7 +784,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             _formatDuration(_seekTarget.inSeconds));
       },
       onHorizontalDragEnd: (details) {
-        _player.seek(_seekTarget);
+        PlaybackBridgeService().seek(_seekTarget);
       },
     );
   }
@@ -782,11 +890,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           }
         },
       ),
-      IconButton(
-        icon: const Icon(Icons.headphones, color: Colors.white),
-        tooltip: _isAudioMode ? '切换回视频' : '后台播放',
-        onPressed: _toggleAudioMode,
-      ),
       if (_playInfo != null && _supportQualities.isNotEmpty)
         PopupMenuButton<int>(
           initialValue: _playInfo!.quality,
@@ -829,9 +932,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// 构建播放器界面
   @override
   Widget build(BuildContext context) {
-    if (_isAudioMode) {
-      return _buildAudioModeUI();
-    }
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
@@ -875,235 +975,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         ),
       ),
     );
-  }
-
-  /// 构建音频模式 UI
-  Widget _buildAudioModeUI() {
-    return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // 背景图
-          if (_currentVideo.cover.isNotEmpty)
-            CachedNetworkImage(
-              imageUrl: _currentVideo.cover,
-              fit: BoxFit.cover,
-            ),
-          BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              color: Colors.black.withOpacity(0.6),
-            ),
-          ),
-          // 内容区域
-          SafeArea(
-            child: Column(
-              children: [
-                // 顶部栏
-                AppBar(
-                  backgroundColor: Colors.transparent,
-                  elevation: 0,
-                  leading: IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  actions: [
-                    IconButton(
-                      icon: const Icon(Icons.tv, color: Colors.white),
-                      tooltip: '切换回视频',
-                      onPressed: _toggleAudioMode,
-                    ),
-                  ],
-                ),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // 封面图
-                      Container(
-                        width: 280,
-                        height: 180,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.4),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                          image: DecorationImage(
-                            image:
-                                CachedNetworkImageProvider(_currentVideo.cover),
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      // 标题
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Text(
-                          _currentVideo.title,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _currentVideo.upper.name,
-                        style: const TextStyle(
-                            color: Colors.white70, fontSize: 16),
-                      ),
-                      const SizedBox(height: 48),
-                      // 播放控制
-                      StreamBuilder<PlaybackState>(
-                        stream: audioHandler.playbackState,
-                        builder: (context, snapshot) {
-                          final state = snapshot.data;
-                          final playing = state?.playing ?? false;
-                          final buffering = state?.processingState ==
-                              AudioProcessingState.buffering;
-
-                          return Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              IconButton(
-                                iconSize: 48,
-                                icon: const Icon(Icons.replay_10,
-                                    color: Colors.white),
-                                onPressed: () {
-                                  final pos =
-                                      audioHandler.playbackState.value.position;
-                                  audioHandler
-                                      .seek(pos - const Duration(seconds: 10));
-                                },
-                              ),
-                              const SizedBox(width: 24),
-                              Container(
-                                width: 80,
-                                height: 80,
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.primary,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: IconButton(
-                                  iconSize: 48,
-                                  icon: buffering
-                                      ? const CircularProgressIndicator(
-                                          color: Colors.white)
-                                      : Icon(
-                                          playing
-                                              ? Icons.pause
-                                              : Icons.play_arrow,
-                                          color: Colors.white,
-                                        ),
-                                  onPressed: () {
-                                    if (playing) {
-                                      audioHandler.pause();
-                                    } else {
-                                      audioHandler.play();
-                                    }
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 24),
-                              IconButton(
-                                iconSize: 48,
-                                icon: const Icon(Icons.forward_10,
-                                    color: Colors.white),
-                                onPressed: () {
-                                  final pos =
-                                      audioHandler.playbackState.value.position;
-                                  audioHandler
-                                      .seek(pos + const Duration(seconds: 10));
-                                },
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 切换音频/视频模式
-  Future<void> _toggleAudioMode() async {
-    if (_isAudioMode) {
-      // 切换回视频
-      final pos = audioHandler.playbackState.value.position;
-      await audioHandler.stop();
-
-      if (mounted) {
-        setState(() {
-          _isAudioMode = false;
-        });
-      }
-
-      // 恢复视频播放
-      await _player.seek(pos);
-      await _player.play();
-    } else {
-      // 切换到音频
-      final pos = _player.state.position;
-      await _player.pause();
-
-      if (mounted) {
-        setState(() {
-          _isAudioMode = true;
-        });
-      }
-
-      final audioUrl = _playInfo?.audioUrl ?? _playInfo?.url;
-      if (audioUrl != null) {
-        try {
-          await (audioHandler as BiliAudioHandler).playAudio(
-            url: audioUrl,
-            title: _currentVideo.title,
-            artist: _currentVideo.upper.name,
-            coverUrl: _currentVideo.cover,
-            startAt: pos,
-            headers: {
-              'User-Agent':
-                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Referer': 'https://www.bilibili.com/video/${_currentVideo.bvid}',
-            },
-          );
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('启动后台播放失败: $e')),
-            );
-            // 回滚状态
-            setState(() {
-              _isAudioMode = false;
-            });
-          }
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('无法获取音频地址')),
-          );
-          setState(() {
-            _isAudioMode = false;
-          });
-        }
-      }
-    }
   }
 
   /// 获取当前清晰度的描述文本

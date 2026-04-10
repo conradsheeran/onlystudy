@@ -33,7 +33,7 @@ dependencies:
   flutter_volume_controller: ^1.3.4
   sqflite_common_ffi: ^2.4.0+1
   audio_service: ^0.18.18
-  just_audio: ^0.10.5
+  audio_session: ^0.2.2
 
 dev_dependencies:
   flutter_test:

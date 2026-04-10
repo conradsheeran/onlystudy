@@ -10,11 +10,14 @@ class SettingsService {
   static const String _keyDefaultResolution = 'default_resolution';
   static const String _keyAutoCheckUpdate = 'auto_check_update';
   static const String _keyDefaultPlaybackSpeed = 'default_playback_speed';
+  static const String _keyEnableBackgroundPlayback =
+      'enable_background_playback';
   static const String _keyLocale = 'app_locale';
-  
+
   int _defaultResolution = 64;
   bool _autoCheckUpdate = true;
   double _defaultPlaybackSpeed = 1.0;
+  bool _enableBackgroundPlayback = true;
   String? _localeCode;
 
   final ValueNotifier<Locale?> localeNotifier = ValueNotifier(null);
@@ -22,6 +25,7 @@ class SettingsService {
   int get defaultResolution => _defaultResolution;
   bool get autoCheckUpdate => _autoCheckUpdate;
   double get defaultPlaybackSpeed => _defaultPlaybackSpeed;
+  bool get enableBackgroundPlayback => _enableBackgroundPlayback;
   String? get localeCode => _localeCode;
 
   static const Map<int, String> resolutionMap = {
@@ -39,6 +43,8 @@ class SettingsService {
     _defaultResolution = prefs.getInt(_keyDefaultResolution) ?? 64;
     _autoCheckUpdate = prefs.getBool(_keyAutoCheckUpdate) ?? true;
     _defaultPlaybackSpeed = prefs.getDouble(_keyDefaultPlaybackSpeed) ?? 1.0;
+    _enableBackgroundPlayback =
+        prefs.getBool(_keyEnableBackgroundPlayback) ?? true;
     _localeCode = prefs.getString(_keyLocale);
     if (_localeCode != null) {
       localeNotifier.value = Locale(_localeCode!);
@@ -64,6 +70,12 @@ class SettingsService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_keyDefaultPlaybackSpeed, speed);
     _defaultPlaybackSpeed = speed;
+  }
+
+  Future<void> setEnableBackgroundPlayback(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyEnableBackgroundPlayback, value);
+    _enableBackgroundPlayback = value;
   }
 
   /// 设置语言 (null 表示跟随系统)

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
+import 'package:onlystudy/services/playback_bridge.dart';
 import '../services/settings_service.dart';
 import '../services/auth_service.dart';
 import '../services/cache_service.dart';
@@ -39,6 +40,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: Text('${SettingsService().defaultPlaybackSpeed}x'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: _showSpeedDialog,
+          ),
+          SwitchListTile(
+            secondary: const Icon(Icons.headphones_outlined),
+            title: Text(AppLocalizations.of(context)!.backgroundPlayback),
+            subtitle: Text(
+              AppLocalizations.of(context)!.backgroundPlaybackDescription,
+            ),
+            value: SettingsService().enableBackgroundPlayback,
+            onChanged: (value) async {
+              await SettingsService().setEnableBackgroundPlayback(value);
+              PlaybackBridgeService().refreshConfiguration();
+              if (!mounted) return;
+              setState(() {});
+            },
           ),
           ListTile(
             leading: const Icon(Icons.language),

@@ -141,6 +141,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get defaultPlaybackSpeed => '默认播放倍速';
 
   @override
+  String get backgroundPlayback => '后台播放';
+
+  @override
+  String get backgroundPlaybackDescription => '应用切到后台时继续播放音频，并显示系统媒体控制';
+
+  @override
   String get unlockFolderSelection => '解锁收藏夹修改';
 
   @override
