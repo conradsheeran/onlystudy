@@ -13,6 +13,7 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
+  static const double _railBreakpoint = 900;
   int _currentIndex = 0;
   final List<Widget> _screens = [
     const HomeScreen(),
@@ -30,31 +31,72 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final locale = AppLocalizations.of(context)!;
+    final isWideLayout = MediaQuery.sizeOf(context).width >= _railBreakpoint;
+    final destinations = [
+      NavigationDestination(
+        icon: const Icon(Icons.home_outlined),
+        selectedIcon: const Icon(Icons.home),
+        label: locale.home,
+      ),
+      NavigationDestination(
+        icon: const Icon(Icons.settings_outlined),
+        selectedIcon: const Icon(Icons.settings),
+        label: locale.settings,
+      ),
+    ];
+
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.home_outlined),
-            selectedIcon: const Icon(Icons.home),
-            label: AppLocalizations.of(context)!.home,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.settings_outlined),
-            selectedIcon: const Icon(Icons.settings),
-            label: AppLocalizations.of(context)!.settings,
-          ),
-        ],
-      ),
+      body: isWideLayout
+          ? Row(
+              children: [
+                SafeArea(
+                  child: NavigationRail(
+                    selectedIndex: _currentIndex,
+                    labelType: NavigationRailLabelType.all,
+                    onDestinationSelected: (index) {
+                      setState(() {
+                        _currentIndex = index;
+                      });
+                    },
+                    destinations: [
+                      NavigationRailDestination(
+                        icon: destinations[0].icon,
+                        selectedIcon: destinations[0].selectedIcon,
+                        label: Text(destinations[0].label),
+                      ),
+                      NavigationRailDestination(
+                        icon: destinations[1].icon,
+                        selectedIcon: destinations[1].selectedIcon,
+                        label: Text(destinations[1].label),
+                      ),
+                    ],
+                  ),
+                ),
+                const VerticalDivider(width: 1),
+                Expanded(
+                  child: IndexedStack(
+                    index: _currentIndex,
+                    children: _screens,
+                  ),
+                ),
+              ],
+            )
+          : IndexedStack(
+              index: _currentIndex,
+              children: _screens,
+            ),
+      bottomNavigationBar: isWideLayout
+          ? null
+          : NavigationBar(
+              selectedIndex: _currentIndex,
+              onDestinationSelected: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+              destinations: destinations,
+            ),
     );
   }
 }

@@ -44,6 +44,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _debounce;
   bool _isLocked = false;
 
+  static const double _tabletBreakpoint = 700;
+  static const double _desktopBreakpoint = 1100;
+  static const double _wideDesktopBreakpoint = 1500;
+
   /// 执行搜索逻辑，支持按可见收藏夹/合集过滤
   Future<void> _performSearch(String keyword) async {
     if (keyword.isEmpty) {
@@ -369,8 +373,146 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  _HomeLayoutConfig _getLayoutConfig(double width) {
+    if (width >= _wideDesktopBreakpoint) {
+      return const _HomeLayoutConfig(
+        crossAxisCount: 5,
+        childAspectRatio: 0.92,
+        maxWidth: 1520,
+        padding: 20,
+      );
+    }
+
+    if (width >= _desktopBreakpoint) {
+      return const _HomeLayoutConfig(
+        crossAxisCount: 4,
+        childAspectRatio: 0.9,
+        maxWidth: 1360,
+        padding: 18,
+      );
+    }
+
+    if (width >= _tabletBreakpoint) {
+      return const _HomeLayoutConfig(
+        crossAxisCount: 3,
+        childAspectRatio: 0.88,
+        maxWidth: 1080,
+        padding: 16,
+      );
+    }
+
+    return const _HomeLayoutConfig(
+      crossAxisCount: 2,
+      childAspectRatio: 0.85,
+      maxWidth: double.infinity,
+      padding: 12,
+    );
+  }
+
+  Widget _buildCenteredContent({
+    required _HomeLayoutConfig layout,
+    required Widget child,
+  }) {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: layout.maxWidth),
+        child: child,
+      ),
+    );
+  }
+
+  SliverGridDelegate _buildGridDelegate(_HomeLayoutConfig layout) {
+    return SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: layout.crossAxisCount,
+      childAspectRatio: layout.childAspectRatio,
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+    );
+  }
+
+  Widget _buildContentGrid(_HomeLayoutConfig layout) {
+    if (_items.isEmpty) {
+      return Center(child: Text(AppLocalizations.of(context)!.noContentFound));
+    }
+
+    return _buildCenteredContent(
+      layout: layout,
+      child: Padding(
+        padding: EdgeInsets.all(layout.padding),
+        child: GridView.builder(
+          controller: _scrollController,
+          gridDelegate: _buildGridDelegate(layout),
+          itemCount: _items.length,
+          itemBuilder: (context, index) {
+            final item = _items[index];
+            if (item is Folder) {
+              return FolderCard(
+                folder: item,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => FolderContentScreen(folder: item),
+                    ),
+                  );
+                },
+              );
+            } else if (item is Season) {
+              return FolderCard(
+                folder: Folder(
+                  id: item.id,
+                  title: item.title,
+                  cover: item.cover,
+                  mediaCount: item.mediaCount,
+                  upper: item.upper,
+                  favState: 1,
+                ),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SeasonContentScreen(season: item),
+                    ),
+                  );
+                },
+              );
+            } else if (item is FollowUser) {
+              final locale = AppLocalizations.of(context)!;
+              return FolderCard(
+                folder: Folder(
+                  id: item.mid,
+                  title: item.name,
+                  cover: item.face,
+                  mediaCount: item.videoCount,
+                  upper: BiliUpper(
+                    mid: item.mid,
+                    name: item.name,
+                  ),
+                  favState: 1,
+                ),
+                subtitle: locale.videoCount(item.videoCount),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => UpSpaceScreen(mid: item.mid),
+                    ),
+                  );
+                },
+              );
+            }
+            return const SizedBox();
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final layout = _getLayoutConfig(MediaQuery.sizeOf(context).width);
+
     return Scaffold(
       appBar: AppBar(
         centerTitle: false,
@@ -442,121 +584,30 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: _isLoading
-          ? GridView.builder(
-              padding: const EdgeInsets.all(12.0),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.85,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
+          ? _buildCenteredContent(
+              layout: layout,
+              child: GridView.builder(
+                padding: EdgeInsets.all(layout.padding),
+                gridDelegate: _buildGridDelegate(layout),
+                itemCount: layout.crossAxisCount * 2,
+                itemBuilder: (context, index) => const FolderCardSkeleton(),
               ),
-              itemCount: 8,
-              itemBuilder: (context, index) => const FolderCardSkeleton(),
             )
           : _error != null
               ? ErrorView(
                   message: _error!,
                   onRetry: () => _fetchContent(refresh: true),
                 )
-              : AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 150),
-                  child: _isSearching
-                      ? _buildSearchResults()
-                      : RefreshIndicator(
-                          key: const ValueKey('ContentList'),
-                          onRefresh: () => _fetchContent(refresh: true),
-                          child: _items.isEmpty
-                              ? Center(
-                                  child: Text(AppLocalizations.of(context)!
-                                      .noContentFound),
-                                )
-                              : Padding(
-                                  padding: const EdgeInsets.all(12.0),
-                                  child: GridView.builder(
-                                    controller: _scrollController,
-                                    gridDelegate:
-                                        const SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 2,
-                                      childAspectRatio: 0.85,
-                                      crossAxisSpacing: 12,
-                                      mainAxisSpacing: 12,
-                                    ),
-                                    itemCount: _items.length,
-                                    itemBuilder: (context, index) {
-                                      final item = _items[index];
-                                      if (item is Folder) {
-                                        return FolderCard(
-                                          folder: item,
-                                          onTap: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    FolderContentScreen(
-                                                        folder: item),
-                                              ),
-                                            );
-                                          },
-                                        );
-                                      } else if (item is Season) {
-                                        // Reuse FolderCard for Season, but might want to differentiate visually
-                                        // Constructing a "Folder" like object for UI reuse or create SeasonCard
-                                        // For simplicity, reusing FolderCard with mapping.
-                                        return FolderCard(
-                                          folder: Folder(
-                                            id: item.id,
-                                            title: item.title,
-                                            cover: item.cover,
-                                            mediaCount: item.mediaCount,
-                                            upper: item.upper,
-                                            favState: 1,
-                                          ),
-                                          onTap: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    SeasonContentScreen(
-                                                        season: item),
-                                              ),
-                                            );
-                                          },
-                                        );
-                                      } else if (item is FollowUser) {
-                                        final locale =
-                                            AppLocalizations.of(context)!;
-                                        return FolderCard(
-                                          folder: Folder(
-                                            id: item.mid,
-                                            title: item.name,
-                                            cover: item.face,
-                                            mediaCount: item.videoCount,
-                                            upper: BiliUpper(
-                                              mid: item.mid,
-                                              name: item.name,
-                                            ),
-                                            favState: 1,
-                                          ),
-                                          subtitle: locale
-                                              .videoCount(item.videoCount),
-                                          onTap: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    UpSpaceScreen(
-                                                        mid: item.mid),
-                                              ),
-                                            );
-                                          },
-                                        );
-                                      }
-                                      return const SizedBox();
-                                    },
-                                  ),
-                                ),
-                        ),
-                ),
+               : AnimatedSwitcher(
+                   duration: const Duration(milliseconds: 150),
+                   child: _isSearching
+                        ? _buildSearchResults(layout)
+                        : RefreshIndicator(
+                            key: const ValueKey('ContentList'),
+                            onRefresh: () => _fetchContent(refresh: true),
+                            child: _buildContentGrid(layout),
+                         ),
+                 ),
       floatingActionButton: GestureDetector(
         onLongPress: _handleUnlockLongPress,
         child: FloatingActionButton(
@@ -573,44 +624,61 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSearchResults() {
+  Widget _buildSearchResults(_HomeLayoutConfig layout) {
     if (_searchKeyword.isEmpty) {
-      return Container(
+      return SizedBox(
         key: const ValueKey('SearchResults'),
         child: Center(child: Text(AppLocalizations.of(context)!.searchHint)),
       );
     }
 
     if (_searchResults.isEmpty) {
-      return Container(
+      return SizedBox(
         key: const ValueKey('SearchResults'),
         child: Center(child: Text(AppLocalizations.of(context)!.noResult)),
       );
     }
 
-    return Container(
+    return SizedBox(
       key: const ValueKey('SearchResults'),
-      child: ListView.builder(
-        padding: const EdgeInsets.all(12),
-        itemCount: _searchResults.length,
-        itemBuilder: (context, index) {
-          final video = _searchResults[index];
-          return VideoTile(
-            video: video,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => VideoPlayerScreen(
-                    playlist: [video],
-                    initialIndex: 0,
+      child: _buildCenteredContent(
+        layout: layout,
+        child: ListView.builder(
+          padding: EdgeInsets.all(layout.padding),
+          itemCount: _searchResults.length,
+          itemBuilder: (context, index) {
+            final video = _searchResults[index];
+            return VideoTile(
+              video: video,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => VideoPlayerScreen(
+                      playlist: [video],
+                      initialIndex: 0,
+                    ),
                   ),
-                ),
-              );
-            },
-          );
-        },
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
+}
+
+class _HomeLayoutConfig {
+  final int crossAxisCount;
+  final double childAspectRatio;
+  final double maxWidth;
+  final double padding;
+
+  const _HomeLayoutConfig({
+    required this.crossAxisCount,
+    required this.childAspectRatio,
+    required this.maxWidth,
+    required this.padding,
+  });
 }
