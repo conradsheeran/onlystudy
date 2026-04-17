@@ -36,8 +36,11 @@ class VideoPlayerScreen extends StatefulWidget {
 
 class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     with WidgetsBindingObserver {
-  late final Player _player;
-  late final mkv.VideoController _controller;
+  Player? _playerInstance;
+  mkv.VideoController? _controllerInstance;
+  StreamSubscription<bool>? _completedSubscription;
+  late final Future<void> _playerBootstrap;
+  bool _disposed = false;
 
   late int _currentIndex;
   bool _isLoading = true;
@@ -69,6 +72,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   bool _isAdjustingBrightness = false;
 
   Duration _seekTarget = Duration.zero;
+
+  Player get _player => _playerInstance!;
+  mkv.VideoController get _controller => _controllerInstance!;
 
   /// 获取当前播放中的视频
   Video get _currentVideo => widget.playlist[_currentIndex];
@@ -115,17 +121,42 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _playbackSpeedNotifier = ValueNotifier(_playbackSpeed);
 
     WakelockPlus.enable();
-    _player = Player();
-    PlaybackBridgeService().attachPlayer(_player);
-    _controller = mkv.VideoController(_player);
+    _playerBootstrap = _bootstrapPlayer();
 
-    _player.stream.completed.listen((completed) {
+    _playCurrentVideo();
+  }
+
+  Future<void> _bootstrapPlayer() async {
+    final player = Player(
+      configuration: const PlayerConfiguration(
+        logLevel: MPVLogLevel.error,
+      ),
+    );
+    final controller = mkv.VideoController(
+      player,
+      configuration: const mkv.VideoControllerConfiguration(
+        androidAttachSurfaceAfterVideoParameters: false,
+      ),
+    );
+
+    // Hosted media_kit doesn't expose Player.create/VideoController.create,
+    // so we mirror that async setup by waiting until the native video
+    // controller is actually created before wiring the player into the UI.
+    await controller.platform.future;
+
+    if (_disposed) {
+      await player.dispose();
+      return;
+    }
+
+    _playerInstance = player;
+    _controllerInstance = controller;
+    PlaybackBridgeService().attachPlayer(player);
+    _completedSubscription = player.stream.completed.listen((completed) {
       if (completed) {
         _checkVideoEnd();
       }
     });
-
-    _playCurrentVideo();
   }
 
   /// 开始播放当前视频（初始化状态、记录历史、加载播放器）
@@ -138,6 +169,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       _playbackSpeed = SettingsService().defaultPlaybackSpeed;
     });
 
+    await _playerBootstrap;
+    if (_disposed || !mounted) {
+      return;
+    }
+
     await HistoryService().seedHistory(_currentVideo);
     await _initializePlayer();
   }
@@ -145,15 +181,20 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 释放播放器及相关资源
   @override
   void dispose() {
+    _disposed = true;
     WidgetsBinding.instance.removeObserver(this);
     _playbackSpeedNotifier.dispose();
     _qualityNotifier.dispose();
     _saveHistoryTimer?.cancel();
     _positionGuardTimer?.cancel();
     _overlayTimer?.cancel();
-    _saveProgress();
-    PlaybackBridgeService().detachPlayer(_player, stopPlayback: true);
-    _player.dispose();
+    _completedSubscription?.cancel();
+    final player = _playerInstance;
+    if (player != null) {
+      _saveProgress();
+      PlaybackBridgeService().detachPlayer(player, stopPlayback: true);
+      player.dispose();
+    }
     WakelockPlus.disable();
     super.dispose();
   }
@@ -168,7 +209,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // transient state that also fires for system overlays.
     if ((state == AppLifecycleState.paused ||
             state == AppLifecycleState.hidden) &&
-        _player.state.playing) {
+        _playerInstance?.state.playing == true) {
       PlaybackBridgeService().pause();
     }
   }
@@ -961,6 +1002,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                       ),
                       child: mkv.Video(
                         controller: _controller,
+                        pauseUponEnteringBackgroundMode:
+                            !SettingsService().enableBackgroundPlayback,
                         controls: (state) {
                           return Stack(
                             children: [

@@ -23,9 +23,11 @@ Future<OnlyStudyAudioHandler> initAudioService() async {
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.conradsheeran.onlystudy.channel.audio',
       androidNotificationChannelName: 'OnlyStudy Audio Service',
-      androidNotificationOngoing: true,
-      androidStopForegroundOnPause: true,
-      androidNotificationIcon: 'mipmap/launcher_icon',
+      androidNotificationOngoing: false,
+      // Keep the media service in the foreground so Android 12+/Samsung
+      // devices don't reject background resume after transient pauses.
+      androidStopForegroundOnPause: false,
+      androidNotificationIcon: 'drawable/ic_stat_onlystudy',
       androidNotificationChannelDescription: 'Background playback controls',
       fastForwardInterval: Duration(seconds: 10),
       rewindInterval: Duration(seconds: 10),
