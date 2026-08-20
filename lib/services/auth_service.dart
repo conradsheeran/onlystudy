@@ -3,7 +3,10 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../models/qr_login.dart';
 
 class AuthService {
   static final AuthService _instance = AuthService._internal();
@@ -32,17 +35,31 @@ class AuthService {
     return 'XY${md5Str[2]}${md5Str[12]}${md5Str[22]}$md5Str';
   }
 
-  /// APP 端接口签名（appkey + ts + sign）
-  Map<String, dynamic> _appSign(Map<String, dynamic> params) {
-    params['appkey'] = _appKey;
-    params['ts'] =
-        (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString();
-    final sortedKeys = params.keys.toList()..sort();
+  /// APP 端接口签名（appkey + ts + sign）。
+  /// 提取为可测试的纯函数：给定固定参数和时间戳，签名结果确定。
+  @visibleForTesting
+  static Map<String, dynamic> appSign(
+    Map<String, dynamic> params, {
+    required int timestamp,
+  }) {
+    final signed = Map<String, dynamic>.from(params);
+    signed['appkey'] = _appKey;
+    signed['ts'] = timestamp.toString();
+    final sortedKeys = signed.keys.toList()..sort();
     final query = sortedKeys
-        .map((k) => '${Uri.encodeComponent(k)}=${Uri.encodeComponent(params[k].toString())}')
+        .map((k) =>
+            '${Uri.encodeComponent(k)}=${Uri.encodeComponent(signed[k].toString())}')
         .join('&');
-    params['sign'] = md5.convert(utf8.encode('$query$_appSec')).toString();
-    return params;
+    signed['sign'] =
+        md5.convert(utf8.encode('$query$_appSec')).toString();
+    return signed;
+  }
+
+  Map<String, dynamic> _appSign(Map<String, dynamic> params) {
+    return appSign(
+      params,
+      timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    );
   }
 
   static const String _prefLockPassword = 'folder_lock_password';
@@ -85,7 +102,7 @@ class AuthService {
     await prefs.setBool(_prefIsLocked, locked);
   }
 
-  /// 生成 Bilibili 登录二维码（app 端 HD 版扫码）
+  /// 生成 Bilibili 登录二维码（app 端 HD 版）
   Future<Map<String, dynamic>> generateQRCode() async {
     try {
       final params = _appSign({
@@ -105,6 +122,12 @@ class AuthService {
     } catch (e) {
       rethrow;
     }
+  }
+
+  /// 生成并解析为类型化二维码 challenge。
+  Future<QrLoginChallenge> generateQrChallenge() async {
+    final data = await generateQRCode();
+    return QrLoginChallenge.fromJson(Map<String, dynamic>.from(data));
   }
 
   /// 轮询二维码扫码状态（app 端 HD 版）
@@ -141,11 +164,36 @@ class AuthService {
     }
   }
 
-  /// 解析并保存登录凭据（cookie + token）
-  Future<void> saveLoginInfo(Map<String, dynamic> data) async {
-    final prefs = await SharedPreferences.getInstance();
+  /// 类型化轮询：基于顶层 code 返回 sealed 结果，不再依赖异常字符串判断过期。
+  Future<QrLoginPollResult> pollLoginTyped(String authCode) async {
+    try {
+      final params = _appSign({
+        'auth_code': authCode,
+        'local_id': '0',
+      });
+      final response = await _dio.post(
+        '/x/passport-tv-login/qrcode/poll',
+        queryParameters: params,
+      );
 
-    // 从 cookie_info.cookies 数组提取关键 Cookie
+      final int topCode = response.data['code'] ?? -1;
+      if (topCode == 0) {
+        return QrLoginConfirmed(
+          parseLoginCredentials(Map<String, dynamic>.from(response.data['data'])),
+        );
+      } else if (topCode == 86038) {
+        return const QrLoginExpired();
+      } else {
+        return const QrLoginPending();
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// 从成功响应 data 解析登录凭据（不依赖具体 Map 字段）。
+  @visibleForTesting
+  static LoginCredentials parseLoginCredentials(Map<String, dynamic> data) {
     final cookieInfo = data['cookie_info'] ?? {};
     final cookies = (cookieInfo['cookies'] as List?) ?? [];
     String? sessData;
@@ -164,23 +212,37 @@ class AuthService {
       }
     }
 
-    // 从 token_info 提取 refresh_token
     final tokenInfo = data['token_info'] ?? {};
     final refreshToken = tokenInfo['refresh_token']?.toString();
 
     if (sessData == null || biliJct == null || uid == null) {
-      throw Exception('登录失败: 未获取到完整 Cookie');
+      throw const FormatException('登录失败: 未获取到完整 Cookie');
     }
 
-    await prefs.setString('SESSDATA', sessData);
-    await prefs.setString('bili_jct', biliJct);
-    await prefs.setString('uid', uid);
-    if (refreshToken != null) {
-      await prefs.setString('refresh_token', refreshToken);
-    }
+    return LoginCredentials(
+      sessData: sessData,
+      biliJct: biliJct,
+      uid: uid,
+      refreshToken: refreshToken,
+    );
+  }
 
-    // 设置登录标记
+  /// 保存解析后的登录凭据。
+  Future<void> saveLoginCredentials(LoginCredentials credentials) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('SESSDATA', credentials.sessData);
+    await prefs.setString('bili_jct', credentials.biliJct);
+    await prefs.setString('uid', credentials.uid);
+    if (credentials.refreshToken != null) {
+      await prefs.setString('refresh_token', credentials.refreshToken!);
+    }
     await prefs.setBool('isLoggedIn', true);
+  }
+
+  /// 解析并保存登录凭据（cookie + token）
+  Future<void> saveLoginInfo(Map<String, dynamic> data) async {
+    final credentials = parseLoginCredentials(data);
+    await saveLoginCredentials(credentials);
   }
 
   /// 检查是否已登录

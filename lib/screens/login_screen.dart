@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
+import '../models/qr_login.dart';
 import '../services/auth_service.dart';
 import 'select_folders_screen.dart';
 
@@ -19,7 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String _statusText = ''; // Will be set in initState
   Timer? _timer;
   bool _isExpired = false;
-
+  bool _pollInFlight = false;
   @override
   void initState() {
     super.initState();
@@ -46,11 +47,11 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final data = await _authService.generateQRCode();
+      final challenge = await _authService.generateQrChallenge();
       if (mounted) {
         setState(() {
-          _qrUrl = data['url'];
-          _authCode = data['auth_code'];
+          _qrUrl = challenge.url.toString();
+          _authCode = challenge.authCode;
           _statusText = AppLocalizations.of(context)!.scanQRCode;
         });
         _startPolling();
@@ -69,17 +70,22 @@ class _LoginScreenState extends State<LoginScreen> {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 3), (timer) async {
       if (_authCode == null || !mounted) return;
+      // 防重入：上一次请求未完成时不发起新请求
+      if (_pollInFlight) return;
 
+      _pollInFlight = true;
       try {
-        final result = await _authService.pollLoginStatus(_authCode!);
-        if (result != null) {
-          // 登录成功
-          timer.cancel();
-          if (mounted) {
-            setState(() {
-              _statusText = AppLocalizations.of(context)!.loginSuccess;
-            });
-            await _authService.saveLoginInfo(result);
+        final result = await _authService.pollLoginTyped(_authCode!);
+        switch (result) {
+          case QrLoginConfirmed(:final credentials):
+            // 登录成功：只保存一次、只导航一次
+            timer.cancel();
+            if (mounted) {
+              setState(() {
+                _statusText = AppLocalizations.of(context)!.loginSuccess;
+              });
+            }
+            await _authService.saveLoginCredentials(credentials);
             if (mounted) {
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(
@@ -88,19 +94,23 @@ class _LoginScreenState extends State<LoginScreen> {
                 (route) => false,
               );
             }
-          }
+          case QrLoginExpired():
+            timer.cancel();
+            if (mounted) {
+              setState(() {
+                _isExpired = true;
+                _statusText = AppLocalizations.of(context)!.qrCodeExpired;
+              });
+            }
+          case QrLoginPending():
+            // 继续轮询
+            break;
         }
       } catch (e) {
-        // 停止轮询
-        if (e.toString().contains('过期')) {
-          timer.cancel();
-          if (mounted) {
-            setState(() {
-              _isExpired = true;
-              _statusText = AppLocalizations.of(context)!.qrCodeExpired;
-            });
-          }
-        }
+        // 网络错误：不停止轮询，等待下一次 tick
+        debugPrint('QR poll error: $e');
+      } finally {
+        _pollInFlight = false;
       }
     });
   }

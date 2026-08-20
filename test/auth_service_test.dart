@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onlystudy/models/qr_login.dart';
 import 'package:onlystudy/services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -111,16 +112,70 @@ void main() {
     });
   });
 
-  group('AuthService._appSign', () {
-    test('签名确定性（同 ts 同参数得同 sign）', () async {
-      SharedPreferences.setMockInitialValues({});
-      final auth = AuthService();
+  group('AuthService.appSign', () {
+    test('固定参数和时间戳产生确定签名向量', () {
+      final signed = AuthService.appSign({
+        'local_id': '0',
+        'platform': 'android',
+        'mobi_app': 'android_hd',
+      }, timestamp: 1700000000);
 
-      // 通过反射调用私有 _appSign 验证签名算法与 B 站要求一致
-      // 直接验证 generateBuvid 格式
+      expect(signed['appkey'], 'dfca71928277209b');
+      expect(signed['ts'], '1700000000');
+      // 已知签名向量（独立于 Dart 实现计算）
+      expect(signed['sign'], 'dd272e45c74b628f1fb818a56127c4f1');
+    });
+
+    test('不修改传入参数', () {
+      final input = {'local_id': '0'};
+      AuthService.appSign(input, timestamp: 1700000000);
+      expect(input.containsKey('appkey'), isFalse);
+      expect(input.containsKey('sign'), isFalse);
+    });
+
+    test('buvid 格式', () {
+      final auth = AuthService();
       final buvid = auth.generateBuvid();
       expect(buvid, startsWith('XY'));
       expect(buvid.length, greaterThanOrEqualTo(20));
+    });
+  });
+
+  group('QrLoginChallenge', () {
+    test('解析完整 challenge', () {
+      final challenge = QrLoginChallenge.fromJson({
+        'url': 'https://passport.bilibili.com/x/passport-tv-login/h5/qrcode/scan?auth_code=abc',
+        'auth_code': 'abc123',
+      });
+      expect(challenge.url.toString(), contains('auth_code=abc'));
+      expect(challenge.authCode, 'abc123');
+    });
+
+    test('缺少 auth_code 时抛出解析失败', () {
+      expect(
+        () => QrLoginChallenge.fromJson({
+          'url': 'https://example.com/qr',
+        }),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('缺少 url 时抛出解析失败', () {
+      expect(
+        () => QrLoginChallenge.fromJson({
+          'auth_code': 'abc123',
+        }),
+        throwsA(isA<FormatException>()),
+      );
+    });
+  });
+
+  group('QrLoginPollResult 类型判断', () {
+    test('sealed 类型可被模式匹配区分', () {
+      QrLoginPollResult result = const QrLoginPending();
+      expect(result, isA<QrLoginPending>());
+      expect(result, isNot(isA<QrLoginConfirmed>()));
+      expect(result, isNot(isA<QrLoginExpired>()));
     });
   });
 }
