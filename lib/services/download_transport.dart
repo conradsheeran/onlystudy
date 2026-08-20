@@ -53,8 +53,9 @@ class DownloadTransport {
       savePath,
       options: options,
       cancelToken: cancelToken,
-      fileAccessMode:
-          existingBytes > 0 ? FileAccessMode.append : FileAccessMode.write,
+      fileAccessMode: existingBytes > 0
+          ? FileAccessMode.append
+          : FileAccessMode.write,
       deleteOnError: false,
       onReceiveProgress: (count, total) {
         received = existingBytes + count;

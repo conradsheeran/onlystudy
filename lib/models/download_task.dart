@@ -88,8 +88,9 @@ class DownloadTask {
       progress: clearProgress ? 0.0 : (progress ?? this.progress),
       status: status ?? this.status,
       createTime: createTime,
-      downloadedBytes:
-          clearProgress ? 0 : (downloadedBytes ?? this.downloadedBytes),
+      downloadedBytes: clearProgress
+          ? 0
+          : (downloadedBytes ?? this.downloadedBytes),
       totalBytes: clearProgress ? 0 : (totalBytes ?? this.totalBytes),
     );
   }

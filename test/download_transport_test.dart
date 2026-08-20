@@ -30,14 +30,18 @@ void main() {
         final start = int.parse(match.group(1)!);
         final chunk = fileBytes.sublist(start);
         request.response.statusCode = HttpStatus.partialContent;
-        request.response.headers
-            .set(HttpHeaders.contentRangeHeader, 'bytes $start-${fileBytes.length - 1}/${fileBytes.length}');
+        request.response.headers.set(
+          HttpHeaders.contentRangeHeader,
+          'bytes $start-${fileBytes.length - 1}/${fileBytes.length}',
+        );
         request.response.contentLength = chunk.length;
         request.response.add(chunk);
         await request.response.close();
       } else {
-        request.response.headers
-            .set(HttpHeaders.contentLengthHeader, fileBytes.length.toString());
+        request.response.headers.set(
+          HttpHeaders.contentLengthHeader,
+          fileBytes.length.toString(),
+        );
         request.response.add(fileBytes);
         await request.response.close();
       }
@@ -55,7 +59,10 @@ void main() {
     final transport = DownloadTransport();
     final target = path('video.mp4');
 
-    final result = await transport.download(url: '$baseUrl/file', savePath: target);
+    final result = await transport.download(
+      url: '$baseUrl/file',
+      savePath: target,
+    );
 
     expect(result.receivedBytes, fileBytes.length);
     expect(result.totalBytes, fileBytes.length);
@@ -119,8 +126,7 @@ void main() {
 
     await expectLater(future, throwsA(isA<DioException>()));
     await Future<void>.delayed(const Duration(milliseconds: 300));
-    expect(File(target).lengthSync(), lastLength,
-        reason: '取消后文件不得继续增长');
+    expect(File(target).lengthSync(), lastLength, reason: '取消后文件不得继续增长');
   });
 
   test('isCancelled 识别取消错误', () async {

@@ -7,11 +7,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'dart:io';
 
 /// 视频来源类型。
-enum VideoSourceType {
-  folder,
-  season,
-  up,
-}
+enum VideoSourceType { folder, season, up }
 
 extension VideoSourceTypeX on VideoSourceType {
   String get dbValue => name;
@@ -29,6 +25,7 @@ class DatabaseService {
   /// 测试专用：注入已打开的数据库。
   @visibleForTesting
   set databaseOverride(Database db) => _database = db;
+
   /// 获取数据库实例
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -122,65 +119,49 @@ class DatabaseService {
     final batch = db.batch();
 
     for (var video in videos) {
-      batch.insert(
-        'videos',
-        {
+      batch.insert('videos', {
+        'bvid': video.bvid,
+        'title': video.title,
+        'cover': video.cover,
+        'upper_name': video.upper.name,
+        'folder_id': folderId,
+        'season_id': seasonId,
+        'json_data': jsonEncode({
           'bvid': video.bvid,
           'title': video.title,
           'cover': video.cover,
-          'upper_name': video.upper.name,
-          'folder_id': folderId,
-          'season_id': seasonId,
-          'json_data': jsonEncode({
-            'bvid': video.bvid,
-            'title': video.title,
-            'cover': video.cover,
-            'duration': video.duration,
-            'upper': {'mid': video.upper.mid, 'name': video.upper.name},
-            'cnt_info': {'play': video.view, 'danmaku': video.danmaku},
-            'pub_time': video.pubTimestamp,
-          }),
-          'timestamp': now,
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+          'duration': video.duration,
+          'upper': {'mid': video.upper.mid, 'name': video.upper.name},
+          'cnt_info': {'play': video.view, 'danmaku': video.danmaku},
+          'pub_time': video.pubTimestamp,
+        }),
+        'timestamp': now,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
 
       // 记录来源关系（up 来源与收藏夹/合集可并存）
       if (folderId != null) {
-        batch.insert(
-          'video_sources',
-          {
-            'bvid': video.bvid,
-            'source_type': VideoSourceType.folder.dbValue,
-            'source_id': folderId,
-            'synced_at': now,
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        batch.insert('video_sources', {
+          'bvid': video.bvid,
+          'source_type': VideoSourceType.folder.dbValue,
+          'source_id': folderId,
+          'synced_at': now,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
       if (seasonId != null) {
-        batch.insert(
-          'video_sources',
-          {
-            'bvid': video.bvid,
-            'source_type': VideoSourceType.season.dbValue,
-            'source_id': seasonId,
-            'synced_at': now,
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        batch.insert('video_sources', {
+          'bvid': video.bvid,
+          'source_type': VideoSourceType.season.dbValue,
+          'source_id': seasonId,
+          'synced_at': now,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
       if (upId != null) {
-        batch.insert(
-          'video_sources',
-          {
-            'bvid': video.bvid,
-            'source_type': VideoSourceType.up.dbValue,
-            'source_id': upId,
-            'synced_at': now,
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        batch.insert('video_sources', {
+          'bvid': video.bvid,
+          'source_type': VideoSourceType.up.dbValue,
+          'source_id': upId,
+          'synced_at': now,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
     }
     await batch.commit(noResult: true);
@@ -207,28 +188,29 @@ class DatabaseService {
       final sourceConditions = <String>[];
       if (visibleFolderIds != null && visibleFolderIds.isNotEmpty) {
         sourceConditions.add(
-            "(vs.source_type = 'folder' AND vs.source_id IN (${visibleFolderIds.join(',')}))");
+          "(vs.source_type = 'folder' AND vs.source_id IN (${visibleFolderIds.join(',')}))",
+        );
       }
       if (visibleSeasonIds != null && visibleSeasonIds.isNotEmpty) {
         sourceConditions.add(
-            "(vs.source_type = 'season' AND vs.source_id IN (${visibleSeasonIds.join(',')}))");
+          "(vs.source_type = 'season' AND vs.source_id IN (${visibleSeasonIds.join(',')}))",
+        );
       }
       if (visibleUpIds != null && visibleUpIds.isNotEmpty) {
         sourceConditions.add(
-            "(vs.source_type = 'up' AND vs.source_id IN (${visibleUpIds.join(',')}))");
+          "(vs.source_type = 'up' AND vs.source_id IN (${visibleUpIds.join(',')}))",
+        );
       }
-      whereClause += ' AND EXISTS (SELECT 1 FROM video_sources vs '
+      whereClause +=
+          ' AND EXISTS (SELECT 1 FROM video_sources vs '
           'WHERE vs.bvid = v.bvid AND (${sourceConditions.join(' OR ')}))';
     }
 
-    final List<Map<String, dynamic>> maps = await db.rawQuery(
-      '''
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT DISTINCT v.* FROM videos v
       WHERE $whereClause
       ORDER BY v.timestamp DESC
-      ''',
-      whereArgs,
-    );
+      ''', whereArgs);
 
     return List.generate(maps.length, (i) {
       final jsonMap = jsonDecode(maps[i]['json_data']);
@@ -240,27 +222,33 @@ class DatabaseService {
   /// 无任何来源的视频再删除主体记录。
   Future<void> clearFolderCache(int folderId) async {
     final db = await database;
-    await db.delete('video_sources',
-        where: 'source_type = ? AND source_id = ?',
-        whereArgs: ['folder', folderId]);
+    await db.delete(
+      'video_sources',
+      where: 'source_type = ? AND source_id = ?',
+      whereArgs: ['folder', folderId],
+    );
     await _deleteOrphanVideos(db);
   }
 
   /// 清理指定合集的缓存数据。
   Future<void> clearSeasonCache(int seasonId) async {
     final db = await database;
-    await db.delete('video_sources',
-        where: 'source_type = ? AND source_id = ?',
-        whereArgs: ['season', seasonId]);
+    await db.delete(
+      'video_sources',
+      where: 'source_type = ? AND source_id = ?',
+      whereArgs: ['season', seasonId],
+    );
     await _deleteOrphanVideos(db);
   }
 
   /// 清理指定 UP 主的缓存数据。
   Future<void> clearUpCache(int upId) async {
     final db = await database;
-    await db.delete('video_sources',
-        where: 'source_type = ? AND source_id = ?',
-        whereArgs: ['up', upId]);
+    await db.delete(
+      'video_sources',
+      where: 'source_type = ? AND source_id = ?',
+      whereArgs: ['up', upId],
+    );
     await _deleteOrphanVideos(db);
   }
 

@@ -30,15 +30,16 @@ class SettingsService {
     localeCode: null,
   );
 
-  final ValueNotifier<AppSettings> _settingsNotifier =
-      ValueNotifier(const AppSettings(
-    defaultResolution: 64,
-    autoCheckUpdate: true,
-    lastPromptedUpdateVersion: null,
-    defaultPlaybackSpeed: 1.0,
-    enableBackgroundPlayback: true,
-    localeCode: null,
-  ));
+  final ValueNotifier<AppSettings> _settingsNotifier = ValueNotifier(
+    const AppSettings(
+      defaultResolution: 64,
+      autoCheckUpdate: true,
+      lastPromptedUpdateVersion: null,
+      defaultPlaybackSpeed: 1.0,
+      enableBackgroundPlayback: true,
+      localeCode: null,
+    ),
+  );
 
   /// 设置快照监听器；设置变更后发布新快照。
   ValueListenable<AppSettings> get settings => _settingsNotifier;
@@ -48,8 +49,7 @@ class SettingsService {
 
   int get defaultResolution => _settings.defaultResolution;
   bool get autoCheckUpdate => _settings.autoCheckUpdate;
-  String? get lastPromptedUpdateVersion =>
-      _settings.lastPromptedUpdateVersion;
+  String? get lastPromptedUpdateVersion => _settings.lastPromptedUpdateVersion;
   double get defaultPlaybackSpeed => _settings.defaultPlaybackSpeed;
   bool get enableBackgroundPlayback => _settings.enableBackgroundPlayback;
   String? get localeCode => _settings.localeCode;
@@ -69,10 +69,8 @@ class SettingsService {
     _settings = AppSettings(
       defaultResolution: prefs.getInt(_keyDefaultResolution) ?? 64,
       autoCheckUpdate: prefs.getBool(_keyAutoCheckUpdate) ?? true,
-      lastPromptedUpdateVersion:
-          prefs.getString(_keyLastPromptedUpdateVersion),
-      defaultPlaybackSpeed:
-          prefs.getDouble(_keyDefaultPlaybackSpeed) ?? 1.0,
+      lastPromptedUpdateVersion: prefs.getString(_keyLastPromptedUpdateVersion),
+      defaultPlaybackSpeed: prefs.getDouble(_keyDefaultPlaybackSpeed) ?? 1.0,
       enableBackgroundPlayback:
           prefs.getBool(_keyEnableBackgroundPlayback) ?? true,
       localeCode: prefs.getString(_keyLocale),

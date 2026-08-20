@@ -16,11 +16,12 @@ void main() {
   databaseFactory = databaseFactoryFfi;
 
   Future<Database> openV3Db() async {
-    return databaseFactory.openDatabase(inMemoryDatabasePath,
-        options: OpenDatabaseOptions(
-          version: 3,
-          onCreate: (db, version) async {
-            await db.execute('''
+    return databaseFactory.openDatabase(
+      inMemoryDatabasePath,
+      options: OpenDatabaseOptions(
+        version: 3,
+        onCreate: (db, version) async {
+          await db.execute('''
               CREATE TABLE videos(
                 bvid TEXT PRIMARY KEY,
                 title TEXT,
@@ -32,7 +33,7 @@ void main() {
                 timestamp INTEGER
               )
             ''');
-            await db.execute('''
+          await db.execute('''
               CREATE TABLE video_sources(
                 bvid TEXT NOT NULL,
                 source_type TEXT NOT NULL,
@@ -41,24 +42,25 @@ void main() {
                 PRIMARY KEY (bvid, source_type, source_id)
               )
             ''');
-            await db.execute('''
+          await db.execute('''
               CREATE INDEX video_sources_by_source
               ON video_sources(source_type, source_id)
             ''');
-          },
-        ));
+        },
+      ),
+    );
   }
 
   Video makeVideo(String bvid, String title) => Video(
-        bvid: bvid,
-        title: title,
-        cover: 'https://example.com/$bvid.jpg',
-        duration: 60,
-        upper: BiliUpper(mid: 1, name: 'UP1'),
-        view: 100,
-        danmaku: 5,
-        pubTimestamp: 1700000000,
-      );
+    bvid: bvid,
+    title: title,
+    cover: 'https://example.com/$bvid.jpg',
+    duration: 60,
+    upper: BiliUpper(mid: 1, name: 'UP1'),
+    view: 100,
+    danmaku: 5,
+    pubTimestamp: 1700000000,
+  );
 
   test('同一视频属于两个收藏夹时两种筛选都能命中', () async {
     final db = await openV3Db();
@@ -137,11 +139,12 @@ void main() {
     final dir = await Directory.systemTemp.createTemp('db_migrate');
     final dbPath = '${dir.path}${Platform.pathSeparator}test.db';
     // 先建 v2 表（只有 videos，无 video_sources）
-    final db = await databaseFactory.openDatabase(dbPath,
-        options: OpenDatabaseOptions(
-          version: 2,
-          onCreate: (db, version) async {
-            await db.execute('''
+    final db = await databaseFactory.openDatabase(
+      dbPath,
+      options: OpenDatabaseOptions(
+        version: 2,
+        onCreate: (db, version) async {
+          await db.execute('''
               CREATE TABLE videos(
                 bvid TEXT PRIMARY KEY,
                 title TEXT,
@@ -153,8 +156,9 @@ void main() {
                 timestamp INTEGER
               )
             ''');
-          },
-        ));
+        },
+      ),
+    );
     await db.insert('videos', {
       'bvid': 'BV6',
       'title': '老视频',
@@ -169,12 +173,13 @@ void main() {
     await db.close();
 
     // 重新以 v3 打开触发迁移
-    final db3 = await databaseFactory.openDatabase(dbPath,
-        options: OpenDatabaseOptions(
-          version: 3,
-          onUpgrade: (db, oldVersion, newVersion) async {
-            if (oldVersion < 3) {
-              await db.execute('''
+    final db3 = await databaseFactory.openDatabase(
+      dbPath,
+      options: OpenDatabaseOptions(
+        version: 3,
+        onUpgrade: (db, oldVersion, newVersion) async {
+          if (oldVersion < 3) {
+            await db.execute('''
                 CREATE TABLE video_sources(
                   bvid TEXT NOT NULL,
                   source_type TEXT NOT NULL,
@@ -183,22 +188,26 @@ void main() {
                   PRIMARY KEY (bvid, source_type, source_id)
                 )
               ''');
-              await db.execute('''
+            await db.execute('''
                 CREATE INDEX video_sources_by_source
                 ON video_sources(source_type, source_id)
               ''');
-              await db.execute('''
+            await db.execute('''
                 INSERT OR IGNORE INTO video_sources (bvid, source_type, source_id, synced_at)
                 SELECT bvid, 'folder', folder_id, timestamp FROM videos
                 WHERE folder_id IS NOT NULL AND folder_id > 0
               ''');
-            }
-          },
-        ));
+          }
+        },
+      ),
+    );
 
     // 迁移后关系表有旧数据
-    final sources =
-        await db3.query('video_sources', where: 'source_type = ?', whereArgs: ['folder']);
+    final sources = await db3.query(
+      'video_sources',
+      where: 'source_type = ?',
+      whereArgs: ['folder'],
+    );
     expect(sources, hasLength(1));
     expect(sources.first['bvid'], 'BV6');
     expect(sources.first['source_id'], 99);
@@ -206,5 +215,3 @@ void main() {
     await dir.delete(recursive: true);
   });
 }
-
-

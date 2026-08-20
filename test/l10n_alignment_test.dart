@@ -5,10 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// OPT-017：中英文 ARB 文案 key 必须对齐，避免英文界面缺项。
 void main() {
-  const arbFiles = [
-    'lib/l10n/app_zh.arb',
-    'lib/l10n/app_en.arb',
-  ];
+  const arbFiles = ['lib/l10n/app_zh.arb', 'lib/l10n/app_en.arb'];
 
   Map<String, dynamic> loadArb(String path) {
     final raw = File(path).readAsStringSync();
@@ -26,14 +23,24 @@ void main() {
     final zhOnly = keySets[0].difference(keySets[1]);
     final enOnly = keySets[1].difference(keySets[0]);
 
-    expect(zhOnly, isEmpty, reason: 'app_zh.arb 包含但 app_en.arb 缺失的 key: $zhOnly');
-    expect(enOnly, isEmpty, reason: 'app_en.arb 包含但 app_zh.arb 缺失的 key: $enOnly');
+    expect(
+      zhOnly,
+      isEmpty,
+      reason: 'app_zh.arb 包含但 app_en.arb 缺失的 key: $zhOnly',
+    );
+    expect(
+      enOnly,
+      isEmpty,
+      reason: 'app_en.arb 包含但 app_zh.arb 缺失的 key: $enOnly',
+    );
   });
 
   test('生成的 AppLocalizations 暴露的 getter 覆盖全部 ARB key', () {
     // 生成文件必须与 ARB 同步；此测试防止忘记 flutter gen-l10n
     final zh = loadArb(arbFiles[0]);
-    final generated = File('lib/l10n/app_localizations.dart').readAsStringSync();
+    final generated = File(
+      'lib/l10n/app_localizations.dart',
+    ).readAsStringSync();
 
     for (final key in keys(zh)) {
       final hasGetter =

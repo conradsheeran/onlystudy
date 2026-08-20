@@ -50,9 +50,7 @@ class _CommonImageState extends State<CommonImage> {
         width: widget.width,
         height: widget.height,
         fit: widget.fit,
-        placeholder: (context, url) => Container(
-          color: Colors.grey[200],
-        ),
+        placeholder: (context, url) => Container(color: Colors.grey[200]),
         errorWidget: (context, url, error) => Container(
           color: Colors.grey[200],
           child: Icon(Icons.broken_image, color: Colors.grey[400]),

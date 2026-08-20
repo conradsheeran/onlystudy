@@ -8,6 +8,7 @@ import 'package:onlystudy/models/download_task.dart';
 import 'package:onlystudy/services/download_service.dart';
 import 'package:onlystudy/services/download_transport.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
 /// DownloadService 的队列/取消/恢复行为测试。
 ///
 /// 通过注入 fake transport 与 fake 播放地址/保存目录，避免真实网络
@@ -59,27 +60,36 @@ void main() {
   test('多任务严格遵守并发上限（maxConcurrent=2）', () async {
     final transport = makeFakeTransport();
     service.transportForTest = transport;
-    service.playUrlProvider =
-        (bvid, cid, qn) async => 'https://example.com/video.mp4';
+    service.playUrlProvider = (bvid, cid, qn) async =>
+        'https://example.com/video.mp4';
 
     // 添加 4 个任务
     for (var i = 0; i < 4; i++) {
-      await service.startDownload(video.copyWithTest(bvid: 'BV$i'), 100 + i,
-          1000 + i);
+      await service.startDownload(
+        video.copyWithTest(bvid: 'BV$i'),
+        100 + i,
+        1000 + i,
+      );
     }
 
     // 等待前两个传输开始
     await transport.waitForDownloads(2, timeout: const Duration(seconds: 2));
 
     // 队列应最多 2 个同时进行
-    expect(transport.activeCount, lessThanOrEqualTo(DownloadService.maxConcurrent));
+    expect(
+      transport.activeCount,
+      lessThanOrEqualTo(DownloadService.maxConcurrent),
+    );
     expect(transport.startedUrls.length, 2);
 
     // 完成前两个，队列继续推进
     transport.completeAll();
     await transport.waitForDownloads(4, timeout: const Duration(seconds: 3));
     expect(transport.startedUrls.length, 4);
-    expect(transport.activeCount, lessThanOrEqualTo(DownloadService.maxConcurrent));
+    expect(
+      transport.activeCount,
+      lessThanOrEqualTo(DownloadService.maxConcurrent),
+    );
   });
 
   test('失败任务可以 retry 并成功', () async {
@@ -92,18 +102,20 @@ void main() {
       return 'https://example.com/video.mp4';
     };
 
-    await service.startDownload(
-        video.copyWithTest(bvid: 'BVfail'), 1, 1000);
+    await service.startDownload(video.copyWithTest(bvid: 'BVfail'), 1, 1000);
 
     // 等待失败
     await _waitForStatus(service, 'BVfail', 1, DownloadStatus.failed);
-    expect(service.currentTasks.any(
-        (t) => t.bvid == 'BVfail' && t.status == DownloadStatus.failed),
-        isTrue);
+    expect(
+      service.currentTasks.any(
+        (t) => t.bvid == 'BVfail' && t.status == DownloadStatus.failed,
+      ),
+      isTrue,
+    );
 
     // 修复网络并重试
-    service.playUrlProvider =
-        (bvid, cid, qn) async => 'https://example.com/ok.mp4';
+    service.playUrlProvider = (bvid, cid, qn) async =>
+        'https://example.com/ok.mp4';
     await service.retryTask('BVfail', 1);
     await _waitForStatus(service, 'BVfail', 1, DownloadStatus.completed);
   });
@@ -111,7 +123,8 @@ void main() {
   test('删除进行中的任务取消请求且不产生孤儿文件', () async {
     final transport = makeFakeTransport();
     service.transportForTest = transport;
-    service.playUrlProvider = (bvid, cid, qn) async => 'https://example.com/video.mp4';
+    service.playUrlProvider = (bvid, cid, qn) async =>
+        'https://example.com/video.mp4';
 
     await service.startDownload(video, 1, 1000);
     await transport.waitForDownloads(1, timeout: const Duration(seconds: 2));
@@ -183,12 +196,14 @@ class FakeTransport extends DownloadTransport {
 
   Future<void> waitForDownloads(int count, {required Duration timeout}) async {
     final deadline = DateTime.now().add(timeout);
-    while (startedUrls.length < count &&
-        DateTime.now().isBefore(deadline)) {
+    while (startedUrls.length < count && DateTime.now().isBefore(deadline)) {
       await Future<void>.delayed(const Duration(milliseconds: 20));
     }
-    expect(startedUrls.length, greaterThanOrEqualTo(count),
-        reason: '等待 $count 个下载开始超时');
+    expect(
+      startedUrls.length,
+      greaterThanOrEqualTo(count),
+      reason: '等待 $count 个下载开始超时',
+    );
   }
 }
 
@@ -211,13 +226,13 @@ Future<void> _waitForStatus(
 
 extension on Video {
   Video copyWithTest({String? bvid}) => Video(
-        bvid: bvid ?? this.bvid,
-        title: title,
-        cover: cover,
-        duration: duration,
-        upper: upper,
-        view: view,
-        danmaku: danmaku,
-        pubTimestamp: pubTimestamp,
-      );
+    bvid: bvid ?? this.bvid,
+    title: title,
+    cover: cover,
+    duration: duration,
+    upper: upper,
+    view: view,
+    danmaku: danmaku,
+    pubTimestamp: pubTimestamp,
+  );
 }

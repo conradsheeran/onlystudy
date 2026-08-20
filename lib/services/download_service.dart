@@ -67,7 +67,9 @@ class DownloadService {
     if (dbPathProvider != null) return dbPathProvider!();
     return getDatabasesPath();
   }
+
   static String _taskKey(String bvid, int cid) => '$bvid:$cid';
+
   /// 初始化下载服务和数据库；把遗留 running 状态恢复为 paused。
   Future<void> init() async {
     if (_db != null) return;
@@ -102,9 +104,11 @@ class DownloadService {
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) {
             await db.execute(
-                'ALTER TABLE tasks ADD COLUMN downloadedBytes INTEGER DEFAULT 0');
+              'ALTER TABLE tasks ADD COLUMN downloadedBytes INTEGER DEFAULT 0',
+            );
             await db.execute(
-                'ALTER TABLE tasks ADD COLUMN totalBytes INTEGER DEFAULT 0');
+              'ALTER TABLE tasks ADD COLUMN totalBytes INTEGER DEFAULT 0',
+            );
           }
         },
       );
@@ -118,10 +122,11 @@ class DownloadService {
   /// 从数据库加载历史下载任务。
   Future<void> _loadTasks() async {
     if (_db == null) return;
-    final maps = await _db!
-        .query('tasks', orderBy: 'createTime DESC');
-    _memoryTasks =
-        List.generate(maps.length, (i) => DownloadTask.fromMap(maps[i]));
+    final maps = await _db!.query('tasks', orderBy: 'createTime DESC');
+    _memoryTasks = List.generate(
+      maps.length,
+      (i) => DownloadTask.fromMap(maps[i]),
+    );
     _tasksController.add(_memoryTasks);
   }
 
@@ -137,16 +142,21 @@ class DownloadService {
       await _persistTask(paused);
     }
     _memoryTasks = List.generate(
-        _memoryTasks.length,
-        (i) => _memoryTasks[i].status == DownloadStatus.running
-            ? _memoryTasks[i].copyWith(status: DownloadStatus.paused)
-            : _memoryTasks[i]);
+      _memoryTasks.length,
+      (i) => _memoryTasks[i].status == DownloadStatus.running
+          ? _memoryTasks[i].copyWith(status: DownloadStatus.paused)
+          : _memoryTasks[i],
+    );
     _tasksController.add(List.from(_memoryTasks));
   }
 
   /// 开始一个新的视频下载任务（幂等：已存在则直接返回）。
-  Future<void> startDownload(Video video, int cid, int aid,
-      {int qn = 64}) async {
+  Future<void> startDownload(
+    Video video,
+    int cid,
+    int aid, {
+    int qn = 64,
+  }) async {
     if (_db == null) await init();
     if (_memoryTasks.any((t) => t.bvid == video.bvid && t.cid == cid)) {
       return;
@@ -201,20 +211,21 @@ class DownloadService {
     _cancelTokens[key] = cancelToken;
 
     try {
-      final playUrlProvider = this.playUrlProvider ??
+      final playUrlProvider =
+          this.playUrlProvider ??
           (bvid, cid, qn) async =>
-              (await BiliApiService()
-                      .getVideoPlayUrl(bvid, cid, qn: qn))
-                  .url;
+              (await BiliApiService().getVideoPlayUrl(bvid, cid, qn: qn)).url;
       final url = await playUrlProvider(task.bvid, task.cid, task.quality);
       if (url.isEmpty) {
         throw Exception('No playable URL');
-    }
+      }
 
-      final downloadDirProvider = this.downloadDirProvider ?? () async {
-        final docDir = await getApplicationDocumentsDirectory();
-        return Directory(join(docDir.path, 'downloads'));
-      };
+      final downloadDirProvider =
+          this.downloadDirProvider ??
+          () async {
+            final docDir = await getApplicationDocumentsDirectory();
+            return Directory(join(docDir.path, 'downloads'));
+          };
       final downloadDir = await downloadDirProvider();
       if (!await downloadDir.exists()) {
         await downloadDir.create(recursive: true);
@@ -231,11 +242,14 @@ class DownloadService {
         existingBytes = await partFile.length();
       }
 
-      await _updateTask(key, (t) => t.copyWith(
-            filePath: finalPath,
-            status: DownloadStatus.running,
-            progress: 0.0,
-          ));
+      await _updateTask(
+        key,
+        (t) => t.copyWith(
+          filePath: finalPath,
+          status: DownloadStatus.running,
+          progress: 0.0,
+        ),
+      );
 
       final headers = {
         'User-Agent':
@@ -256,13 +270,15 @@ class DownloadService {
               (live.downloadedBytes != received ||
                   live.totalBytes != total ||
                   (live.progress - progress).abs() > 0.01)) {
-            _updateTask(key,
-                (t) => t.copyWith(
-                      progress: progress,
-                      downloadedBytes: received,
-                      totalBytes: total,
-                    ),
-                persist: true);
+            _updateTask(
+              key,
+              (t) => t.copyWith(
+                progress: progress,
+                downloadedBytes: received,
+                totalBytes: total,
+              ),
+              persist: true,
+            );
           }
         },
       );
@@ -274,23 +290,27 @@ class DownloadService {
       }
       await partFile.rename(finalPath);
 
-      await _updateTask(key,
-          (t) => t.copyWith(
-                status: DownloadStatus.completed,
-                progress: 1.0,
-                downloadedBytes: result.receivedBytes,
-                totalBytes: result.totalBytes,
-              ),
-          persist: true);
+      await _updateTask(
+        key,
+        (t) => t.copyWith(
+          status: DownloadStatus.completed,
+          progress: 1.0,
+          downloadedBytes: result.receivedBytes,
+          totalBytes: result.totalBytes,
+        ),
+        persist: true,
+      );
     } catch (e) {
       if (DownloadTransport.isCancelled(e)) {
         // 取消：不覆盖状态，交由 pause/delete 处理
         debugPrint('Download cancelled: $key');
       } else {
         debugPrint('Download error: $e');
-        await _updateTask(key,
-            (t) => t.copyWith(status: DownloadStatus.failed),
-            persist: true);
+        await _updateTask(
+          key,
+          (t) => t.copyWith(status: DownloadStatus.failed),
+          persist: true,
+        );
       }
     }
   }
@@ -303,9 +323,11 @@ class DownloadService {
 
     _cancelTokens[key]?.cancel();
     _queue.remove(key);
-    await _updateTask(key,
-        (t) => t.copyWith(status: DownloadStatus.paused),
-        persist: true);
+    await _updateTask(
+      key,
+      (t) => t.copyWith(status: DownloadStatus.paused),
+      persist: true,
+    );
   }
 
   /// 恢复暂停/失败任务。
@@ -318,8 +340,11 @@ class DownloadService {
       return;
     }
 
-    await _updateTask(key, (t) => t.copyWith(status: DownloadStatus.pending),
-        persist: true);
+    await _updateTask(
+      key,
+      (t) => t.copyWith(status: DownloadStatus.pending),
+      persist: true,
+    );
     _enqueue(task.copyWith(status: DownloadStatus.pending));
   }
 
@@ -329,8 +354,9 @@ class DownloadService {
   /// 删除任务：取消网络请求并删除文件与 `.part`。
   Future<void> deleteTask(String bvid, int cid) async {
     final key = _taskKey(bvid, cid);
-    final index = _memoryTasks.indexWhere((t) =>
-        t.bvid == bvid && t.cid == cid);
+    final index = _memoryTasks.indexWhere(
+      (t) => t.bvid == bvid && t.cid == cid,
+    );
     if (index == -1) return;
 
     final task = _memoryTasks[index];
@@ -377,8 +403,7 @@ class DownloadService {
     DownloadTask Function(DownloadTask) transform, {
     bool persist = true,
   }) async {
-    final index = _memoryTasks.indexWhere(
-        (t) => '${t.bvid}:${t.cid}' == key);
+    final index = _memoryTasks.indexWhere((t) => '${t.bvid}:${t.cid}' == key);
     if (index == -1) return;
 
     final updated = transform(_memoryTasks[index]);
@@ -395,7 +420,8 @@ class DownloadService {
 
   Future<void> _persistTask(DownloadTask task) async {
     final index = _memoryTasks.indexWhere(
-        (t) => t.bvid == task.bvid && t.cid == task.cid);
+      (t) => t.bvid == task.bvid && t.cid == task.cid,
+    );
     if (index >= 0) {
       _memoryTasks[index] = task;
     } else {
@@ -425,6 +451,7 @@ class DownloadService {
     downloadDirProvider = null;
     dbPathProvider = null;
   }
+
   void dispose() {
     _tasksController.close();
     _db?.close();
