@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
-import 'package:onlystudy/services/playback_bridge.dart';
+import 'package:onlystudy/services/playback_session.dart';
 import '../models/app_settings.dart';
 import '../services/settings_service.dart';
 import '../services/auth_service.dart';
@@ -52,7 +52,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 value: settings.enableBackgroundPlayback,
                 onChanged: (value) async {
                   await SettingsService().setEnableBackgroundPlayback(value);
-                  PlaybackBridgeService().refreshConfiguration();
+                  PlaybackSession.instance.refreshConfiguration();
                 },
               ),
               ListTile(

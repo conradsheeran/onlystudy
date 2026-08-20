@@ -1,7 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 
-import 'audio_session_handler.dart';
-import 'playback_bridge.dart';
+import 'playback_session.dart';
 
 late OnlyStudyAudioHandler audioHandler;
 
@@ -17,6 +16,11 @@ const _fastForward10Control = MediaControl(
   action: MediaAction.fastForward,
 );
 
+/// 初始化后台音频服务（OPT-012）。
+///
+/// 注册 [OnlyStudyAudioHandler] 作为会话 sink，并初始化音频会话
+/// （配置、中断/噪音处理）。AudioService 通知栏控制全部转发给
+/// [PlaybackSession.instance]。
 Future<OnlyStudyAudioHandler> initAudioService() async {
   audioHandler = await AudioService.init(
     builder: OnlyStudyAudioHandler.new,
@@ -33,29 +37,35 @@ Future<OnlyStudyAudioHandler> initAudioService() async {
       rewindInterval: Duration(seconds: 10),
     ),
   );
-  await AudioSessionHandler().init();
+  await PlaybackSession.instance.initAudioSession();
   return audioHandler;
 }
 
+/// 后台音频服务的薄适配层（OPT-012）。
+///
+/// 只负责把 AudioService 的媒体通知栏控制映射到 [PlaybackSession]，
+/// 以及把会话推送的状态转换为 audio_service 的 [PlaybackState]。
+/// 不再持有播放器桥接逻辑。
 class OnlyStudyAudioHandler extends BaseAudioHandler
     with SeekHandler
     implements PlaybackSessionSink {
   OnlyStudyAudioHandler() {
-    PlaybackBridgeService().bindSessionSink(this);
+    PlaybackSession.instance.bindSink(this);
   }
 
   @override
-  Future<void> play() => PlaybackBridgeService().play();
+  Future<void> play() => PlaybackSession.instance.play();
 
   @override
-  Future<void> pause() => PlaybackBridgeService().pause();
+  Future<void> pause() => PlaybackSession.instance.pause();
 
   @override
-  Future<void> seek(Duration position) => PlaybackBridgeService().seek(position);
+  Future<void> seek(Duration position) =>
+      PlaybackSession.instance.seek(position);
 
   @override
   Future<void> stop() async {
-    await PlaybackBridgeService().stop();
+    await PlaybackSession.instance.stop();
     clearSession();
     await super.stop();
   }
@@ -66,18 +76,12 @@ class OnlyStudyAudioHandler extends BaseAudioHandler
   }
 
   @override
-  void updatePlaybackState({
-    required bool playing,
-    required Duration position,
-    required Duration bufferedPosition,
-    required double speed,
-    required PlaybackBridgeProcessingState processingState,
-  }) {
+  void updatePlaybackState(PlaybackSessionState state) {
     playbackState.add(
       playbackState.value.copyWith(
         controls: [
           _rewind10Control,
-          if (playing) MediaControl.pause else MediaControl.play,
+          if (state.playing) MediaControl.pause else MediaControl.play,
           _fastForward10Control,
         ],
         systemActions: const {
@@ -86,19 +90,20 @@ class OnlyStudyAudioHandler extends BaseAudioHandler
           MediaAction.seekBackward,
         },
         androidCompactActionIndices: const [0, 1, 2],
-        processingState: switch (processingState) {
-          PlaybackBridgeProcessingState.idle => AudioProcessingState.idle,
-          PlaybackBridgeProcessingState.loading => AudioProcessingState.loading,
-          PlaybackBridgeProcessingState.buffering =>
+        processingState: switch (state.processingState) {
+          PlaybackSessionProcessingState.idle => AudioProcessingState.idle,
+          PlaybackSessionProcessingState.loading =>
+            AudioProcessingState.loading,
+          PlaybackSessionProcessingState.buffering =>
             AudioProcessingState.buffering,
-          PlaybackBridgeProcessingState.ready => AudioProcessingState.ready,
-          PlaybackBridgeProcessingState.completed =>
+          PlaybackSessionProcessingState.ready => AudioProcessingState.ready,
+          PlaybackSessionProcessingState.completed =>
             AudioProcessingState.completed,
         },
-        playing: playing,
-        updatePosition: position,
-        bufferedPosition: bufferedPosition,
-        speed: speed,
+        playing: state.playing,
+        updatePosition: state.position,
+        bufferedPosition: state.bufferedPosition,
+        speed: state.speed,
       ),
     );
   }

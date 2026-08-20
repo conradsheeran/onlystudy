@@ -2,12 +2,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_settings.dart';
+import 'playback_settings.dart';
 
 /// 全局设置服务，管理应用配置
 ///
 /// 所有设置通过不可变 [AppSettings] 快照发布，页面用
 /// `ValueListenableBuilder` 监听 `settings` 统一刷新（OPT-014）。
-class SettingsService {
+class SettingsService implements PlaybackSettings {
   static final SettingsService _instance = SettingsService._internal();
   factory SettingsService() => _instance;
   SettingsService._internal();
@@ -51,6 +52,7 @@ class SettingsService {
   bool get autoCheckUpdate => _settings.autoCheckUpdate;
   String? get lastPromptedUpdateVersion => _settings.lastPromptedUpdateVersion;
   double get defaultPlaybackSpeed => _settings.defaultPlaybackSpeed;
+  @override
   bool get enableBackgroundPlayback => _settings.enableBackgroundPlayback;
   String? get localeCode => _settings.localeCode;
 

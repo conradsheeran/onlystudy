@@ -14,7 +14,7 @@ import '../services/playback_gateway.dart';
 import '../services/bili_failure_message.dart';
 import '../services/download_service.dart';
 import '../services/history_service.dart';
-import '../services/playback_bridge.dart';
+import '../services/playback_session.dart';
 import '../services/progress_save_queue.dart';
 import '../services/settings_service.dart';
 
@@ -155,7 +155,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
     _playerInstance = player;
     _controllerInstance = controller;
-    PlaybackBridgeService().attachPlayer(player);
+    PlaybackSession.instance.attachPlayer(player);
     _completedSubscription = player.stream.completed.listen((completed) {
       if (completed) {
         _checkVideoEnd();
@@ -196,7 +196,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     final player = _playerInstance;
     if (player != null) {
       _saveProgress();
-      PlaybackBridgeService().detachPlayer(player, stopPlayback: true);
+      PlaybackSession.instance.detachPlayer(player, stopPlayback: true);
       player.dispose();
     }
     WakelockPlus.disable();
@@ -214,7 +214,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     if ((state == AppLifecycleState.paused ||
             state == AppLifecycleState.hidden) &&
         _playerInstance?.state.playing == true) {
-      PlaybackBridgeService().pause();
+      PlaybackSession.instance.pause();
     }
   }
 
@@ -432,11 +432,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
     if (startAt != null) {
       effectiveTarget = await _waitForReadyAndClamp(startAt);
-      await PlaybackBridgeService().seek(effectiveTarget);
+      await PlaybackSession.instance.seek(effectiveTarget);
     }
 
     if (shouldPlay) {
-      await PlaybackBridgeService().play();
+      await PlaybackSession.instance.play();
     }
 
     if (effectiveTarget != null) {
@@ -478,7 +478,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       if ((current - target).abs() <= const Duration(milliseconds: 500)) {
         return;
       }
-      await PlaybackBridgeService().seek(target);
+      await PlaybackSession.instance.seek(target);
     }
   }
 
@@ -499,7 +499,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         timer.cancel();
         return;
       }
-      PlaybackBridgeService().seek(target);
+      PlaybackSession.instance.seek(target);
     });
   }
 
@@ -511,7 +511,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         ? _pages[_currentPartIndex].part
         : _currentVideo.title;
 
-    PlaybackBridgeService().updateMediaItem(
+    PlaybackSession.instance.updateMediaItem(
       id: '${_currentVideo.bvid}:${_cid ?? _currentVideo.bvid}',
       title: title,
       artist: _currentVideo.upper.name,
@@ -681,7 +681,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     });
     _playbackSpeedNotifier.value = speed;
     _player.setRate(speed);
-    PlaybackBridgeService().refreshConfiguration();
+    PlaybackSession.instance.refreshConfiguration();
     _showOverlayInfo(
       Icons.speed,
       '${AppLocalizations.of(context)!.speed} ${speed}x',
@@ -782,14 +782,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       behavior: HitTestBehavior.translucent,
       onDoubleTap: () {
         if (_player.state.playing) {
-          PlaybackBridgeService().pause();
+          PlaybackSession.instance.pause();
         } else {
-          PlaybackBridgeService().play();
+          PlaybackSession.instance.play();
         }
       },
       onLongPressStart: (_) {
         _player.setRate(2.0);
-        PlaybackBridgeService().refreshConfiguration();
+        PlaybackSession.instance.refreshConfiguration();
         _showOverlayInfo(
           Icons.fast_forward,
           '${AppLocalizations.of(context)!.speed} 2.0x',
@@ -806,7 +806,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       },
       onLongPressEnd: (_) {
         _player.setRate(_playbackSpeed);
-        PlaybackBridgeService().refreshConfiguration();
+        PlaybackSession.instance.refreshConfiguration();
         if (_showOverlay) {
           setState(() {
             _showOverlay = false;
@@ -884,7 +884,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         );
       },
       onHorizontalDragEnd: (details) {
-        PlaybackBridgeService().seek(_seekTarget);
+        PlaybackSession.instance.seek(_seekTarget);
       },
     );
   }
