@@ -3,36 +3,34 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/bili_models.dart';
 import 'auth_service.dart';
+import 'bili_failure.dart';
+import 'bili_http_client.dart';
 import 'settings_service.dart';
 
+/// Bilibili API 服务（OPT-007）。
+///
+/// 所有请求通过 [BiliHttpClient] 统一发送：
+/// - Cookie 注入、User-Agent/Referer、超时统一配置。
+/// - 业务 `code` 检查统一处理，失败抛 [BiliFailure]。
+/// - 服务层不再抛包含中文文案的 `Exception`。
+///
+/// 公共方法签名保持不变，屏幕端仅需适配 [BiliFailure] 展示。
 class BiliApiService {
-  static final BiliApiService _instance = BiliApiService._internal();
-  factory BiliApiService() => _instance;
-  BiliApiService._internal();
+  BiliApiService({BiliHttpClient? client})
+      : _client = client ?? BiliHttpClient();
+
+  final BiliHttpClient _client;
 
   String? _cachedWbiKey;
   int _cachedWbiKeyTs = 0;
-
-  final Dio _dio = Dio(BaseOptions(
-    baseUrl: 'https://api.bilibili.com',
-    headers: {
-      'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Referer': 'https://www.bilibili.com/',
-    },
-  ));
 
   /// 获取用户 ID (up_mid)
   Future<int?> getUserId() async {
     final prefs = await SharedPreferences.getInstance();
     return int.tryParse(prefs.getString('uid') ?? '');
-  }
-
-  /// 获取请求头所需的 Cookie 字符串
-  Future<String> _getCookieHeader() async {
-    return AuthService().getCookieString();
   }
 
   /// 获取 WBI 混淆密钥，按需缓存一小时
@@ -42,23 +40,15 @@ class BiliApiService {
       return _cachedWbiKey!;
     }
 
-    final response = await _dio.get(
-      '/x/web-interface/nav',
-      options: Options(headers: {'Cookie': await _getCookieHeader()}),
-    );
-
-    if (response.data['code'] != 0) {
-      throw Exception('获取WBI密钥失败: ${response.data['message']}');
-    }
-
-    final wbiImg = response.data['data']?['wbi_img'];
+    final data = await _client.get('/x/web-interface/nav');
+    final wbiImg = data['data']?['wbi_img'];
     final imgUrl = wbiImg?['img_url'] ?? '';
     final subUrl = wbiImg?['sub_url'] ?? '';
     final imgKey = _extractKeyFromUrl(imgUrl);
     final subKey = _extractKeyFromUrl(subUrl);
 
     if (imgKey.isEmpty || subKey.isEmpty) {
-      throw Exception('WBI密钥缺失');
+      throw const BiliFailure(BiliFailureKind.notFound, message: 'WBI key missing');
     }
 
     final mixinKey = _mixinKey('$imgKey$subKey');
@@ -79,70 +69,10 @@ class BiliApiService {
   /// 混淆算法生成 WBI 密钥
   String _mixinKey(String origin) {
     const mixinKeyEncTab = [
-      46,
-      47,
-      18,
-      2,
-      53,
-      8,
-      23,
-      32,
-      15,
-      50,
-      10,
-      31,
-      58,
-      3,
-      45,
-      35,
-      27,
-      43,
-      5,
-      49,
-      33,
-      9,
-      42,
-      19,
-      29,
-      28,
-      14,
-      39,
-      12,
-      38,
-      41,
-      13,
-      37,
-      48,
-      7,
-      16,
-      24,
-      55,
-      40,
-      61,
-      26,
-      17,
-      0,
-      1,
-      60,
-      51,
-      30,
-      4,
-      22,
-      25,
-      54,
-      21,
-      56,
-      59,
-      6,
-      63,
-      57,
-      62,
-      11,
-      36,
-      20,
-      34,
-      44,
-      52,
+      46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35,
+      27, 43, 5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41, 13,
+      37, 48, 7, 16, 24, 55, 40, 61, 26, 17, 0, 1, 60, 51, 30, 4,
+      22, 25, 54, 21, 56, 59, 6, 63, 57, 62, 11, 36, 20, 34, 44, 52,
     ];
     final chars = origin.split('');
     final buffer = StringBuffer();
@@ -182,120 +112,83 @@ class BiliApiService {
   Future<List<Folder>> getFavoriteFolders({int pn = 1, int ps = 20}) async {
     final uid = await getUserId();
     if (uid == null) {
-      throw Exception('用户未登录或无法获取UID');
+      throw const BiliFailure(BiliFailureKind.unauthorized, message: 'no uid');
     }
 
-    try {
-      final response = await _dio.get(
-        '/x/v3/fav/folder/created/list',
-        queryParameters: {
-          'up_mid': uid,
-          'pn': pn,
-          'ps': ps,
-          'jsonp': 'jsonp',
-        },
-        options: Options(headers: {'Cookie': await _getCookieHeader()}),
-      );
-
-      if (response.data['code'] == 0) {
-        List<Folder> folders = [];
-        for (var item in response.data['data']['list']) {
-          folders.add(Folder.fromJson(item));
-        }
-        return folders;
-      } else {
-        throw Exception('获取收藏夹列表失败: ${response.data['message']}');
-      }
-    } catch (e) {
-      rethrow;
-    }
+    final data = await _client.get(
+      '/x/v3/fav/folder/created/list',
+      queryParameters: {
+        'up_mid': uid,
+        'pn': pn,
+        'ps': ps,
+        'jsonp': 'jsonp',
+      },
+    );
+    final list = data['data']?['list'] ?? [];
+    return List<Folder>.from(
+      list.map((item) => Folder.fromJson(item)),
+    );
   }
 
   /// 获取指定收藏夹内的视频列表
   Future<List<Video>> getFolderVideos(int mediaId,
       {int pn = 1, int ps = 20, String? keyword}) async {
-    try {
-      final queryParams = {
-        'media_id': mediaId,
-        'pn': pn,
-        'ps': ps,
-        'jsonp': 'jsonp',
-        'order': 'mtime',
-      };
-
-      if (keyword != null && keyword.isNotEmpty) {
-        queryParams['keyword'] = keyword;
-      }
-
-      final response = await _dio.get(
-        '/x/v3/fav/resource/list',
-        queryParameters: queryParams,
-        options: Options(headers: {'Cookie': await _getCookieHeader()}),
-      );
-
-      if (response.data['code'] == 0) {
-        List<Video> videos = [];
-        if (response.data['data']['medias'] != null) {
-          for (var item in response.data['data']['medias']) {
-            videos.add(Video.fromJson(item));
-          }
-        }
-        return videos;
-      } else {
-        throw Exception('获取收藏夹视频失败: ${response.data['message']}');
-      }
-    } catch (e) {
-      rethrow;
+    final queryParams = {
+      'media_id': mediaId,
+      'pn': pn,
+      'ps': ps,
+      'jsonp': 'jsonp',
+      'order': 'mtime',
+    };
+    if (keyword != null && keyword.isNotEmpty) {
+      queryParams['keyword'] = keyword;
     }
+
+    final data = await _client.get(
+      '/x/v3/fav/resource/list',
+      queryParameters: queryParams,
+    );
+    final medias = data['data']?['medias'] ?? [];
+    return List<Video>.from(
+      medias.map((item) => Video.fromJson(item)),
+    );
   }
 
   /// 获取用户订阅的合集列表
   Future<List<Season>> getSubscribedSeasons({int pn = 1, int ps = 20}) async {
     final uid = await getUserId();
     if (uid == null) {
-      throw Exception('用户未登录或无法获取UID');
+      throw const BiliFailure(BiliFailureKind.unauthorized, message: 'no uid');
     }
 
-    try {
-      final response = await _dio.get(
-        '/x/v3/fav/folder/collected/list',
-        queryParameters: {
-          'up_mid': uid,
-          'pn': pn,
-          'ps': ps,
-          'platform': 'web',
-        },
-        options: Options(headers: {'Cookie': await _getCookieHeader()}),
-      );
-
-      if (response.data['code'] == 0) {
-        List<Season> seasons = [];
-        final list = response.data['data']['list'];
-        if (list != null) {
-          for (var item in list) {
-            // 尝试适配合集和收藏夹的数据结构
-            seasons.add(Season(
-              id: item['id'],
-              title: item['title'],
-              cover: item['cover'] ?? '',
-              mediaCount: item['media_count'] ?? 0,
-              upper: BiliUpper(
-                mid: item['upper']?['mid'] ?? 0,
-                name: item['upper']?['name'] ?? '',
-              ),
-            ));
-          }
-        }
-        return seasons;
-      } else {
-        throw Exception('获取订阅合集失败: ${response.data['message']}');
-      }
-    } catch (e) {
-      rethrow;
-    }
+    final data = await _client.get(
+      '/x/v3/fav/folder/collected/list',
+      queryParameters: {
+        'up_mid': uid,
+        'pn': pn,
+        'ps': ps,
+        'platform': 'web',
+      },
+    );
+    final list = data['data']?['list'] ?? [];
+    return List<Season>.from(
+      list.map((item) => Season(
+            id: item['id'],
+            title: item['title'],
+            cover: item['cover'] ?? '',
+            mediaCount: item['media_count'] ?? 0,
+            upper: BiliUpper(
+              mid: item['upper']?['mid'] ?? 0,
+              name: item['upper']?['name'] ?? '',
+            ),
+          )),
+    );
   }
 
-  /// 获取合集内的视频列表
+  /// 获取合集内的视频列表。
+  ///
+  /// 优先尝试收藏夹资源接口；若端点不适用（返回空列表），
+  /// 再回退到合集档案接口。真实网络失败直接抛出，不会被误判为回退。
   Future<List<Video>> getSeasonVideos(int seasonId, int mid,
       {int pn = 1, int ps = 20}) async {
     try {
@@ -303,68 +196,53 @@ class BiliApiService {
       if (folderVideos.isNotEmpty) {
         return folderVideos;
       }
-    } catch (e) {
-      //
-    }
-
-    try {
-      final response = await _dio.get(
-        '/x/polymer/web-space/seasons_archives_list',
-        queryParameters: {
-          'mid': mid,
-          'season_id': seasonId,
-          'sort_reverse': false,
-          'page_num': pn,
-          'page_size': ps,
-        },
-        options: Options(headers: {'Cookie': await _getCookieHeader()}),
-      );
-
-      if (response.data['code'] == 0) {
-        List<Video> videos = [];
-        final archives = response.data['data']['archives'];
-        if (archives != null) {
-          for (var item in archives) {
-            videos.add(Video(
-              bvid: item['bvid'] ?? '',
-              title: item['title'] ?? '',
-              cover: item['pic'] ?? '',
-              duration: item['duration'] ?? 0,
-              upper: BiliUpper(mid: mid, name: item['author'] ?? ''),
-              view: item['stat']?['view'] ?? 0,
-              danmaku: item['stat']?['danmaku'] ?? 0,
-              pubTimestamp: item['pubdate'] ?? 0,
-            ));
-          }
+      // 收藏夹接口返回空，视为端点不适用，继续尝试合集接口。
+    } on BiliFailure catch (e) {
+      if (e.kind != BiliFailureKind.notFound) {
+        // 真实业务/网络失败不属于“端点不适用”，交给合集接口决定。
+        // 这里不吞掉网络错误：如果合集接口也失败，由上层处理。
+        if (e.kind == BiliFailureKind.network ||
+            e.kind == BiliFailureKind.unauthorized) {
+          rethrow;
         }
-        return videos;
-      } else {
-        throw Exception('获取合集视频失败: ${response.data['message']}');
       }
-    } catch (e) {
-      rethrow;
     }
+
+    final data = await _client.get(
+      '/x/polymer/web-space/seasons_archives_list',
+      queryParameters: {
+        'mid': mid,
+        'season_id': seasonId,
+        'sort_reverse': false,
+        'page_num': pn,
+        'page_size': ps,
+      },
+    );
+    final archives = data['data']?['archives'] ?? [];
+    return List<Video>.from(
+      archives.map((item) => Video(
+            bvid: item['bvid'] ?? '',
+            title: item['title'] ?? '',
+            cover: item['pic'] ?? '',
+            duration: item['duration'] ?? 0,
+            upper: BiliUpper(mid: mid, name: item['author'] ?? ''),
+            view: item['stat']?['view'] ?? 0,
+            danmaku: item['stat']?['danmaku'] ?? 0,
+            pubTimestamp: item['pubdate'] ?? 0,
+          )),
+    );
   }
 
   /// 获取视频详情 (包含 CID, AID, 历史进度)
   Future<VideoDetail> getVideoDetail(String bvid) async {
-    try {
-      final response = await _dio.get(
-        '/x/web-interface/view',
-        queryParameters: {'bvid': bvid},
-        options: Options(headers: {'Cookie': await _getCookieHeader()}),
-      );
-      if (response.data['code'] == 0) {
-        return VideoDetail.fromJson(response.data['data']);
-      } else {
-        throw Exception('获取视频详情失败: ${response.data['message']}');
-      }
-    } catch (e) {
-      rethrow;
-    }
+    final data = await _client.get(
+      '/x/web-interface/view',
+      queryParameters: {'bvid': bvid},
+    );
+    return VideoDetail.fromJson(data['data']);
   }
 
-  /// 上报播放进度
+  /// 上报播放进度（失败静默，不阻塞本地保存）
   Future<void> reportHistory({
     required int aid,
     required int cid,
@@ -372,7 +250,7 @@ class BiliApiService {
   }) async {
     final csrf = await AuthService().getCsrfToken();
     try {
-      await _dio.post(
+      await _client.post(
         '/x/v2/history/report',
         data: {
           'aid': aid,
@@ -381,10 +259,7 @@ class BiliApiService {
           'platform': 'android',
           'csrf': csrf,
         },
-        options: Options(
-          contentType: Headers.formUrlEncodedContentType,
-          headers: {'Cookie': await _getCookieHeader()},
-        ),
+        options: Options(contentType: Headers.formUrlEncodedContentType),
       );
     } catch (e) {
       // 忽略上报错误
@@ -393,30 +268,18 @@ class BiliApiService {
 
   /// 获取 UP 主基础信息、粉丝数据与统计
   Future<BiliUserInfo> getUpInfo(int mid) async {
-    final cookie = await _getCookieHeader();
-    final options = Options(headers: {'Cookie': cookie});
     final results = await Future.wait([
-      _dio.get('/x/space/acc/info',
-          queryParameters: {'mid': mid}, options: options),
-      _dio.get('/x/relation/stat',
-          queryParameters: {'vmid': mid}, options: options),
-      _dio.get('/x/space/upstat',
-          queryParameters: {'mid': mid}, options: options),
-      _dio.get('/x/space/navnum',
-          queryParameters: {'mid': mid}, options: options),
+      _client.get('/x/space/acc/info', queryParameters: {'mid': mid}),
+      _client.get('/x/relation/stat', queryParameters: {'vmid': mid}),
+      _client.get('/x/space/upstat', queryParameters: {'mid': mid}),
+      _client.get('/x/space/navnum', queryParameters: {'mid': mid}),
     ]);
 
-    for (final res in results) {
-      if (res.data['code'] != 0) {
-        throw Exception('获取UP信息失败: ${res.data['message']}');
-      }
-    }
-
     return BiliUserInfo.fromApis(
-      info: Map<String, dynamic>.from(results[0].data['data'] ?? {}),
-      relation: Map<String, dynamic>.from(results[1].data['data'] ?? {}),
-      upstat: Map<String, dynamic>.from(results[2].data['data'] ?? {}),
-      navnum: Map<String, dynamic>.from(results[3].data['data'] ?? {}),
+      info: Map<String, dynamic>.from(results[0]['data'] ?? {}),
+      relation: Map<String, dynamic>.from(results[1]['data'] ?? {}),
+      upstat: Map<String, dynamic>.from(results[2]['data'] ?? {}),
+      navnum: Map<String, dynamic>.from(results[3]['data'] ?? {}),
     );
   }
 
@@ -435,20 +298,14 @@ class BiliApiService {
       'order': order,
       'platform': 'web',
     };
-
     final signedParams = await _buildWbiParams(params);
-    final response = await _dio.get(
+    final data = await _client.get(
       '/x/space/wbi/arc/search',
       queryParameters: signedParams,
-      options: Options(headers: {'Cookie': await _getCookieHeader()}),
     );
 
-    if (response.data['code'] != 0) {
-      throw Exception('获取UP投稿失败: ${response.data['message']}');
-    }
-
-    final data = response.data['data'] ?? {};
-    final list = data['list'] ?? {};
+    final payload = data['data'] ?? {};
+    final list = payload['list'] ?? {};
     final vlist = List<Map<String, dynamic>>.from(list['vlist'] ?? []);
     final videos = vlist.map((item) => Video.fromJson(item)).toList();
 
@@ -463,7 +320,7 @@ class BiliApiService {
       categories.sort((a, b) => b.count.compareTo(a.count));
     }
 
-    final page = data['page'] ?? {};
+    final page = payload['page'] ?? {};
     final total = page['count'] ?? videos.length;
     final hasMore = (pn * ps) < total;
 
@@ -480,10 +337,10 @@ class BiliApiService {
   Future<List<FollowUser>> getFollowings({int pn = 1, int ps = 20}) async {
     final mid = await getUserId();
     if (mid == null) {
-      throw Exception('用户未登录或无法获取UID');
+      throw const BiliFailure(BiliFailureKind.unauthorized, message: 'no uid');
     }
 
-    final response = await _dio.get(
+    final data = await _client.get(
       '/x/relation/followings',
       queryParameters: {
         'vmid': mid,
@@ -491,33 +348,22 @@ class BiliApiService {
         'ps': ps,
         'order': 'desc',
       },
-      options: Options(headers: {'Cookie': await _getCookieHeader()}),
     );
-
-    if (response.data['code'] != 0) {
-      throw Exception('获取关注列表失败: ${response.data['message']}');
-    }
-
     final list = List<Map<String, dynamic>>.from(
-      response.data['data']?['list'] ?? [],
+      data['data']?['list'] ?? [],
     );
     return list.map((item) => FollowUser.fromJson(item)).toList();
   }
 
   /// 获取 UP 主的合集（系列）列表
   Future<List<UpSeries>> getUpSeries(int mid) async {
-    final response = await _dio.get(
+    final data = await _client.get(
       '/x/series/series',
       queryParameters: {'mid': mid},
-      options: Options(headers: {'Cookie': await _getCookieHeader()}),
     );
 
-    if (response.data['code'] != 0) {
-      throw Exception('获取合集失败: ${response.data['message']}');
-    }
-
-    final data = response.data['data'] ?? {};
-    final items = data['items'] ?? data['list'] ?? [];
+    final payload = data['data'] ?? {};
+    final items = payload['items'] ?? payload['list'] ?? [];
     if (items is! List) {
       return [];
     }
@@ -533,7 +379,7 @@ class BiliApiService {
     int pn = 1,
     int ps = 20,
   }) async {
-    final response = await _dio.get(
+    final data = await _client.get(
       '/x/series/archives',
       queryParameters: {
         'mid': mid,
@@ -541,18 +387,13 @@ class BiliApiService {
         'pn': pn,
         'ps': ps,
       },
-      options: Options(headers: {'Cookie': await _getCookieHeader()}),
     );
-
-    if (response.data['code'] != 0) {
-      throw Exception('获取合集视频失败: ${response.data['message']}');
-    }
 
     final archives = List<Map<String, dynamic>>.from(
-      response.data['data']?['archives'] ?? [],
+      data['data']?['archives'] ?? [],
     );
     final videos = archives.map((item) => Video.fromJson(item)).toList();
-    final page = response.data['data']?['page'] ?? {};
+    final page = data['data']?['page'] ?? {};
     final total = page['count'] ?? videos.length;
     final hasMore = (pn * ps) < total;
 
@@ -567,27 +408,17 @@ class BiliApiService {
 
   /// 获取播放地址
   Future<VideoPlayInfo> getVideoPlayUrl(String bvid, int cid, {int? qn}) async {
-    try {
-      final response = await _dio.get(
-        '/x/player/playurl',
-        queryParameters: {
-          'bvid': bvid,
-          'cid': cid,
-          'qn': qn ?? SettingsService().defaultResolution,
-          'fnval': 1,
-          'fnver': 0,
-          'fourk': 1,
-        },
-        options: Options(headers: {'Cookie': await _getCookieHeader()}),
-      );
-
-      if (response.data['code'] == 0) {
-        return VideoPlayInfo.fromJson(response.data['data']);
-      } else {
-        throw Exception('获取播放地址失败: ${response.data['message']}');
-      }
-    } catch (e) {
-      rethrow;
-    }
+    final data = await _client.get(
+      '/x/player/playurl',
+      queryParameters: {
+        'bvid': bvid,
+        'cid': cid,
+        'qn': qn ?? SettingsService().defaultResolution,
+        'fnval': 1,
+        'fnver': 0,
+        'fourk': 1,
+      },
+    );
+    return VideoPlayInfo.fromJson(data['data']);
   }
 }

@@ -309,9 +309,11 @@ class AuthService {
   }
 
   /// 获取请求头需要的 Cookie 字符串
+  /// 未登录（无 SESSDATA）时返回空串，调用方可据此省略 Cookie 头。
   Future<String> getCookieString() async {
     final prefs = await SharedPreferences.getInstance();
     final sessData = prefs.getString('SESSDATA') ?? '';
+    if (sessData.isEmpty) return '';
     final biliJct = prefs.getString('bili_jct') ?? '';
     return 'SESSDATA=$sessData; bili_jct=$biliJct';
   }
