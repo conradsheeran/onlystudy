@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
 import 'package:onlystudy/services/playback_bridge.dart';
+import '../models/app_settings.dart';
 import '../services/settings_service.dart';
 import '../services/auth_service.dart';
 import '../services/cache_service.dart';
@@ -23,82 +24,90 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(
         title: Text(AppLocalizations.of(context)!.settings),
       ),
-      body: ListView(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.video_settings),
-            title: Text(AppLocalizations.of(context)!.defaultResolution),
-            subtitle: Text(SettingsService
-                    .resolutionMap[SettingsService().defaultResolution] ??
-                '720P'),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: _showResolutionDialog,
-          ),
-          ListTile(
-            leading: const Icon(Icons.speed),
-            title: Text(AppLocalizations.of(context)!.defaultPlaybackSpeed),
-            subtitle: Text('${SettingsService().defaultPlaybackSpeed}x'),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: _showSpeedDialog,
-          ),
-          SwitchListTile(
-            secondary: const Icon(Icons.headphones_outlined),
-            title: Text(AppLocalizations.of(context)!.backgroundPlayback),
-            subtitle: Text(
-              AppLocalizations.of(context)!.backgroundPlaybackDescription,
-            ),
-            value: SettingsService().enableBackgroundPlayback,
-            onChanged: (value) async {
-              await SettingsService().setEnableBackgroundPlayback(value);
-              PlaybackBridgeService().refreshConfiguration();
-              if (!mounted) return;
-              setState(() {});
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.language),
-            title: Text(AppLocalizations.of(context)!.language),
-            subtitle: Text(_getLanguageName(SettingsService().localeCode)),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: _showLanguageDialog,
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.filter_list),
-            title: Text(AppLocalizations.of(context)!.selectFolders),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: _handleSelectFolders,
-          ),
-          ListTile(
-            leading: const Icon(Icons.cleaning_services_outlined),
-            title: Text(AppLocalizations.of(context)!.clearCache),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: _handleClearCache,
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: Text(AppLocalizations.of(context)!.about),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const AboutScreen()),
-              );
-            },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: Text(
-              AppLocalizations.of(context)!.logout,
-              style: const TextStyle(color: Colors.red),
-            ),
-            onTap: _handleLogout,
-          ),
-        ],
+      body: ValueListenableBuilder<AppSettings>(
+        valueListenable: SettingsService().settings,
+        builder: (context, settings, _) {
+          return ListView(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.video_settings),
+                title: Text(AppLocalizations.of(context)!.defaultResolution),
+                subtitle: Text(SettingsService
+                        .resolutionMap[settings.defaultResolution] ??
+                    '720P'),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: _showResolutionDialog,
+              ),
+              ListTile(
+                leading: const Icon(Icons.speed),
+                title: Text(AppLocalizations.of(context)!.defaultPlaybackSpeed),
+                subtitle: Text('${settings.defaultPlaybackSpeed}x'),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: _showSpeedDialog,
+              ),
+              SwitchListTile(
+                secondary: const Icon(Icons.headphones_outlined),
+                title: Text(AppLocalizations.of(context)!.backgroundPlayback),
+                subtitle: Text(
+                  AppLocalizations.of(context)!.backgroundPlaybackDescription,
+                ),
+                value: settings.enableBackgroundPlayback,
+                onChanged: (value) async {
+                  await SettingsService().setEnableBackgroundPlayback(value);
+                  PlaybackBridgeService().refreshConfiguration();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.language),
+                title: Text(AppLocalizations.of(context)!.language),
+                subtitle: Text(_getLanguageName(settings.localeCode)),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: _showLanguageDialog,
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.filter_list),
+                title: Text(AppLocalizations.of(context)!.selectFolders),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: _handleSelectFolders,
+              ),
+              ListTile(
+                leading: const Icon(Icons.cleaning_services_outlined),
+                title: Text(AppLocalizations.of(context)!.clearCache),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: _handleClearCache,
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.info_outline),
+                title: Text(AppLocalizations.of(context)!.about),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AboutScreen()),
+                  );
+                },
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.logout, color: Colors.red),
+                title: Text(
+                  AppLocalizations.of(context)!.logout,
+                  style: const TextStyle(color: Colors.red),
+                ),
+                onTap: _handleLogout,
+              ),
+            ],
+          );
+        },
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   /// 处理收藏夹选择点击 (包含锁定校验)
