@@ -40,7 +40,7 @@ class PlaybackBridgeService {
   PlaybackSessionSink? _sessionSink;
   Player? _player;
   MediaItem? _mediaItem;
-
+  PlaybackControl? _activePlaybackControl;
   bool _isBuffering = false;
   bool _isCompleted = false;
   Duration _position = Duration.zero;
@@ -63,6 +63,13 @@ class PlaybackBridgeService {
     }
 
     _cancelSubscriptions();
+    // 注入播放控制回调，供 AudioSessionHandler 使用（OPT-012 消除环依赖）
+    _activePlaybackControl = PlaybackControl(
+      isPlaying: () => player.state.playing,
+      pause: ({bool interrupted = false}) => pause(interrupted: interrupted),
+      play: () => play(),
+    );
+    AudioSessionHandler().playbackControl = _activePlaybackControl;
     _player = player;
     _position = player.state.position;
     _bufferedPosition = player.state.buffer;
@@ -86,6 +93,9 @@ class PlaybackBridgeService {
     }
 
     _cancelSubscriptions();
+    if (identical(AudioSessionHandler().playbackControl, _activePlaybackControl)) {
+      AudioSessionHandler().playbackControl = null;
+    }
     _player = null;
     _position = Duration.zero;
     _bufferedPosition = Duration.zero;
@@ -95,7 +105,6 @@ class PlaybackBridgeService {
     _mediaItem = null;
     _sessionSink?.clearSession();
   }
-
   Future<void> play() async {
     final player = _player;
     if (player == null) return;
