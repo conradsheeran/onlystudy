@@ -2,7 +2,8 @@ import 'package:flutter/foundation.dart';
 
 import '../models/bili_models.dart';
 import 'auth_service.dart';
-import 'bili_api_service.dart';
+import 'favorites_catalog.dart';
+import 'up_library.dart';
 import 'bili_failure.dart';
 import 'database_service.dart';
 
@@ -53,15 +54,18 @@ class HomeLibraryLoaded extends HomeLibraryState {
 /// 不依赖 `mounted`。
 class HomeLibraryController extends ValueNotifier<HomeLibraryState> {
   HomeLibraryController({
-    BiliApiService? apiService,
+    FavoritesCatalog? catalog,
+    UpLibrary? upLibrary,
     DatabaseService? databaseService,
     AuthService? authService,
-  }) : _api = apiService ?? BiliApiService(),
+  }) : _catalog = catalog ?? FavoritesCatalog(),
+       _upLibrary = upLibrary ?? UpLibrary(),
        _db = databaseService ?? DatabaseService(),
        _auth = authService ?? AuthService(),
        super(const HomeLibraryLoading());
 
-  final BiliApiService _api;
+  final FavoritesCatalog _catalog;
+  final UpLibrary _upLibrary;
   final DatabaseService _db;
   final AuthService _auth;
 
@@ -156,7 +160,10 @@ class HomeLibraryController extends ValueNotifier<HomeLibraryState> {
     var page = 1;
     while (foundIds.length < _visibleFolderIds.length &&
         page <= _maxScanPages) {
-      final folders = await _api.getFavoriteFolders(pn: page, ps: _pageSize);
+      final folders = await _catalog.getFavoriteFolders(
+        pn: page,
+        ps: _pageSize,
+      );
       if (folders.isEmpty) break;
       for (final f in folders) {
         if (_visibleFolderIds.contains(f.id) && foundIds.add(f.id)) {
@@ -175,7 +182,10 @@ class HomeLibraryController extends ValueNotifier<HomeLibraryState> {
     var page = 1;
     while (foundIds.length < _visibleSeasonIds.length &&
         page <= _maxScanPages) {
-      final seasons = await _api.getSubscribedSeasons(pn: page, ps: _pageSize);
+      final seasons = await _catalog.getSubscribedSeasons(
+        pn: page,
+        ps: _pageSize,
+      );
       if (seasons.isEmpty) break;
       for (final s in seasons) {
         if (_visibleSeasonIds.contains(s.id) && foundIds.add(s.id)) {
@@ -198,7 +208,7 @@ class HomeLibraryController extends ValueNotifier<HomeLibraryState> {
       final chunkResults = await Future.wait(
         chunk.map((mid) async {
           try {
-            final info = await _api.getUpInfo(mid);
+            final info = await _upLibrary.getUpInfo(mid);
             return FollowUser(
               mid: info.mid,
               name: info.name,
@@ -266,11 +276,16 @@ class HomeLibraryController extends ValueNotifier<HomeLibraryState> {
 ///
 /// 独立于 Widget 生命周期运行，不依赖 `mounted`。
 class LibrarySyncCoordinator {
-  LibrarySyncCoordinator({BiliApiService? apiService, DatabaseService? db})
-    : _api = apiService ?? BiliApiService(),
-      _db = db ?? DatabaseService();
+  LibrarySyncCoordinator({
+    FavoritesCatalog? catalog,
+    UpLibrary? upLibrary,
+    DatabaseService? db,
+  }) : _catalog = catalog ?? FavoritesCatalog(),
+       _upLibrary = upLibrary ?? UpLibrary(),
+       _db = db ?? DatabaseService();
 
-  final BiliApiService _api;
+  final FavoritesCatalog _catalog;
+  final UpLibrary _upLibrary;
   final DatabaseService _db;
 
   static const Duration _rateLimit = Duration(milliseconds: 500);
@@ -283,7 +298,7 @@ class LibrarySyncCoordinator {
   }) async {
     for (final folder in folders) {
       try {
-        final videos = await _api.getFolderVideos(folder.id, pn: 1, ps: 20);
+        final videos = await _catalog.getFolderVideos(folder.id, pn: 1, ps: 20);
         if (videos.isNotEmpty) {
           await _db.insertVideos(videos, folderId: folder.id);
         }
@@ -294,7 +309,7 @@ class LibrarySyncCoordinator {
     }
     for (final season in seasons) {
       try {
-        final videos = await _api.getSeasonVideos(
+        final videos = await _catalog.getSeasonVideos(
           season.id,
           season.upper.mid,
           pn: 1,
@@ -310,7 +325,7 @@ class LibrarySyncCoordinator {
     }
     for (final up in ups) {
       try {
-        final page = await _api.getUpVideos(mid: up.mid, pn: 1, ps: 20);
+        final page = await _upLibrary.getUpVideos(mid: up.mid, pn: 1, ps: 20);
         if (page.videos.isNotEmpty) {
           await _db.insertVideos(page.videos, upId: up.mid);
         }

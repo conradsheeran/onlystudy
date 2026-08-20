@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
 
 import '../models/bili_models.dart';
-import '../services/bili_api_service.dart';
+import '../services/up_library.dart';
 import '../services/bili_failure_message.dart';
 import '../services/paged_loader.dart';
 import '../widgets/common_image.dart';
@@ -22,7 +22,7 @@ class UpSpaceScreen extends StatefulWidget {
 }
 
 class _UpSpaceScreenState extends State<UpSpaceScreen> {
-  final BiliApiService _api = BiliApiService();
+  final UpLibrary _upLibrary = UpLibrary();
   final ScrollController _scrollController = ScrollController();
 
   BiliUserInfo? _info;
@@ -37,7 +37,7 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
     super.initState();
     _loader = PagedLoader<Video>(
       fetchPage: (page) async {
-        final result = await _api.getUpVideos(
+        final result = await _upLibrary.getUpVideos(
           mid: widget.mid,
           pn: page,
           order: _order,
@@ -74,7 +74,7 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
   /// 加载 UP 主基础信息
   Future<void> _loadInfo() async {
     try {
-      final info = await _api.getUpInfo(widget.mid);
+      final info = await _upLibrary.getUpInfo(widget.mid);
       if (!mounted) return;
       setState(() {
         _info = info;

@@ -13,14 +13,16 @@ class AuthService {
   factory AuthService() => _instance;
   AuthService._internal();
 
-  final Dio _dio = Dio(BaseOptions(
-    baseUrl: 'https://passport.bilibili.com',
-    headers: {
-      'User-Agent':
-          'Mozilla/5.0 BiliDroid/2.0.1 (bbcallen@gmail.com) os/android model/android_hd mobi_app/android_hd build/2001100 channel/master innerVer/2001100 osVer/15 network/2',
-      'Referer': 'https://www.bilibili.com/',
-    },
-  ));
+  final Dio _dio = Dio(
+    BaseOptions(
+      baseUrl: 'https://passport.bilibili.com',
+      headers: {
+        'User-Agent':
+            'Mozilla/5.0 BiliDroid/2.0.1 (bbcallen@gmail.com) os/android model/android_hd mobi_app/android_hd build/2001100 channel/master innerVer/2001100 osVer/15 network/2',
+        'Referer': 'https://www.bilibili.com/',
+      },
+    ),
+  );
 
   // HD 版登录接口使用的 appkey/appsec（与 PiliPlus 一致）
   static const String _appKey = 'dfca71928277209b';
@@ -47,11 +49,12 @@ class AuthService {
     signed['ts'] = timestamp.toString();
     final sortedKeys = signed.keys.toList()..sort();
     final query = sortedKeys
-        .map((k) =>
-            '${Uri.encodeComponent(k)}=${Uri.encodeComponent(signed[k].toString())}')
+        .map(
+          (k) =>
+              '${Uri.encodeComponent(k)}=${Uri.encodeComponent(signed[k].toString())}',
+        )
         .join('&');
-    signed['sign'] =
-        md5.convert(utf8.encode('$query$_appSec')).toString();
+    signed['sign'] = md5.convert(utf8.encode('$query$_appSec')).toString();
     return signed;
   }
 
@@ -137,10 +140,7 @@ class AuthService {
   /// throw: 失败或过期
   Future<Map<String, dynamic>?> pollLoginStatus(String authCode) async {
     try {
-      final params = _appSign({
-        'auth_code': authCode,
-        'local_id': '0',
-      });
+      final params = _appSign({'auth_code': authCode, 'local_id': '0'});
       final response = await _dio.post(
         '/x/passport-tv-login/qrcode/poll',
         queryParameters: params,
@@ -167,10 +167,7 @@ class AuthService {
   /// 类型化轮询：基于顶层 code 返回 sealed 结果，不再依赖异常字符串判断过期。
   Future<QrLoginPollResult> pollLoginTyped(String authCode) async {
     try {
-      final params = _appSign({
-        'auth_code': authCode,
-        'local_id': '0',
-      });
+      final params = _appSign({'auth_code': authCode, 'local_id': '0'});
       final response = await _dio.post(
         '/x/passport-tv-login/qrcode/poll',
         queryParameters: params,
@@ -179,7 +176,9 @@ class AuthService {
       final int topCode = response.data['code'] ?? -1;
       if (topCode == 0) {
         return QrLoginConfirmed(
-          parseLoginCredentials(Map<String, dynamic>.from(response.data['data'])),
+          parseLoginCredentials(
+            Map<String, dynamic>.from(response.data['data']),
+          ),
         );
       } else if (topCode == 86038) {
         return const QrLoginExpired();
@@ -245,6 +244,12 @@ class AuthService {
     await saveLoginCredentials(credentials);
   }
 
+  /// 获取用户 ID (up_mid)；未登录返回 null。
+  Future<int?> getUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return int.tryParse(prefs.getString('uid') ?? '');
+  }
+
   /// 检查是否已登录
   Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
@@ -267,7 +272,9 @@ class AuthService {
   Future<void> saveVisibleFolderIds(List<int> ids) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(
-        'visible_folder_ids', ids.map((e) => e.toString()).toList());
+      'visible_folder_ids',
+      ids.map((e) => e.toString()).toList(),
+    );
   }
 
   /// 获取用户选择显示的收藏夹ID列表
@@ -282,7 +289,9 @@ class AuthService {
   Future<void> saveVisibleSeasonIds(List<int> ids) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(
-        'visible_season_ids', ids.map((e) => e.toString()).toList());
+      'visible_season_ids',
+      ids.map((e) => e.toString()).toList(),
+    );
   }
 
   /// 获取用户选择显示的合集ID列表
@@ -297,7 +306,9 @@ class AuthService {
   Future<void> saveVisibleUpIds(List<int> ids) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(
-        'visible_up_ids', ids.map((e) => e.toString()).toList());
+      'visible_up_ids',
+      ids.map((e) => e.toString()).toList(),
+    );
   }
 
   /// 获取用户选择显示的 UP 主ID列表

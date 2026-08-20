@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
 import '../models/bili_models.dart';
 import '../services/auth_service.dart';
-import '../services/bili_api_service.dart';
+import '../services/favorites_catalog.dart';
+import '../services/up_library.dart';
 import '../services/bili_failure_message.dart';
 import '../services/database_service.dart';
 import '../services/app_navigator.dart';
@@ -19,7 +20,8 @@ class SelectFoldersScreen extends StatefulWidget {
 
 class _SelectFoldersScreenState extends State<SelectFoldersScreen>
     with SingleTickerProviderStateMixin {
-  final BiliApiService _apiService = BiliApiService();
+  final FavoritesCatalog _catalog = FavoritesCatalog();
+  final UpLibrary _upLibrary = UpLibrary();
   final ScrollController _upScrollController = ScrollController();
 
   late final TabController _tabController;
@@ -91,8 +93,9 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen>
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = AppLocalizations.of(context)!.loadFailed(
-              e.toUserMessage(context));
+          _error = AppLocalizations.of(
+            context,
+          )!.loadFailed(e.toUserMessage(context));
           _isLoading = false;
         });
       }
@@ -104,7 +107,7 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen>
     List<Folder> allFolders = [];
     int page = 1;
     while (true) {
-      final folders = await _apiService.getFavoriteFolders(pn: page, ps: 20);
+      final folders = await _catalog.getFavoriteFolders(pn: page, ps: 20);
       allFolders.addAll(folders);
       if (folders.length < 20) break;
       page++;
@@ -118,8 +121,10 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen>
     try {
       int seasonPage = 1;
       while (true) {
-        final seasons =
-            await _apiService.getSubscribedSeasons(pn: seasonPage, ps: 20);
+        final seasons = await _catalog.getSubscribedSeasons(
+          pn: seasonPage,
+          ps: 20,
+        );
         allSeasons.addAll(seasons);
         if (seasons.length < 20) break;
         seasonPage++;
@@ -148,7 +153,7 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen>
     }
 
     try {
-      final ups = await _apiService.getFollowings(pn: _upPage, ps: 20);
+      final ups = await _upLibrary.getFollowings(pn: _upPage, ps: 20);
       if (!mounted) return;
       setState(() {
         _allUps.addAll(ups);
@@ -162,9 +167,12 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(
-                AppLocalizations.of(context)!.loadUpsFailed(
-                    e.toUserMessage(context)))),
+          content: Text(
+            AppLocalizations.of(
+              context,
+            )!.loadUpsFailed(e.toUserMessage(context)),
+          ),
+        ),
       );
       setState(() {
         _upHasMore = false;
@@ -258,11 +266,8 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen>
               width: 40,
               height: 40,
               fit: BoxFit.cover,
-              errorBuilder: (ctx, err, stack) => Container(
-                width: 40,
-                height: 40,
-                color: Colors.grey,
-              ),
+              errorBuilder: (ctx, err, stack) =>
+                  Container(width: 40, height: 40, color: Colors.grey),
             ),
           ),
           onChanged: (val) {
@@ -293,7 +298,8 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen>
           value: isSelected,
           title: Text(season.title),
           subtitle: Text(
-              '${locale.videoCount(season.mediaCount)} · ${season.upper.name}'),
+            '${locale.videoCount(season.mediaCount)} · ${season.upper.name}',
+          ),
           secondary: ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: Image.network(
@@ -301,11 +307,8 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen>
               width: 40,
               height: 40,
               fit: BoxFit.cover,
-              errorBuilder: (ctx, err, stack) => Container(
-                width: 40,
-                height: 40,
-                color: Colors.grey,
-              ),
+              errorBuilder: (ctx, err, stack) =>
+                  Container(width: 40, height: 40, color: Colors.grey),
             ),
           ),
           onChanged: (val) {
@@ -394,71 +397,71 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen>
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(_error!),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadData,
+                    child: Text(locale.retry),
+                  ),
+                ],
+              ),
+            )
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Row(
                     children: [
-                      Text(_error!),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadData,
-                        child: Text(locale.retry),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _selectAll,
+                          icon: const Icon(Icons.select_all),
+                          label: Text(locale.selectAll),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _clearAll,
+                          icon: const Icon(Icons.clear_all),
+                          label: Text(locale.clear),
+                        ),
                       ),
                     ],
                   ),
-                )
-              : Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _selectAll,
-                              icon: const Icon(Icons.select_all),
-                              label: Text(locale.selectAll),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _clearAll,
-                              icon: const Icon(Icons.clear_all),
-                              label: Text(locale.clear),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: TabBarView(
-                        controller: _tabController,
-                        children: [
-                          _buildFoldersTab(locale),
-                          _buildSeasonsTab(locale),
-                          _buildUpsTab(locale),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: FilledButton(
-                          onPressed: _onConfirm,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Text(
-                              locale.confirmAndEnter,
-                              style: const TextStyle(fontSize: 18),
-                            ),
-                          ),
+                ),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildFoldersTab(locale),
+                      _buildSeasonsTab(locale),
+                      _buildUpsTab(locale),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: _onConfirm,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text(
+                          locale.confirmAndEnter,
+                          style: const TextStyle(fontSize: 18),
                         ),
                       ),
                     ),
-                  ],
+                  ),
                 ),
+              ],
+            ),
     );
   }
 }

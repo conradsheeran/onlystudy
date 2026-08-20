@@ -86,6 +86,10 @@ class BiliHttpClient {
       _authService = authService ?? AuthService();
 
   final BiliTransport _transport;
+
+  /// 凭据读取（登录状态、Cookie、CSRF）；领域模块通过它读取 UID。
+  AuthService get authService => _authService;
+
   final AuthService _authService;
 
   /// 发起 GET 请求并校验 Bilibili 业务 code。

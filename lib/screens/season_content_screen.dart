@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
 
 import '../models/bili_models.dart';
-import '../services/bili_api_service.dart';
+import '../services/favorites_catalog.dart';
 import '../services/bili_failure_message.dart';
 import '../services/database_service.dart';
 import '../services/paged_loader.dart';
@@ -20,7 +20,7 @@ class SeasonContentScreen extends StatefulWidget {
 }
 
 class _SeasonContentScreenState extends State<SeasonContentScreen> {
-  final BiliApiService _biliApiService = BiliApiService();
+  final FavoritesCatalog _catalog = FavoritesCatalog();
   final DatabaseService _databaseService = DatabaseService();
   final ScrollController _scrollController = ScrollController();
 
@@ -31,7 +31,7 @@ class _SeasonContentScreenState extends State<SeasonContentScreen> {
     super.initState();
     _loader = PagedLoader<Video>(
       fetchPage: (page) async {
-        final videos = await _biliApiService.getSeasonVideos(
+        final videos = await _catalog.getSeasonVideos(
           widget.season.id,
           widget.season.upper.mid,
           pn: page,

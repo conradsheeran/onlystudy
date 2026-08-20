@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
 
 import '../models/bili_models.dart';
-import '../services/bili_api_service.dart';
+import '../services/favorites_catalog.dart';
 import '../services/bili_failure_message.dart';
 import '../services/database_service.dart';
 import '../services/paged_loader.dart';
@@ -21,7 +21,7 @@ class FolderContentScreen extends StatefulWidget {
 }
 
 class _FolderContentScreenState extends State<FolderContentScreen> {
-  final BiliApiService _biliApiService = BiliApiService();
+  final FavoritesCatalog _catalog = FavoritesCatalog();
   final DatabaseService _databaseService = DatabaseService();
   final ScrollController _scrollController = ScrollController();
 
@@ -35,7 +35,7 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
     super.initState();
     _loader = PagedLoader<Video>(
       fetchPage: (page) async {
-        final videos = await _biliApiService.getFolderVideos(
+        final videos = await _catalog.getFolderVideos(
           widget.folder.id,
           pn: page,
           keyword: _searchKeyword,
@@ -130,43 +130,45 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
         message: l10n.loadFailed(error.toUserMessage(context)),
         onRetry: _loader.refresh,
       ),
-      PagedLoaded<Video>(:final items, :final hasMore) =>
-        RefreshIndicator(
-          onRefresh: _loader.refresh,
-          child: items.isEmpty
-              ? ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: [
-                    SizedBox(
-                      height: 300,
-                      child: Center(child: Text(l10n.noVideosInFolder)),
-                    ),
-                  ],
-                )
-              : ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(12),
-                  itemCount: items.length + (hasMore ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (index == items.length) {
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(8.0),
-                          child: CircularProgressIndicator(),
-                        ),
-                      );
-                    }
-                    final video = items[index];
-                    return VideoTile(
-                      video: video,
-                      onTap: () {
-                        AppNavigator.toVideoPlayer(context,
-                            playlist: items, initialIndex: index);
-                      },
+      PagedLoaded<Video>(:final items, :final hasMore) => RefreshIndicator(
+        onRefresh: _loader.refresh,
+        child: items.isEmpty
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  SizedBox(
+                    height: 300,
+                    child: Center(child: Text(l10n.noVideosInFolder)),
+                  ),
+                ],
+              )
+            : ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.all(12),
+                itemCount: items.length + (hasMore ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index == items.length) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: CircularProgressIndicator(),
+                      ),
                     );
-                  },
-                ),
-        ),
+                  }
+                  final video = items[index];
+                  return VideoTile(
+                    video: video,
+                    onTap: () {
+                      AppNavigator.toVideoPlayer(
+                        context,
+                        playlist: items,
+                        initialIndex: index,
+                      );
+                    },
+                  );
+                },
+              ),
+      ),
       PagedInitial<Video>() => const SizedBox.shrink(),
     };
   }

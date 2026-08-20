@@ -9,7 +9,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../models/bili_models.dart';
 import '../models/download_task.dart';
-import 'bili_api_service.dart';
+import 'playback_gateway.dart';
 import 'download_transport.dart';
 
 /// 下载协调器：管理队列、取消、恢复、持久化和原子完成。
@@ -39,7 +39,7 @@ class DownloadService {
   DownloadTransport get _effectiveTransport =>
       _transport ??= DownloadTransport();
 
-  /// 获取播放地址；默认走 BiliApiService，测试可注入。
+  /// 获取播放地址；默认走 PlaybackGateway，测试可注入。
   Future<String> Function(String bvid, int cid, int qn)? playUrlProvider;
 
   /// 下载保存目录；默认走系统文档目录，测试可注入。
@@ -214,7 +214,7 @@ class DownloadService {
       final playUrlProvider =
           this.playUrlProvider ??
           (bvid, cid, qn) async =>
-              (await BiliApiService().getVideoPlayUrl(bvid, cid, qn: qn)).url;
+              (await PlaybackGateway().getVideoPlayUrl(bvid, cid, qn: qn)).url;
       final url = await playUrlProvider(task.bvid, task.cid, task.quality);
       if (url.isEmpty) {
         throw Exception('No playable URL');
