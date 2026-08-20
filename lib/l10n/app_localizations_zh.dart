@@ -313,6 +313,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get retry => '重试';
 
   @override
+  String get pause => '暂停';
+
+  @override
+  String get resume => '继续';
+
+  @override
   String get selectAll => '全选';
 
   @override

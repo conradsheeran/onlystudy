@@ -93,6 +93,8 @@
   "noVideosInFolder": "No videos in this folder.",
   "selectContent": "Select Content",
   "retry": "Retry",
+  "pause": "Pause",
+  "resume": "Resume",
   "selectAll": "Select All",
   "clear": "Clear",
   "confirmAndEnter": "Confirm and Enter",

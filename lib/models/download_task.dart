@@ -14,7 +14,13 @@ class DownloadTask {
   final DownloadStatus status;
   final int createTime;
 
-  DownloadTask({
+  /// 已下载字节数（用于启动恢复和持久化进度）
+  final int downloadedBytes;
+
+  /// 总字节数（未知时为 0）
+  final int totalBytes;
+
+  const DownloadTask({
     required this.bvid,
     required this.cid,
     required this.aid,
@@ -25,6 +31,8 @@ class DownloadTask {
     this.progress = 0.0,
     this.status = DownloadStatus.pending,
     required this.createTime,
+    this.downloadedBytes = 0,
+    this.totalBytes = 0,
   });
 
   Map<String, dynamic> toMap() {
@@ -39,6 +47,8 @@ class DownloadTask {
       'progress': progress,
       'status': status.index,
       'createTime': createTime,
+      'downloadedBytes': downloadedBytes,
+      'totalBytes': totalBytes,
     };
   }
 
@@ -51,9 +61,11 @@ class DownloadTask {
       cover: map['cover'],
       quality: map['quality'],
       filePath: map['filePath'],
-      progress: map['progress'] ?? 0.0,
-      status: DownloadStatus.values[map['status'] ?? 0],
+      progress: (map['progress'] as num?)?.toDouble() ?? 0.0,
+      status: DownloadStatus.values[(map['status'] as num?)?.toInt() ?? 0],
       createTime: map['createTime'],
+      downloadedBytes: (map['downloadedBytes'] as num?)?.toInt() ?? 0,
+      totalBytes: (map['totalBytes'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -61,6 +73,9 @@ class DownloadTask {
     String? filePath,
     double? progress,
     DownloadStatus? status,
+    int? downloadedBytes,
+    int? totalBytes,
+    bool clearProgress = false,
   }) {
     return DownloadTask(
       bvid: bvid,
@@ -70,9 +85,12 @@ class DownloadTask {
       cover: cover,
       quality: quality,
       filePath: filePath ?? this.filePath,
-      progress: progress ?? this.progress,
+      progress: clearProgress ? 0.0 : (progress ?? this.progress),
       status: status ?? this.status,
       createTime: createTime,
+      downloadedBytes:
+          clearProgress ? 0 : (downloadedBytes ?? this.downloadedBytes),
+      totalBytes: clearProgress ? 0 : (totalBytes ?? this.totalBytes),
     );
   }
 }

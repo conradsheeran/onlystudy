@@ -142,19 +142,43 @@ class _DownloadScreenState extends State<DownloadScreen> {
               Text(_getStatusText(context, task.status)),
             ],
           ),
-          trailing: task.status == DownloadStatus.failed 
-             ? IconButton(
-                 icon: const Icon(Icons.refresh), 
-                 onPressed: (){
-                    _downloadService.deleteTask(task.bvid, task.cid);
-                 }
-               ) 
-             : IconButton(
-                 icon: const Icon(Icons.close),
-                 onPressed: () {
-                    _downloadService.deleteTask(task.bvid, task.cid);
-                 },
-               ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (task.status == DownloadStatus.failed)
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: AppLocalizations.of(context)!.retry,
+                  onPressed: () {
+                    _downloadService.retryTask(task.bvid, task.cid);
+                  },
+                )
+              else if (task.status == DownloadStatus.running ||
+                  task.status == DownloadStatus.pending)
+                IconButton(
+                  icon: const Icon(Icons.pause),
+                  tooltip: AppLocalizations.of(context)!.pause,
+                  onPressed: () {
+                    _downloadService.pauseTask(task.bvid, task.cid);
+                  },
+                )
+              else if (task.status == DownloadStatus.paused)
+                IconButton(
+                  icon: const Icon(Icons.play_arrow),
+                  tooltip: AppLocalizations.of(context)!.resume,
+                  onPressed: () {
+                    _downloadService.resumeTask(task.bvid, task.cid);
+                  },
+                ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: AppLocalizations.of(context)!.delete,
+                onPressed: () {
+                  _downloadService.deleteTask(task.bvid, task.cid);
+                },
+              ),
+            ],
+          ),
         );
       },
     );

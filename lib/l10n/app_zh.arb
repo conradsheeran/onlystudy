@@ -96,6 +96,8 @@
   "noVideosInFolder": "此收藏夹中没有视频。",
   "selectContent": "选择显示的内容",
   "retry": "重试",
+  "pause": "暂停",
+  "resume": "继续",
   "selectAll": "全选",
   "clear": "清空",
   "confirmAndEnter": "确认并进入",

@@ -662,6 +662,18 @@ abstract class AppLocalizations {
   /// **'重试'**
   String get retry;
 
+  /// No description provided for @pause.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂停'**
+  String get pause;
+
+  /// No description provided for @resume.
+  ///
+  /// In zh, this message translates to:
+  /// **'继续'**
+  String get resume;
+
   /// No description provided for @selectAll.
   ///
   /// In zh, this message translates to:
