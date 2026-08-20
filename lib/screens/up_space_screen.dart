@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
 import '../models/bili_models.dart';
 import '../services/bili_api_service.dart';
+import '../services/bili_failure_message.dart';
 import '../widgets/common_image.dart';
 import '../widgets/error_view.dart';
 import '../widgets/video_tile.dart';
@@ -70,7 +71,8 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = AppLocalizations.of(context)!.loadUpFailed(e.toString());
+        _error = AppLocalizations.of(context)!.loadUpFailed(
+            e.toUserMessage(context));
       });
     } finally {
       if (mounted) {
@@ -125,12 +127,13 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = AppLocalizations.of(context)!.loadUpVideosFailed(e.toString());
+        _error = AppLocalizations.of(context)!.loadUpVideosFailed(
+            e.toUserMessage(context));
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text(AppLocalizations.of(context)!
-                .loadUpVideosFailed(e.toString()))),
+                .loadUpVideosFailed(e.toUserMessage(context)))),
       );
     } finally {
       if (mounted) {

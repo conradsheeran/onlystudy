@@ -4,6 +4,7 @@ import '../models/bili_models.dart';
 import '../widgets/video_tile.dart';
 import '../widgets/error_view.dart';
 import '../services/bili_api_service.dart';
+import '../services/bili_failure_message.dart';
 import '../services/database_service.dart';
 import 'video_player_screen.dart';
 
@@ -94,16 +95,18 @@ class _SeasonContentScreenState extends State<SeasonContentScreen> {
       if (mounted) {
         if (refresh) {
           setState(() {
-            _error = AppLocalizations.of(context)!.loadFailed(e.toString());
+            _error = AppLocalizations.of(context)!.loadFailed(
+                e.toUserMessage(context));
           });
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
                 content: Text(AppLocalizations.of(context)!
-                    .loadMoreFailed(e.toString()))),
+                    .loadMoreFailed(e.toUserMessage(context)))),
           );
         }
       }
+
     } finally {
       if (mounted) {
         setState(() {

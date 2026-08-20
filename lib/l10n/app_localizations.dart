@@ -764,6 +764,30 @@ abstract class AppLocalizations {
   /// **'选择语言'**
   String get selectLanguage;
 
+  /// No description provided for @networkError.
+  ///
+  /// In zh, this message translates to:
+  /// **'网络连接失败，请检查网络后重试'**
+  String get networkError;
+
+  /// No description provided for @unauthorizedError.
+  ///
+  /// In zh, this message translates to:
+  /// **'登录已失效，请重新登录'**
+  String get unauthorizedError;
+
+  /// No description provided for @bizError.
+  ///
+  /// In zh, this message translates to:
+  /// **'服务开小差了，请稍后重试'**
+  String get bizError;
+
+  /// No description provided for @bizErrorWithCode.
+  ///
+  /// In zh, this message translates to:
+  /// **'服务开小差了（{code}），请稍后重试'**
+  String bizErrorWithCode(Object code);
+
   /// No description provided for @upHomeTitle.
   ///
   /// In zh, this message translates to:

@@ -370,6 +370,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get selectLanguage => '选择语言';
 
   @override
+  String get networkError => '网络连接失败，请检查网络后重试';
+
+  @override
+  String get unauthorizedError => '登录已失效，请重新登录';
+
+  @override
+  String get bizError => '服务开小差了，请稍后重试';
+
+  @override
+  String bizErrorWithCode(Object code) {
+    return '服务开小差了（$code），请稍后重试';
+  }
+
+  @override
   String upHomeTitle(Object name) {
     return '$name 的主页';
   }

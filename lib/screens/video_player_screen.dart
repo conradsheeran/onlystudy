@@ -11,6 +11,7 @@ import '../models/bili_models.dart';
 import '../models/history_entry.dart';
 import '../models/playback_progress_snapshot.dart';
 import '../services/bili_api_service.dart';
+import '../services/bili_failure_message.dart';
 import '../services/download_service.dart';
 import '../services/history_service.dart';
 import '../services/playback_bridge.dart';
@@ -322,7 +323,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = AppLocalizations.of(context)!.playFailed(e.toString());
+          _error = AppLocalizations.of(context)!.playFailed(
+              e.toUserMessage(context));
           _isLoading = false;
         });
       }
@@ -587,7 +589,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = AppLocalizations.of(context)!.switchPartFailed(e.toString());
+          _error = AppLocalizations.of(context)!.switchPartFailed(
+              e.toUserMessage(context));
           _isLoading = false;
         });
       }
@@ -645,7 +648,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text(AppLocalizations.of(context)!
-                  .switchQualityFailed(e.toString()))),
+                  .switchQualityFailed(e.toUserMessage(context)))),
         );
       }
     }

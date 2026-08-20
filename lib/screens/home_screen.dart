@@ -12,6 +12,7 @@ import 'folder_content_screen.dart';
 import 'download_screen.dart';
 import '../services/auth_service.dart';
 import '../services/bili_api_service.dart';
+import '../services/bili_failure_message.dart';
 import '../services/database_service.dart';
 import 'history_screen.dart';
 import 'video_player_screen.dart';
@@ -203,7 +204,8 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = AppLocalizations.of(context)!.loadFailed(e.toString());
+          _error = AppLocalizations.of(context)!.loadFailed(
+              e.toUserMessage(context));
         });
       }
     } finally {

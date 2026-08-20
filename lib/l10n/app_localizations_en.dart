@@ -372,6 +372,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get selectLanguage => 'Select Language';
 
   @override
+  String get networkError =>
+      'Network error. Please check your connection and retry.';
+
+  @override
+  String get unauthorizedError =>
+      'Your session has expired. Please log in again.';
+
+  @override
+  String get bizError =>
+      'Something went wrong on our side. Please try again later.';
+
+  @override
+  String bizErrorWithCode(Object code) {
+    return 'Something went wrong on our side ($code). Please try again later.';
+  }
+
+  @override
   String upHomeTitle(Object name) {
     return '$name\'s Space';
   }

@@ -4,6 +4,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
 import '../models/qr_login.dart';
 import '../services/auth_service.dart';
+import '../services/bili_failure_message.dart';
 import 'select_folders_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -59,7 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _statusText = e.toString();
+          _statusText = e.toUserMessage(context);
         });
       }
     }

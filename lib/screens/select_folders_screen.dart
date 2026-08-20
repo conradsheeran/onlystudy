@@ -3,6 +3,7 @@ import 'package:onlystudy/l10n/app_localizations.dart';
 import '../models/bili_models.dart';
 import '../services/auth_service.dart';
 import '../services/bili_api_service.dart';
+import '../services/bili_failure_message.dart';
 import '../services/database_service.dart';
 import 'main_screen.dart';
 
@@ -90,7 +91,8 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen>
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = AppLocalizations.of(context)!.loadFailed(e.toString());
+          _error = AppLocalizations.of(context)!.loadFailed(
+              e.toUserMessage(context));
           _isLoading = false;
         });
       }
@@ -161,7 +163,8 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text(
-                AppLocalizations.of(context)!.loadUpsFailed(e.toString()))),
+                AppLocalizations.of(context)!.loadUpsFailed(
+                    e.toUserMessage(context)))),
       );
       setState(() {
         _upHasMore = false;
