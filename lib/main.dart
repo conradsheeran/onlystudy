@@ -13,8 +13,8 @@ import 'services/download_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // 设置图片缓存限制为 500MB，避免内存溢出
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 500 * 1024 * 1024;
+  // 图片解码缓存使用 Flutter 默认预算（100 MiB）；不再提高为
+  // 500 MiB，避免移动端 OOM 风险（OPT-010）
   MediaKit.ensureInitialized();
   await DownloadService().init();
   await CacheService().checkAndClearCache();
