@@ -64,6 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
         keyword,
         visibleFolderIds: _visibleFolderIds,
         visibleSeasonIds: _visibleSeasonIds,
+        visibleUpIds: _visibleUpIds,
       );
       if (mounted) {
         setState(() {
@@ -196,7 +197,7 @@ class _HomeScreenState extends State<HomeScreen> {
         });
 
         if (refresh) {
-          _syncAllContent(visibleFolders, visibleSeasons);
+          _syncAllContent(visibleFolders, visibleSeasons, visibleUps);
         }
       }
     } catch (e) {
@@ -215,8 +216,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// 后台同步所有可见内容的视频数据到本地数据库
-  Future<void> _syncAllContent(
-      List<Folder> folders, List<Season> seasons) async {
+  Future<void> _syncAllContent(List<Folder> folders, List<Season> seasons,
+      List<FollowUser> ups) async {
     for (var folder in folders) {
       if (!mounted) return;
       try {
@@ -242,6 +243,19 @@ class _HomeScreenState extends State<HomeScreen> {
         await Future.delayed(const Duration(milliseconds: 500));
       } catch (e) {
         debugPrint('Sync failed for season ${season.id}: $e');
+      }
+    }
+
+    for (var up in ups) {
+      if (!mounted) return;
+      try {
+        final page = await _biliApiService.getUpVideos(mid: up.mid, pn: 1, ps: 20);
+        if (page.videos.isNotEmpty) {
+          await _databaseService.insertVideos(page.videos, upId: up.mid);
+        }
+        await Future.delayed(const Duration(milliseconds: 500));
+      } catch (e) {
+        debugPrint('Sync failed for up ${up.mid}: $e');
       }
     }
   }
