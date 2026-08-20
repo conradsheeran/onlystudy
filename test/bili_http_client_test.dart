@@ -64,7 +64,10 @@ void main() {
       'bili_jct': 'csrf_value',
     });
     fakeTransport = _FakeTransport();
-    client = BiliHttpClient(transport: fakeTransport, authService: AuthService());
+    client = BiliHttpClient(
+      transport: fakeTransport,
+      authService: AuthService(),
+    );
   });
 
   group('BiliHttpClient 业务 code 检查', () {
@@ -72,7 +75,9 @@ void main() {
       fakeTransport.responseData = {
         'code': 0,
         'message': 'ok',
-        'data': {'list': [1, 2]},
+        'data': {
+          'list': [1, 2],
+        },
       };
       final result = await client.get('/x/test');
       expect(result['data']['list'], [1, 2]);
@@ -104,8 +109,11 @@ void main() {
       expect(
         () => client.get('/x/test'),
         throwsA(
-          isA<BiliFailure>()
-              .having((f) => f.isUnauthorized, 'isUnauthorized', isTrue),
+          isA<BiliFailure>().having(
+            (f) => f.isUnauthorized,
+            'isUnauthorized',
+            isTrue,
+          ),
         ),
       );
     });
@@ -115,8 +123,11 @@ void main() {
       expect(
         () => client.get('/x/test'),
         throwsA(
-          isA<BiliFailure>()
-              .having((f) => f.kind, 'kind', BiliFailureKind.notFound),
+          isA<BiliFailure>().having(
+            (f) => f.kind,
+            'kind',
+            BiliFailureKind.notFound,
+          ),
         ),
       );
     });
@@ -131,8 +142,11 @@ void main() {
       expect(
         () => client.get('/x/test'),
         throwsA(
-          isA<BiliFailure>()
-              .having((f) => f.kind, 'kind', BiliFailureKind.network),
+          isA<BiliFailure>().having(
+            (f) => f.kind,
+            'kind',
+            BiliFailureKind.network,
+          ),
         ),
       );
     });
@@ -149,8 +163,11 @@ void main() {
       expect(
         () => client.get('/x/test'),
         throwsA(
-          isA<BiliFailure>()
-              .having((f) => f.isUnauthorized, 'isUnauthorized', isTrue),
+          isA<BiliFailure>().having(
+            (f) => f.isUnauthorized,
+            'isUnauthorized',
+            isTrue,
+          ),
         ),
       );
     });
@@ -167,8 +184,11 @@ void main() {
       expect(
         () => client.get('/x/test'),
         throwsA(
-          isA<BiliFailure>()
-              .having((f) => f.kind, 'kind', BiliFailureKind.notFound),
+          isA<BiliFailure>().having(
+            (f) => f.kind,
+            'kind',
+            BiliFailureKind.notFound,
+          ),
         ),
       );
     });
@@ -176,21 +196,17 @@ void main() {
 
   group('BiliHttpClient Cookie 注入', () {
     test('从 AuthService 读取 Cookie 注入请求头', () async {
-      fakeTransport.responseData = {
-        'code': 0,
-        'data': {},
-      };
+      fakeTransport.responseData = {'code': 0, 'data': {}};
       await client.get('/x/test');
-      expect(fakeTransport.lastHeaders?['Cookie'],
-          'SESSDATA=sess_value; bili_jct=csrf_value');
+      expect(
+        fakeTransport.lastHeaders?['Cookie'],
+        'SESSDATA=sess_value; bili_jct=csrf_value',
+      );
     });
 
     test('未登录时不发送 Cookie 头', () async {
       SharedPreferences.setMockInitialValues({});
-      fakeTransport.responseData = {
-        'code': 0,
-        'data': {},
-      };
+      fakeTransport.responseData = {'code': 0, 'data': {}};
       await client.get('/x/test');
       expect(fakeTransport.lastHeaders?.containsKey('Cookie'), isFalse);
     });

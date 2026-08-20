@@ -78,49 +78,50 @@ class _SeasonContentScreenState extends State<SeasonContentScreen> {
 
   Widget _buildBody(AppLocalizations l10n) {
     return switch (_loader.value) {
-      PagedLoading<Video>() =>
-        const Center(child: CircularProgressIndicator()),
+      PagedLoading<Video>() => const Center(child: CircularProgressIndicator()),
       PagedError<Video>(:final error) => ErrorView(
-          message: l10n.loadFailed(error.toUserMessage(context)),
-          onRetry: _loader.refresh,
-        ),
-      PagedLoaded<Video>(:final items, :final hasMore) =>
-        RefreshIndicator(
-          onRefresh: _loader.refresh,
-          child: items.isEmpty
-              ? ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: [
-                    SizedBox(
-                      height: 300,
-                      child: Center(child: Text(l10n.noVideosInSeason)),
-                    ),
-                  ],
-                )
-              : ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(12),
-                  itemCount: items.length + (hasMore ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (index == items.length) {
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(8.0),
-                          child: CircularProgressIndicator(),
-                        ),
-                      );
-                    }
-                    final video = items[index];
-                    return VideoTile(
-                      video: video,
-                      onTap: () {
-                        AppNavigator.toVideoPlayer(context,
-                            playlist: items, initialIndex: index);
-                      },
+        message: l10n.loadFailed(error.toUserMessage(context)),
+        onRetry: _loader.refresh,
+      ),
+      PagedLoaded<Video>(:final items, :final hasMore) => RefreshIndicator(
+        onRefresh: _loader.refresh,
+        child: items.isEmpty
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  SizedBox(
+                    height: 300,
+                    child: Center(child: Text(l10n.noVideosInSeason)),
+                  ),
+                ],
+              )
+            : ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.all(12),
+                itemCount: items.length + (hasMore ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index == items.length) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: CircularProgressIndicator(),
+                      ),
                     );
-                  },
-                ),
-        ),
+                  }
+                  final video = items[index];
+                  return VideoTile(
+                    video: video,
+                    onTap: () {
+                      AppNavigator.toVideoPlayer(
+                        context,
+                        playlist: items,
+                        initialIndex: index,
+                      );
+                    },
+                  );
+                },
+              ),
+      ),
       PagedInitial<Video>() => const SizedBox.shrink(),
     };
   }

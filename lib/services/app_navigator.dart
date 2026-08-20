@@ -42,7 +42,8 @@ abstract final class AppNavigator {
   static void resetToFolderSelection(BuildContext context) {
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
-          builder: (context) => const SelectFoldersScreen(isFirstLogin: true)),
+        builder: (context) => const SelectFoldersScreen(isFirstLogin: true),
+      ),
       (route) => false,
     );
   }
@@ -68,7 +69,8 @@ abstract final class AppNavigator {
     return Navigator.push(
       context,
       MaterialPageRoute(
-          builder: (context) => FolderContentScreen(folder: folder)),
+        builder: (context) => FolderContentScreen(folder: folder),
+      ),
     );
   }
 
@@ -77,7 +79,8 @@ abstract final class AppNavigator {
     return Navigator.push(
       context,
       MaterialPageRoute(
-          builder: (context) => SeasonContentScreen(season: season)),
+        builder: (context) => SeasonContentScreen(season: season),
+      ),
     );
   }
 
@@ -90,8 +93,8 @@ abstract final class AppNavigator {
     return Navigator.push(
       context,
       MaterialPageRoute(
-          builder: (context) =>
-              UpSpaceScreen(mid: mid, initialName: initialName)),
+        builder: (context) => UpSpaceScreen(mid: mid, initialName: initialName),
+      ),
     );
   }
 

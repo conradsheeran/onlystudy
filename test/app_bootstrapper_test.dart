@@ -40,16 +40,15 @@ void main() {
       var retried = false;
 
       await tester.pumpWidget(
-        BootstrapApp(
-          failure: failure,
-          onRetry: () => retried = true,
-        ),
+        BootstrapApp(failure: failure, onRetry: () => retried = true),
       );
 
       // 测试环境默认 en locale；断言英文文案（App 实际运行跟随系统）
       expect(find.text('App failed to start'), findsOneWidget);
-      expect(find.text('Error during startup phase cache. Please retry.'),
-          findsOneWidget);
+      expect(
+        find.text('Error during startup phase cache. Please retry.'),
+        findsOneWidget,
+      );
 
       await tester.tap(find.text('Retry'));
       expect(retried, isTrue);

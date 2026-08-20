@@ -68,10 +68,7 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
       _loadingInfo = true;
       _infoError = null;
     });
-    await Future.wait([
-      _loadInfo(),
-      _loader.refresh(),
-    ]);
+    await Future.wait([_loadInfo(), _loader.refresh()]);
   }
 
   /// 加载 UP 主基础信息
@@ -85,8 +82,9 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _infoError = AppLocalizations.of(context)!.loadUpFailed(
-            e.toUserMessage(context));
+        _infoError = AppLocalizations.of(
+          context,
+        )!.loadUpFailed(e.toUserMessage(context));
       });
     } finally {
       if (mounted) {
@@ -145,10 +143,9 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
                 children: [
                   Text(
                     info.name,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w700),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -256,8 +253,11 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
             return VideoTile(
               video: video,
               onTap: () {
-                AppNavigator.toVideoPlayer(context,
-                    playlist: videos, initialIndex: videoIndex);
+                AppNavigator.toVideoPlayer(
+                  context,
+                  playlist: videos,
+                  initialIndex: videoIndex,
+                );
               },
             );
           },
@@ -275,13 +275,11 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
     final title = _info != null
         ? locale.upHomeTitle(_info!.name)
         : (widget.initialName != null
-            ? locale.upHomeTitle(widget.initialName!)
-            : locale.upHomeFallback);
+              ? locale.upHomeTitle(widget.initialName!)
+              : locale.upHomeFallback);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-      ),
+      appBar: AppBar(title: Text(title)),
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 200),
         child: _buildBody(),

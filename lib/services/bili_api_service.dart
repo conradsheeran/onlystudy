@@ -20,7 +20,7 @@ import 'settings_service.dart';
 /// 公共方法签名保持不变，屏幕端仅需适配 [BiliFailure] 展示。
 class BiliApiService {
   BiliApiService({BiliHttpClient? client})
-      : _client = client ?? BiliHttpClient();
+    : _client = client ?? BiliHttpClient();
 
   final BiliHttpClient _client;
 
@@ -48,7 +48,10 @@ class BiliApiService {
     final subKey = _extractKeyFromUrl(subUrl);
 
     if (imgKey.isEmpty || subKey.isEmpty) {
-      throw const BiliFailure(BiliFailureKind.notFound, message: 'WBI key missing');
+      throw const BiliFailure(
+        BiliFailureKind.notFound,
+        message: 'WBI key missing',
+      );
     }
 
     final mixinKey = _mixinKey('$imgKey$subKey');
@@ -69,10 +72,70 @@ class BiliApiService {
   /// 混淆算法生成 WBI 密钥
   String _mixinKey(String origin) {
     const mixinKeyEncTab = [
-      46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35,
-      27, 43, 5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41, 13,
-      37, 48, 7, 16, 24, 55, 40, 61, 26, 17, 0, 1, 60, 51, 30, 4,
-      22, 25, 54, 21, 56, 59, 6, 63, 57, 62, 11, 36, 20, 34, 44, 52,
+      46,
+      47,
+      18,
+      2,
+      53,
+      8,
+      23,
+      32,
+      15,
+      50,
+      10,
+      31,
+      58,
+      3,
+      45,
+      35,
+      27,
+      43,
+      5,
+      49,
+      33,
+      9,
+      42,
+      19,
+      29,
+      28,
+      14,
+      39,
+      12,
+      38,
+      41,
+      13,
+      37,
+      48,
+      7,
+      16,
+      24,
+      55,
+      40,
+      61,
+      26,
+      17,
+      0,
+      1,
+      60,
+      51,
+      30,
+      4,
+      22,
+      25,
+      54,
+      21,
+      56,
+      59,
+      6,
+      63,
+      57,
+      62,
+      11,
+      36,
+      20,
+      34,
+      44,
+      52,
     ];
     final chars = origin.split('');
     final buffer = StringBuffer();
@@ -86,7 +149,8 @@ class BiliApiService {
 
   /// 构建带 w_rid 和 wts 的签名参数
   Future<Map<String, dynamic>> _buildWbiParams(
-      Map<String, dynamic> params) async {
+    Map<String, dynamic> params,
+  ) async {
     final wbiKey = await _getWbiKey();
     final filtered = <String, dynamic>{};
     params.forEach((key, value) {
@@ -117,22 +181,19 @@ class BiliApiService {
 
     final data = await _client.get(
       '/x/v3/fav/folder/created/list',
-      queryParameters: {
-        'up_mid': uid,
-        'pn': pn,
-        'ps': ps,
-        'jsonp': 'jsonp',
-      },
+      queryParameters: {'up_mid': uid, 'pn': pn, 'ps': ps, 'jsonp': 'jsonp'},
     );
     final list = data['data']?['list'] ?? [];
-    return List<Folder>.from(
-      list.map((item) => Folder.fromJson(item)),
-    );
+    return List<Folder>.from(list.map((item) => Folder.fromJson(item)));
   }
 
   /// 获取指定收藏夹内的视频列表
-  Future<List<Video>> getFolderVideos(int mediaId,
-      {int pn = 1, int ps = 20, String? keyword}) async {
+  Future<List<Video>> getFolderVideos(
+    int mediaId, {
+    int pn = 1,
+    int ps = 20,
+    String? keyword,
+  }) async {
     final queryParams = {
       'media_id': mediaId,
       'pn': pn,
@@ -149,9 +210,7 @@ class BiliApiService {
       queryParameters: queryParams,
     );
     final medias = data['data']?['medias'] ?? [];
-    return List<Video>.from(
-      medias.map((item) => Video.fromJson(item)),
-    );
+    return List<Video>.from(medias.map((item) => Video.fromJson(item)));
   }
 
   /// 获取用户订阅的合集列表
@@ -163,25 +222,22 @@ class BiliApiService {
 
     final data = await _client.get(
       '/x/v3/fav/folder/collected/list',
-      queryParameters: {
-        'up_mid': uid,
-        'pn': pn,
-        'ps': ps,
-        'platform': 'web',
-      },
+      queryParameters: {'up_mid': uid, 'pn': pn, 'ps': ps, 'platform': 'web'},
     );
     final list = data['data']?['list'] ?? [];
     return List<Season>.from(
-      list.map((item) => Season(
-            id: item['id'],
-            title: item['title'],
-            cover: item['cover'] ?? '',
-            mediaCount: item['media_count'] ?? 0,
-            upper: BiliUpper(
-              mid: item['upper']?['mid'] ?? 0,
-              name: item['upper']?['name'] ?? '',
-            ),
-          )),
+      list.map(
+        (item) => Season(
+          id: item['id'],
+          title: item['title'],
+          cover: item['cover'] ?? '',
+          mediaCount: item['media_count'] ?? 0,
+          upper: BiliUpper(
+            mid: item['upper']?['mid'] ?? 0,
+            name: item['upper']?['name'] ?? '',
+          ),
+        ),
+      ),
     );
   }
 
@@ -189,8 +245,12 @@ class BiliApiService {
   ///
   /// 优先尝试收藏夹资源接口；若端点不适用（返回空列表），
   /// 再回退到合集档案接口。真实网络失败直接抛出，不会被误判为回退。
-  Future<List<Video>> getSeasonVideos(int seasonId, int mid,
-      {int pn = 1, int ps = 20}) async {
+  Future<List<Video>> getSeasonVideos(
+    int seasonId,
+    int mid, {
+    int pn = 1,
+    int ps = 20,
+  }) async {
     try {
       final folderVideos = await getFolderVideos(seasonId, pn: pn, ps: ps);
       if (folderVideos.isNotEmpty) {
@@ -220,16 +280,18 @@ class BiliApiService {
     );
     final archives = data['data']?['archives'] ?? [];
     return List<Video>.from(
-      archives.map((item) => Video(
-            bvid: item['bvid'] ?? '',
-            title: item['title'] ?? '',
-            cover: item['pic'] ?? '',
-            duration: item['duration'] ?? 0,
-            upper: BiliUpper(mid: mid, name: item['author'] ?? ''),
-            view: item['stat']?['view'] ?? 0,
-            danmaku: item['stat']?['danmaku'] ?? 0,
-            pubTimestamp: item['pubdate'] ?? 0,
-          )),
+      archives.map(
+        (item) => Video(
+          bvid: item['bvid'] ?? '',
+          title: item['title'] ?? '',
+          cover: item['pic'] ?? '',
+          duration: item['duration'] ?? 0,
+          upper: BiliUpper(mid: mid, name: item['author'] ?? ''),
+          view: item['stat']?['view'] ?? 0,
+          danmaku: item['stat']?['danmaku'] ?? 0,
+          pubTimestamp: item['pubdate'] ?? 0,
+        ),
+      ),
     );
   }
 
@@ -342,16 +404,9 @@ class BiliApiService {
 
     final data = await _client.get(
       '/x/relation/followings',
-      queryParameters: {
-        'vmid': mid,
-        'pn': pn,
-        'ps': ps,
-        'order': 'desc',
-      },
+      queryParameters: {'vmid': mid, 'pn': pn, 'ps': ps, 'order': 'desc'},
     );
-    final list = List<Map<String, dynamic>>.from(
-      data['data']?['list'] ?? [],
-    );
+    final list = List<Map<String, dynamic>>.from(data['data']?['list'] ?? []);
     return list.map((item) => FollowUser.fromJson(item)).toList();
   }
 
@@ -381,12 +436,7 @@ class BiliApiService {
   }) async {
     final data = await _client.get(
       '/x/series/archives',
-      queryParameters: {
-        'mid': mid,
-        'series_id': seriesId,
-        'pn': pn,
-        'ps': ps,
-      },
+      queryParameters: {'mid': mid, 'series_id': seriesId, 'pn': pn, 'ps': ps},
     );
 
     final archives = List<Map<String, dynamic>>.from(

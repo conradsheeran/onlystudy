@@ -27,11 +27,14 @@ abstract interface class BiliTransport {
 /// 基于 Dio 的生产传输实现。
 class DioTransport implements BiliTransport {
   DioTransport({Dio? dio})
-      : _dio = dio ??
-            Dio(BaseOptions(
+    : _dio =
+          dio ??
+          Dio(
+            BaseOptions(
               connectTimeout: const Duration(seconds: 10),
               receiveTimeout: const Duration(seconds: 10),
-            ));
+            ),
+          );
 
   final Dio _dio;
 
@@ -79,8 +82,8 @@ class DioTransport implements BiliTransport {
 /// 服务层只抛出 [BiliFailure]，不包含本地化文案。
 class BiliHttpClient {
   BiliHttpClient({BiliTransport? transport, AuthService? authService})
-      : _transport = transport ?? DioTransport(),
-        _authService = authService ?? AuthService();
+    : _transport = transport ?? DioTransport(),
+      _authService = authService ?? AuthService();
 
   final BiliTransport _transport;
   final AuthService _authService;
@@ -102,10 +105,9 @@ class BiliHttpClient {
         path,
         queryParameters: queryParameters,
         cancelToken: cancelToken,
-        options: options ??
-            Options(headers: {
-              if (cookie.isNotEmpty) 'Cookie': cookie,
-            }),
+        options:
+            options ??
+            Options(headers: {if (cookie.isNotEmpty) 'Cookie': cookie}),
       );
       return _checkBizCode(response.data, okCodes: okCodes);
     } on DioException catch (e) {
@@ -129,10 +131,9 @@ class BiliHttpClient {
         data: data,
         queryParameters: queryParameters,
         cancelToken: cancelToken,
-        options: options ??
-            Options(headers: {
-              if (cookie.isNotEmpty) 'Cookie': cookie,
-            }),
+        options:
+            options ??
+            Options(headers: {if (cookie.isNotEmpty) 'Cookie': cookie}),
       );
       return _checkBizCode(response.data, okCodes: okCodes);
     } on DioException catch (e) {
@@ -155,11 +156,7 @@ class BiliHttpClient {
       final kind = codeValue == -101 || codeValue == -400
           ? BiliFailureKind.unauthorized
           : BiliFailureKind.bizError;
-      throw BiliFailure(
-        kind,
-        code: codeValue,
-        message: message,
-      );
+      throw BiliFailure(kind, code: codeValue, message: message);
     }
     return data;
   }
@@ -179,9 +176,6 @@ class BiliHttpClient {
     if (statusCode == 404) {
       return const BiliFailure(BiliFailureKind.notFound, message: 'http 404');
     }
-    return BiliFailure(
-      BiliFailureKind.network,
-      message: e.message,
-    );
+    return BiliFailure(BiliFailureKind.network, message: e.message);
   }
 }

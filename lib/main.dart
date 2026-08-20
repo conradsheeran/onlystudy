@@ -55,21 +55,17 @@ class _BootstrapGateState extends State<BootstrapGate> {
       // 启动中：显示占位，避免黑屏
       return MaterialApp(
         debugShowCheckedModeBanner: false,
-        home: Scaffold(
-          body: Center(
-            child: CircularProgressIndicator(),
-          ),
-        ),
+        home: Scaffold(body: Center(child: CircularProgressIndicator())),
       );
     }
     return switch (result) {
       BootstrapReady(:final isLoggedIn) => OnlyStudyApp(
-          initialRoute: isLoggedIn ? const MainScreen() : const LoginScreen(),
-        ),
+        initialRoute: isLoggedIn ? const MainScreen() : const LoginScreen(),
+      ),
       BootstrapFailed(:final phase, :final error) => BootstrapApp(
-          failure: BootstrapFailed(phase: phase, error: error),
-          onRetry: _start,
-        ),
+        failure: BootstrapFailed(phase: phase, error: error),
+        onRetry: _start,
+      ),
     };
   }
 }
@@ -91,10 +87,7 @@ class OnlyStudyApp extends StatelessWidget {
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
-          supportedLocales: const [
-            Locale('en'),
-            Locale('zh'),
-          ],
+          supportedLocales: const [Locale('en'), Locale('zh')],
           locale: locale,
           theme: AppTheme.darkTheme,
           darkTheme: AppTheme.darkTheme,

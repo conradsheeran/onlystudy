@@ -8,14 +8,7 @@ import 'download_service.dart';
 import 'settings_service.dart';
 
 /// 启动阶段（OPT-011）。
-enum BootstrapPhase {
-  mediaKit,
-  download,
-  cache,
-  audio,
-  settings,
-  authCheck,
-}
+enum BootstrapPhase { mediaKit, download, cache, audio, settings, authCheck }
 
 /// 启动结果（sealed）。
 sealed class BootstrapResult {
@@ -82,10 +75,7 @@ class AppBootstrapper {
       return BootstrapReady(isLoggedIn: isLoggedIn);
     } catch (e, stackTrace) {
       debugPrint('App bootstrap failed: $e\n$stackTrace');
-      return BootstrapFailed(
-        phase: phase,
-        error: e,
-      );
+      return BootstrapFailed(phase: phase, error: e);
     }
   }
 }

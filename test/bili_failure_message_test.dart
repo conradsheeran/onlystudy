@@ -35,8 +35,7 @@ void main() {
       contains('网络'),
     );
     expect(
-      await messageFor(
-          tester, const BiliFailure(BiliFailureKind.unauthorized)),
+      await messageFor(tester, const BiliFailure(BiliFailureKind.unauthorized)),
       contains('登录'),
     );
     expect(
