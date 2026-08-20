@@ -79,7 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
             setState(() {
               _statusText = AppLocalizations.of(context)!.loginSuccess;
             });
-            await _authService.saveLoginInfo(result['url']);
+            await _authService.saveLoginInfo(result);
             if (mounted) {
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (context) => const SelectFoldersScreen(isFirstLogin: true)),

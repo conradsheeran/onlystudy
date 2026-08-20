@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,10 +14,36 @@ class AuthService {
     baseUrl: 'https://passport.bilibili.com',
     headers: {
       'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Mozilla/5.0 BiliDroid/2.0.1 (bbcallen@gmail.com) os/android model/android_hd mobi_app/android_hd build/2001100 channel/master innerVer/2001100 osVer/15 network/2',
       'Referer': 'https://www.bilibili.com/',
     },
   ));
+
+  // HD 版登录接口使用的 appkey/appsec（与 PiliPlus 一致）
+  static const String _appKey = 'dfca71928277209b';
+  static const String _appSec = 'b5475a8825547a4fc26c7d518eaaa02e';
+
+  /// 生成用于请求的 buvid（B 站客户端风控标识）
+  String generateBuvid() {
+    final random = Random.secure();
+    final md5Str = md5
+        .convert(List<int>.generate(16, (_) => random.nextInt(256)))
+        .toString();
+    return 'XY${md5Str[2]}${md5Str[12]}${md5Str[22]}$md5Str';
+  }
+
+  /// APP 端接口签名（appkey + ts + sign）
+  Map<String, dynamic> _appSign(Map<String, dynamic> params) {
+    params['appkey'] = _appKey;
+    params['ts'] =
+        (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString();
+    final sortedKeys = params.keys.toList()..sort();
+    final query = sortedKeys
+        .map((k) => '${Uri.encodeComponent(k)}=${Uri.encodeComponent(params[k].toString())}')
+        .join('&');
+    params['sign'] = md5.convert(utf8.encode('$query$_appSec')).toString();
+    return params;
+  }
 
   static const String _prefLockPassword = 'folder_lock_password';
   static const String _prefIsLocked = 'folder_is_locked';
@@ -58,10 +85,18 @@ class AuthService {
     await prefs.setBool(_prefIsLocked, locked);
   }
 
-  /// 生成 Bilibili 登录二维码
+  /// 生成 Bilibili 登录二维码（app 端 HD 版扫码）
   Future<Map<String, dynamic>> generateQRCode() async {
     try {
-      final response = await _dio.get('/x/passport-login/web/qrcode/generate');
+      final params = _appSign({
+        'local_id': '0',
+        'platform': 'android',
+        'mobi_app': 'android_hd',
+      });
+      final response = await _dio.post(
+        '/x/passport-tv-login/qrcode/auth_code',
+        queryParameters: params,
+      );
       if (response.data['code'] == 0) {
         return response.data['data'];
       } else {
@@ -72,63 +107,76 @@ class AuthService {
     }
   }
 
-  /// 轮询二维码扫码状态
+  /// 轮询二维码扫码状态（app 端 HD 版）
   /// 返回值:
   /// null: 继续轮询
-  /// Map: 登录成功，包含 url (内含 cookie)
+  /// Map: 登录成功，包含 token_info + cookie_info
   /// throw: 失败或过期
-  Future<Map<String, dynamic>?> pollLoginStatus(String qrcodeKey) async {
+  Future<Map<String, dynamic>?> pollLoginStatus(String authCode) async {
     try {
-      final response = await _dio.get(
-        '/x/passport-login/web/qrcode/poll',
-        queryParameters: {'qrcode_key': qrcodeKey},
+      final params = _appSign({
+        'auth_code': authCode,
+        'local_id': '0',
+      });
+      final response = await _dio.post(
+        '/x/passport-tv-login/qrcode/poll',
+        queryParameters: params,
       );
 
-      final data = response.data['data'];
-      final int code = data['code'];
-
-      /*
-       code 字典:
-       0: 成功
-       86101: 未扫码
-       86090: 已扫码，未确认
-       86038: 二维码过期
-      */
-
-      if (code == 0) {
-        // 登录成功
-        return data;
-      } else if (code == 86101 || code == 86090) {
-        // 等待中
-        return null;
-      } else if (code == 86038) {
+      // 状态判断基于顶层 code（与 PiliPlus 一致）:
+      // 0: 登录成功（data 内含 token_info + cookie_info）
+      // 86038: 二维码过期
+      // 其他(86039/86101 等): 未扫码或已扫码未确认，继续轮询
+      final int topCode = response.data['code'] ?? -1;
+      if (topCode == 0) {
+        // 登录成功，返回 token_info + cookie_info
+        return response.data['data'];
+      } else if (topCode == 86038) {
         throw Exception('二维码已过期，请刷新');
       } else {
-        throw Exception('登录失败: ${data['message']}');
+        return null;
       }
     } catch (e) {
       rethrow;
     }
   }
 
-  /// 解析并保存 Cookie
-  Future<void> saveLoginInfo(String url) async {
-    final Uri uri = Uri.parse(url);
+  /// 解析并保存登录凭据（cookie + token）
+  Future<void> saveLoginInfo(Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
 
-    // 提取关键 Cookie 参数
-    final sessData = uri.queryParameters['SESSDATA'];
-    final biliJct = uri.queryParameters['bili_jct'];
-    final uid = uri.queryParameters['DedeUserID'];
+    // 从 cookie_info.cookies 数组提取关键 Cookie
+    final cookieInfo = data['cookie_info'] ?? {};
+    final cookies = (cookieInfo['cookies'] as List?) ?? [];
+    String? sessData;
+    String? biliJct;
+    String? uid;
+    for (final item in cookies) {
+      if (item is! Map) continue;
+      final name = item['name'];
+      final value = item['value']?.toString();
+      if (name == 'SESSDATA') {
+        sessData = value;
+      } else if (name == 'bili_jct') {
+        biliJct = value;
+      } else if (name == 'DedeUserID') {
+        uid = value;
+      }
+    }
 
-    if (sessData != null) {
-      await prefs.setString('SESSDATA', sessData);
+    // 从 token_info 提取 refresh_token
+    final tokenInfo = data['token_info'] ?? {};
+    final refreshToken = tokenInfo['refresh_token']?.toString();
+
+    if (sessData == null || biliJct == null || uid == null) {
+      throw Exception('登录失败: 未获取到完整 Cookie');
     }
-    if (biliJct != null) {
-      await prefs.setString('bili_jct', biliJct);
-    }
-    if (uid != null) {
-      await prefs.setString('uid', uid);
+
+    await prefs.setString('SESSDATA', sessData);
+    await prefs.setString('bili_jct', biliJct);
+    await prefs.setString('uid', uid);
+    if (refreshToken != null) {
+      await prefs.setString('refresh_token', refreshToken);
     }
 
     // 设置登录标记
