@@ -38,3 +38,13 @@
 - CI uses Flutter `3.38.4`.
 - Android release command in CI: `flutter build apk --release --split-per-abi --obfuscate --split-debug-info=./debug-info`
 - Linux release builds require system packages first: `clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev libasound2-dev libmpv-dev`.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in the GitHub Issues of this repo, operated via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: one `CONTEXT.md` plus `docs/adr/` at the repo root. See `docs/agents/domain.md`.
