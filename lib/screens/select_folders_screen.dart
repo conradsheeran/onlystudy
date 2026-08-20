@@ -5,7 +5,7 @@ import '../services/auth_service.dart';
 import '../services/bili_api_service.dart';
 import '../services/bili_failure_message.dart';
 import '../services/database_service.dart';
-import 'main_screen.dart';
+import '../services/app_navigator.dart';
 
 /// 选择可见内容页面，包含收藏夹、合集、UP 三个 Tab
 class SelectFoldersScreen extends StatefulWidget {
@@ -226,10 +226,7 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen>
       await DatabaseService().clearAllCache();
 
       if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const MainScreen()),
-          (route) => false,
-        );
+        AppNavigator.resetToMain(context);
       }
     } catch (e) {
       if (mounted) {

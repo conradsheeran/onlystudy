@@ -8,7 +8,7 @@ import '../services/database_service.dart';
 import '../services/paged_loader.dart';
 import '../widgets/error_view.dart';
 import '../widgets/video_tile.dart';
-import 'video_player_screen.dart';
+import '../services/app_navigator.dart';
 
 class SeasonContentScreen extends StatefulWidget {
   final Season season;
@@ -114,15 +114,8 @@ class _SeasonContentScreenState extends State<SeasonContentScreen> {
                     return VideoTile(
                       video: video,
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => VideoPlayerScreen(
-                              playlist: items,
-                              initialIndex: index,
-                            ),
-                          ),
-                        );
+                        AppNavigator.toVideoPlayer(context,
+                            playlist: items, initialIndex: index);
                       },
                     );
                   },

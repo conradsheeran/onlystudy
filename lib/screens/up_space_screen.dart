@@ -8,7 +8,7 @@ import '../services/paged_loader.dart';
 import '../widgets/common_image.dart';
 import '../widgets/error_view.dart';
 import '../widgets/video_tile.dart';
-import 'video_player_screen.dart';
+import '../services/app_navigator.dart';
 
 /// UP 主主页页面，展示基础信息与投稿/合集列表
 class UpSpaceScreen extends StatefulWidget {
@@ -256,15 +256,8 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
             return VideoTile(
               video: video,
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => VideoPlayerScreen(
-                      playlist: videos,
-                      initialIndex: videoIndex,
-                    ),
-                  ),
-                );
+                AppNavigator.toVideoPlayer(context,
+                    playlist: videos, initialIndex: videoIndex);
               },
             );
           },

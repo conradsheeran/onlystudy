@@ -4,7 +4,7 @@ import 'package:onlystudy/l10n/app_localizations.dart';
 import '../models/history_entry.dart';
 import '../services/history_service.dart';
 import '../widgets/history_tile.dart';
-import 'video_player_screen.dart';
+import '../services/app_navigator.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -39,15 +39,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   void _openEntry(HistoryEntry entry) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => VideoPlayerScreen(
-          playlist: [entry.toVideo()],
-          initialIndex: 0,
-          initialHistoryEntry: entry,
-        ),
-      ),
+    AppNavigator.toVideoPlayer(context,
+      playlist: [entry.toVideo()],
+      initialIndex: 0,
+      initialHistoryEntry: entry,
     ).then((_) => _loadHistory());
   }
 

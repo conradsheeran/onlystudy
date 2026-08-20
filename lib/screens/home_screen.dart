@@ -7,16 +7,11 @@ import '../widgets/video_tile.dart';
 import '../widgets/custom_search_bar.dart';
 import '../widgets/skeletons.dart';
 import '../widgets/error_view.dart';
-import 'season_content_screen.dart';
-import 'folder_content_screen.dart';
-import 'download_screen.dart';
+import '../services/app_navigator.dart';
 import '../services/auth_service.dart';
 import '../services/bili_api_service.dart';
 import '../services/bili_failure_message.dart';
 import '../services/database_service.dart';
-import 'history_screen.dart';
-import 'video_player_screen.dart';
-import 'up_space_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -466,12 +461,7 @@ class _HomeScreenState extends State<HomeScreen> {
               return FolderCard(
                 folder: item,
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => FolderContentScreen(folder: item),
-                    ),
-                  );
+                  AppNavigator.toFolderContent(context, item);
                 },
               );
             } else if (item is Season) {
@@ -485,12 +475,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   favState: 1,
                 ),
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => SeasonContentScreen(season: item),
-                    ),
-                  );
+                  AppNavigator.toSeasonContent(context, item);
                 },
               );
             } else if (item is FollowUser) {
@@ -509,12 +494,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 subtitle: locale.videoCount(item.videoCount),
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => UpSpaceScreen(mid: item.mid),
-                    ),
-                  );
+                  AppNavigator.toUpSpace(context, item.mid);
                 },
               );
             }
@@ -563,22 +543,14 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: const Icon(Icons.cloud_download_outlined),
               tooltip: AppLocalizations.of(context)!.downloadCache,
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const DownloadScreen()),
-                );
+                AppNavigator.toDownloads(context);
               },
             ),
             IconButton(
               icon: const Icon(Icons.history),
               tooltip: AppLocalizations.of(context)!.watchHistory,
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const HistoryScreen()),
-                );
+                AppNavigator.toHistory(context);
               },
             ),
           ],
@@ -667,15 +639,8 @@ class _HomeScreenState extends State<HomeScreen> {
             return VideoTile(
               video: video,
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => VideoPlayerScreen(
-                      playlist: [video],
-                      initialIndex: 0,
-                    ),
-                  ),
-                );
+                AppNavigator.toVideoPlayer(context,
+                    playlist: [video], initialIndex: 0);
               },
             );
           },

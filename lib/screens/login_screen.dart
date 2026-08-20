@@ -5,7 +5,7 @@ import 'package:onlystudy/l10n/app_localizations.dart';
 import '../models/qr_login.dart';
 import '../services/auth_service.dart';
 import '../services/bili_failure_message.dart';
-import 'select_folders_screen.dart';
+import '../services/app_navigator.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -88,12 +88,7 @@ class _LoginScreenState extends State<LoginScreen> {
             }
             await _authService.saveLoginCredentials(credentials);
             if (mounted) {
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(
-                    builder: (context) =>
-                        const SelectFoldersScreen(isFirstLogin: true)),
-                (route) => false,
-              );
+              AppNavigator.resetToFolderSelection(context);
             }
           case QrLoginExpired():
             timer.cancel();

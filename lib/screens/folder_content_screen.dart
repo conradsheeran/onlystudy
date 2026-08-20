@@ -9,7 +9,7 @@ import '../services/paged_loader.dart';
 import '../widgets/custom_search_bar.dart';
 import '../widgets/error_view.dart';
 import '../widgets/video_tile.dart';
-import 'video_player_screen.dart';
+import '../services/app_navigator.dart';
 
 class FolderContentScreen extends StatefulWidget {
   final Folder folder;
@@ -160,15 +160,8 @@ class _FolderContentScreenState extends State<FolderContentScreen> {
                     return VideoTile(
                       video: video,
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => VideoPlayerScreen(
-                              playlist: items,
-                              initialIndex: index,
-                            ),
-                          ),
-                        );
+                        AppNavigator.toVideoPlayer(context,
+                            playlist: items, initialIndex: index);
                       },
                     );
                   },

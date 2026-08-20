@@ -4,7 +4,7 @@ import '../services/download_service.dart';
 import '../models/download_task.dart';
 import '../models/bili_models.dart';
 import '../widgets/common_image.dart';
-import 'video_player_screen.dart';
+import '../services/app_navigator.dart';
 
 class DownloadScreen extends StatefulWidget {
   const DownloadScreen({super.key});
@@ -101,15 +101,10 @@ class _DownloadScreenState extends State<DownloadScreen> {
                pubTimestamp: 0,
              );
              
-             Navigator.push(
-               context,
-               MaterialPageRoute(
-                 builder: (context) => VideoPlayerScreen(
-                   playlist: [video],
-                   initialIndex: 0,
-                   localFilePath: task.filePath,
-                 ),
-               ),
+             AppNavigator.toVideoPlayer(context,
+               playlist: [video],
+               initialIndex: 0,
+               localFilePath: task.filePath,
              );
           },
         );

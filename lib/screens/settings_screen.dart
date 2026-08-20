@@ -5,9 +5,7 @@ import '../models/app_settings.dart';
 import '../services/settings_service.dart';
 import '../services/auth_service.dart';
 import '../services/cache_service.dart';
-import 'about_screen.dart';
-import 'login_screen.dart';
-import 'select_folders_screen.dart';
+import '../services/app_navigator.dart';
 
 /// 设置页面，包含清晰度、倍速、收藏夹过滤、缓存清理等功能
 class SettingsScreen extends StatefulWidget {
@@ -83,10 +81,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 title: Text(AppLocalizations.of(context)!.about),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const AboutScreen()),
-                  );
+                  AppNavigator.toAbout(context);
                 },
               ),
               const Divider(),
@@ -119,10 +114,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     } else {
       if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const SelectFoldersScreen()),
-        );
+        AppNavigator.toFolderSelection(context);
       }
     }
   }
@@ -160,11 +152,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     SnackBar(
                         content: Text(AppLocalizations.of(context)!.unlocked)),
                   );
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const SelectFoldersScreen()),
-                  );
+                  AppNavigator.toFolderSelection(context);
                 }
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -289,10 +277,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (confirm == true) {
       await AuthService().logout();
       if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-          (route) => false,
-        );
+        AppNavigator.resetToLogin(context);
       }
     }
   }
