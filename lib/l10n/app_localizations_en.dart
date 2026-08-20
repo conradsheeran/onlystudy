@@ -461,4 +461,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String loadCollectionFailed(Object error) {
     return 'Failed to load collections: $error';
   }
+
+  @override
+  String get bootstrapFailed => 'App failed to start';
+
+  @override
+  String bootstrapFailedPhase(Object phase) {
+    return 'Error during startup phase $phase. Please retry.';
+  }
 }

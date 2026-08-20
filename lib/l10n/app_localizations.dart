@@ -919,6 +919,18 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'加载合集失败: {error}'**
   String loadCollectionFailed(Object error);
+
+  /// No description provided for @bootstrapFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'应用启动失败'**
+  String get bootstrapFailed;
+
+  /// No description provided for @bootstrapFailedPhase.
+  ///
+  /// In zh, this message translates to:
+  /// **'启动阶段 {phase} 出错，请重试'**
+  String bootstrapFailedPhase(Object phase);
 }
 
 class _AppLocalizationsDelegate

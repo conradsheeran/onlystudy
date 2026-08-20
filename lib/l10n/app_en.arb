@@ -135,5 +135,7 @@
   "emptyCollections": "No collections",
   "loadUpFailed": "Failed to load profile: {error}",
   "loadUpVideosFailed": "Failed to load videos: {error}",
-  "loadCollectionFailed": "Failed to load collections: {error}"
+  "loadCollectionFailed": "Failed to load collections: {error}",
+  "bootstrapFailed": "App failed to start",
+  "bootstrapFailedPhase": "Error during startup phase {phase}. Please retry."
 }

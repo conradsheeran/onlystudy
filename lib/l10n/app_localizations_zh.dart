@@ -456,4 +456,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String loadCollectionFailed(Object error) {
     return '加载合集失败: $error';
   }
+
+  @override
+  String get bootstrapFailed => '应用启动失败';
+
+  @override
+  String bootstrapFailedPhase(Object phase) {
+    return '启动阶段 $phase 出错，请重试';
+  }
 }

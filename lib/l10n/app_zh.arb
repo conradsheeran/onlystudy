@@ -139,4 +139,6 @@
   ,"loadUpFailed": "加载UP主信息失败: {error}"
   ,"loadUpVideosFailed": "加载投稿失败: {error}"
   ,"loadCollectionFailed": "加载合集失败: {error}"
+  ,"bootstrapFailed": "应用启动失败"
+  ,"bootstrapFailedPhase": "启动阶段 {phase} 出错，请重试"
 }
