@@ -61,6 +61,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   late double _playbackSpeed;
   late final ValueNotifier<double> _playbackSpeedNotifier;
   final ValueNotifier<int?> _qualityNotifier = ValueNotifier(null);
+  int _qualitySwitchGeneration = 0;
   bool _showOverlay = false;
   String _overlayText = '';
   IconData _overlayIcon = Icons.info;
@@ -293,6 +294,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
       await _setupController(
         _playInfo!.url,
+        audioUrl: _playInfo!.audioUrl,
         startAt: resumeSeconds > 0 ? Duration(seconds: resumeSeconds) : null,
       );
       _syncBackgroundPlaybackMetadata();
@@ -393,6 +395,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 配置并启动播放器控制器
   Future<void> _setupController(
     String url, {
+    String? audioUrl,
     Duration? startAt,
     bool isLocal = false,
     bool shouldPlay = true,
@@ -410,8 +413,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
     await _player.open(media, play: false);
 
-    if (_playInfo?.audioUrl != null && _playInfo!.audioUrl!.isNotEmpty) {
-      await _player.setAudioTrack(AudioTrack.uri(_playInfo!.audioUrl!));
+    if (audioUrl != null && audioUrl.isNotEmpty) {
+      await _player.setAudioTrack(AudioTrack.uri(audioUrl));
     }
 
     _player.setRate(_playbackSpeed);
@@ -569,6 +572,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
       await _setupController(
         _playInfo!.url,
+        audioUrl: _playInfo!.audioUrl,
         startAt: localPosition > 0
             ? Duration(seconds: localPosition)
             : Duration.zero,
@@ -594,6 +598,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   Future<void> _switchQuality(int quality) async {
     if (_cid == null || _playInfo == null) return;
 
+    // 请求世代号：快速连续切换时旧响应不得覆盖新选择
+    final requestGeneration = ++_qualitySwitchGeneration;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
           content: Text(AppLocalizations.of(context)!.switchingQuality),
@@ -604,18 +611,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       final position = _player.state.position;
       final wasPlaying = _player.state.playing;
       final api = BiliApiService();
-      final newInfo =
-          await api.getVideoPlayUrl(_currentVideo.bvid, _cid!, qn: quality);
-
-      final updatedInfo = VideoPlayInfo(
-        url: newInfo.url,
-        quality: newInfo.quality,
-        acceptQuality: _playInfo!.acceptQuality,
-        acceptDescription: _playInfo!.acceptDescription,
+      final newInfo = await api.getVideoPlayUrl(
+        _currentVideo.bvid,
+        _cid!,
+        qn: quality,
       );
 
+      if (requestGeneration != _qualitySwitchGeneration) {
+        // 已有更新的清晰度选择，丢弃本次响应
+        return;
+      }
+
+      // 保留完整 newInfo（含 audioUrl），避免 DASH 音轨丢失
       await _setupController(
-        updatedInfo.url,
+        newInfo.url,
+        audioUrl: newInfo.audioUrl,
         startAt: position,
         shouldPlay: wasPlaying,
       );
@@ -623,11 +633,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
       if (mounted) {
         setState(() {
-          _playInfo = updatedInfo;
+          _playInfo = newInfo;
         });
-        _qualityNotifier.value = updatedInfo.quality;
+        _qualityNotifier.value = newInfo.quality;
       }
     } catch (e) {
+      if (requestGeneration != _qualitySwitchGeneration) {
+        return;
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

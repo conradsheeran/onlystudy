@@ -356,8 +356,10 @@ class VideoPlayInfo {
       final audioList = json['dash']['audio'];
       if (audioList != null && (audioList as List).isNotEmpty) {
         final firstAudio = audioList[0];
-        audioUrl = firstAudio['baseUrl'] ??
-            (firstAudio['backup_url'] != null &&
+        final baseUrl = firstAudio['baseUrl'] as String? ?? '';
+        audioUrl = baseUrl.isNotEmpty
+            ? baseUrl
+            : (firstAudio['backup_url'] != null &&
                     (firstAudio['backup_url'] as List).isNotEmpty
                 ? firstAudio['backup_url'][0]
                 : null);
