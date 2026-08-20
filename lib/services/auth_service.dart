@@ -251,10 +251,16 @@ class AuthService {
     return prefs.getBool('isLoggedIn') ?? false;
   }
 
-  /// 注销登录并清除本地数据
+  /// 注销登录：只删除账号凭据，保留设备级数据（设置、语言、
+  /// 锁密码/锁状态、内容选择、本地历史、缓存时间戳）。
+  /// 不再使用全局 `prefs.clear()`，避免注销抹掉用户偏好（OPT-005）。
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    await prefs.remove('SESSDATA');
+    await prefs.remove('bili_jct');
+    await prefs.remove('uid');
+    await prefs.remove('refresh_token');
+    await prefs.remove('isLoggedIn');
   }
 
   /// 保存用户选择显示的收藏夹ID列表

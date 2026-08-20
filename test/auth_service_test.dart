@@ -112,6 +112,57 @@ void main() {
     });
   });
 
+  group('AuthService.logout', () {
+    test('注销只清除账号凭据，保留设备级数据', () async {
+      SharedPreferences.setMockInitialValues({
+        'SESSDATA': 'sess_value',
+        'bili_jct': 'csrf_value',
+        'uid': '123456',
+        'refresh_token': 'refresh_token_value',
+        'isLoggedIn': true,
+        // 设备级数据：语言、设置、锁、内容选择、历史、缓存时间戳
+        'app_locale': 'zh',
+        'default_resolution': 80,
+        'folder_lock_password': 'hash',
+        'folder_is_locked': true,
+        'visible_folder_ids': ['1', '2'],
+        'visible_season_ids': ['3'],
+        'visible_up_ids': ['4'],
+        'local_watch_history_entries': ['{}'],
+        'last_cache_clear_timestamp': 12345,
+      });
+      final auth = AuthService();
+
+      await auth.logout();
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('SESSDATA'), isNull);
+      expect(prefs.getString('bili_jct'), isNull);
+      expect(prefs.getString('uid'), isNull);
+      expect(prefs.getString('refresh_token'), isNull);
+      expect(prefs.getBool('isLoggedIn'), isNull);
+      expect(await auth.isLoggedIn(), isFalse);
+
+      // 设备级数据必须保留
+      expect(prefs.getString('app_locale'), 'zh');
+      expect(prefs.getInt('default_resolution'), 80);
+      expect(prefs.getString('folder_lock_password'), 'hash');
+      expect(prefs.getBool('folder_is_locked'), isTrue);
+      expect(prefs.getStringList('visible_folder_ids'), ['1', '2']);
+      expect(prefs.getStringList('visible_season_ids'), ['3']);
+      expect(prefs.getStringList('visible_up_ids'), ['4']);
+      expect(prefs.getStringList('local_watch_history_entries'), ['{}']);
+      expect(prefs.getInt('last_cache_clear_timestamp'), 12345);
+    });
+
+    test('未登录时 logout 不抛错', () async {
+      SharedPreferences.setMockInitialValues({});
+      final auth = AuthService();
+      await auth.logout();
+      expect(await auth.isLoggedIn(), isFalse);
+    });
+  });
+
   group('AuthService.appSign', () {
     test('固定参数和时间戳产生确定签名向量', () {
       final signed = AuthService.appSign({
