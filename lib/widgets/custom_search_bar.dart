@@ -13,7 +13,7 @@ class CustomSearchBar extends StatelessWidget {
   const CustomSearchBar({
     super.key,
     required this.controller,
-    this.hintText = '搜索...',
+    this.hintText = '',
     this.onChanged,
     this.onSubmitted,
     this.onClear,

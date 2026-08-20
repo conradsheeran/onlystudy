@@ -105,6 +105,7 @@
   "partsList": "分集列表",
   "playingPart": "即将播放 P{part}: {title}",
   "oopsError": "哎呀，出错了",
+  "watched": "已看完",
   "videoCount": "{count} 个视频",
   "switchPartFailed": "切换分P失败: {error}",
   "language": "语言",

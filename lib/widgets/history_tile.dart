@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:onlystudy/l10n/app_localizations.dart';
 
 import '../models/history_entry.dart';
 import 'common_image.dart';
@@ -166,7 +167,7 @@ class HistoryTile extends StatelessWidget {
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
-                              '已看完',
+                              AppLocalizations.of(context)!.watched,
                               style: theme.textTheme.labelSmall?.copyWith(
                                 color: colorScheme.primary,
                                 fontWeight: FontWeight.w700,

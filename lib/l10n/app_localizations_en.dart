@@ -344,6 +344,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get oopsError => 'Oops, something went wrong';
 
   @override
+  String get watched => 'Watched';
+
+  @override
   String videoCount(Object count) {
     return '$count Videos';
   }

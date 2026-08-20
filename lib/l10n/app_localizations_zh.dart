@@ -342,6 +342,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get oopsError => '哎呀，出错了';
 
   @override
+  String get watched => '已看完';
+
+  @override
   String videoCount(Object count) {
     return '$count 个视频';
   }

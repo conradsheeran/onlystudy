@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:onlystudy/l10n/app_localizations.dart';
 import '../models/bili_models.dart';
 import 'common_image.dart';
 
@@ -53,7 +54,8 @@ class FolderCard extends StatelessWidget {
                     Text(
                       subtitle?.isNotEmpty == true
                           ? subtitle!
-                          : '${folder.mediaCount} 个视频',
+                          : AppLocalizations.of(context)!
+                              .videoCount(folder.mediaCount),
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
                             color: Colors.grey[600],
                           ),

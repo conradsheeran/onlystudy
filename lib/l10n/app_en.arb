@@ -102,6 +102,7 @@
   "partsList": "Parts List",
   "playingPart": "Playing P{part}: {title}",
   "oopsError": "Oops, something went wrong",
+  "watched": "Watched",
   "videoCount": "{count} Videos",
   "switchPartFailed": "Failed to switch part: {error}",
   "language": "Language",

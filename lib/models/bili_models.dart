@@ -12,7 +12,7 @@ class BiliUpper {
   factory BiliUpper.fromJson(Map<String, dynamic> json) {
     return BiliUpper(
       mid: json['mid'] ?? 0,
-      name: json['name'] ?? '未知UP主',
+      name: json['name'] ?? '',
     );
   }
 }
@@ -52,7 +52,7 @@ class BiliUserInfo {
   }) {
     return BiliUserInfo(
       mid: info['mid'] ?? 0,
-      name: info['name'] ?? '未知UP主',
+      name: info['name'] ?? '',
       face: info['face'] ?? '',
       sign: info['sign'] ?? '',
       level: info['level'] ?? 0,
@@ -81,7 +81,7 @@ class UpSpaceCategory {
   factory UpSpaceCategory.fromJson(Map<String, dynamic> json) {
     return UpSpaceCategory(
       tid: json['tid'] ?? 0,
-      name: json['name'] ?? '未知分区',
+      name: json['name'] ?? '',
       count: json['count'] ?? 0,
     );
   }
@@ -124,7 +124,7 @@ class FollowUser {
   factory FollowUser.fromJson(Map<String, dynamic> json) {
     return FollowUser(
       mid: json['mid'] ?? 0,
-      name: json['uname'] ?? json['name'] ?? '未知UP主',
+      name: json['uname'] ?? json['name'] ?? '',
       face: json['face'] ?? '',
       sign: json['sign'] ?? '',
       videoCount: json['video_count'] ?? json['videos'] ?? 0,
@@ -178,7 +178,7 @@ class Folder {
   factory Folder.fromJson(Map<String, dynamic> json) {
     return Folder(
       id: json['id'] ?? 0,
-      title: json['title'] ?? '未知收藏夹',
+      title: json['title'] ?? '',
       mediaCount: json['media_count'] ?? 0,
       cover: json['cover'] ?? 'https://via.placeholder.com/150',
       upper: BiliUpper.fromJson(json['upper'] ?? {}),
@@ -206,7 +206,7 @@ class Season {
   factory Season.fromJson(Map<String, dynamic> json) {
     return Season(
       id: json['season_id'] ?? 0,
-      title: json['title'] ?? '未知合集',
+      title: json['title'] ?? '',
       cover: json['cover'] ?? '',
       upper: BiliUpper.fromJson(json['upper'] ?? {}),
       mediaCount: json['media_count'] ?? 0,
@@ -242,7 +242,7 @@ class Video {
         json['owner'] ??
         {
           'mid': json['mid'] ?? 0,
-          'name': json['author'] ?? '未知UP主',
+          'name': json['author'] ?? '',
         };
     final pubTime = json['pub_time'] ?? json['pubdate'] ?? json['created'] ?? 0;
 
@@ -271,7 +271,7 @@ class Video {
 
     return Video(
       bvid: json['bvid'] ?? '',
-      title: json['title'] ?? '未知视频',
+      title: json['title'] ?? '',
       cover: json['cover'] ?? json['pic'] ?? 'https://via.placeholder.com/150',
       duration: durationSeconds,
       upper: BiliUpper.fromJson(upperJson),

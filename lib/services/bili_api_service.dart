@@ -281,7 +281,7 @@ class BiliApiService {
               mediaCount: item['media_count'] ?? 0,
               upper: BiliUpper(
                 mid: item['upper']?['mid'] ?? 0,
-                name: item['upper']?['name'] ?? '未知UP主',
+                name: item['upper']?['name'] ?? '',
               ),
             ));
           }
@@ -327,7 +327,7 @@ class BiliApiService {
           for (var item in archives) {
             videos.add(Video(
               bvid: item['bvid'] ?? '',
-              title: item['title'] ?? '未知视频',
+              title: item['title'] ?? '',
               cover: item['pic'] ?? '',
               duration: item['duration'] ?? 0,
               upper: BiliUpper(mid: mid, name: item['author'] ?? ''),
