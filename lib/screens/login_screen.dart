@@ -24,10 +24,10 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-        setState(() {
-            _statusText = AppLocalizations.of(context)!.fetchingQRCode;
-        });
-        _loadQRCode();
+      setState(() {
+        _statusText = AppLocalizations.of(context)!.fetchingQRCode;
+      });
+      _loadQRCode();
     });
   }
 
@@ -82,7 +82,9 @@ class _LoginScreenState extends State<LoginScreen> {
             await _authService.saveLoginInfo(result);
             if (mounted) {
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const SelectFoldersScreen(isFirstLogin: true)),
+                MaterialPageRoute(
+                    builder: (context) =>
+                        const SelectFoldersScreen(isFirstLogin: true)),
                 (route) => false,
               );
             }
@@ -167,11 +169,13 @@ class _LoginScreenState extends State<LoginScreen> {
           size: 200.0,
           eyeStyle: QrEyeStyle(
             eyeShape: QrEyeShape.square,
-            color: _isExpired ? Colors.grey.withValues(alpha: 0.3) : Colors.black,
+            color:
+                _isExpired ? Colors.grey.withValues(alpha: 0.3) : Colors.black,
           ),
           dataModuleStyle: QrDataModuleStyle(
             dataModuleShape: QrDataModuleShape.square,
-            color: _isExpired ? Colors.grey.withValues(alpha: 0.3) : Colors.black,
+            color:
+                _isExpired ? Colors.grey.withValues(alpha: 0.3) : Colors.black,
           ),
         ),
         if (_isExpired)
