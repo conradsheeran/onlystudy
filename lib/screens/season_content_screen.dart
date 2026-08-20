@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
+
 import '../models/bili_models.dart';
-import '../widgets/video_tile.dart';
-import '../widgets/error_view.dart';
 import '../services/bili_api_service.dart';
 import '../services/bili_failure_message.dart';
 import '../services/database_service.dart';
+import '../services/paged_loader.dart';
+import '../widgets/error_view.dart';
+import '../widgets/video_tile.dart';
 import 'video_player_screen.dart';
 
 class SeasonContentScreen extends StatefulWidget {
@@ -21,153 +23,112 @@ class _SeasonContentScreenState extends State<SeasonContentScreen> {
   final BiliApiService _biliApiService = BiliApiService();
   final DatabaseService _databaseService = DatabaseService();
   final ScrollController _scrollController = ScrollController();
-  List<Video> _videos = [];
-  bool _isLoading = true;
-  bool _isLoadingMore = false;
-  String? _error;
-  int _page = 1;
-  bool _hasMore = true;
+
+  late final PagedLoader<Video> _loader;
 
   @override
   void initState() {
     super.initState();
-    _fetchVideos(refresh: true);
+    _loader = PagedLoader<Video>(
+      fetchPage: (page) async {
+        final videos = await _biliApiService.getSeasonVideos(
+          widget.season.id,
+          widget.season.upper.mid,
+          pn: page,
+        );
+        if (videos.isNotEmpty) {
+          _databaseService.insertVideos(videos, seasonId: widget.season.id);
+        }
+        return PagedResult(items: videos, hasMore: videos.length >= 20);
+      },
+    );
+    _loader.addListener(_onLoaderChanged);
     _scrollController.addListener(_onScroll);
+    _loader.refresh();
+  }
+
+  void _onLoaderChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _loader.removeListener(_onLoaderChanged);
+    _loader.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
+  /// 滚动监听，触底加载更多
   void _onScroll() {
     if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 200 &&
-        !_isLoadingMore &&
-        _hasMore) {
-      _fetchVideos(refresh: false);
-    }
-  }
-
-  Future<void> _fetchVideos({bool refresh = false}) async {
-    if (refresh) {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-        _page = 1;
-        _hasMore = true;
-        _videos.clear();
-      });
-    } else {
-      setState(() {
-        _isLoadingMore = true;
-      });
-    }
-
-    try {
-      final videos = await _biliApiService.getSeasonVideos(
-        widget.season.id,
-        widget.season.upper.mid,
-        pn: _page,
-      );
-
-      if (mounted) {
-        if (videos.isNotEmpty) {
-          _databaseService.insertVideos(videos, seasonId: widget.season.id);
-        }
-
-        setState(() {
-          if (refresh) {
-            _videos = videos;
-          } else {
-            _videos.addAll(videos);
-          }
-
-          if (videos.length < 20) {
-            _hasMore = false;
-          } else {
-            _page++;
-          }
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        if (refresh) {
-          setState(() {
-            _error = AppLocalizations.of(context)!.loadFailed(
-                e.toUserMessage(context));
-          });
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(AppLocalizations.of(context)!
-                    .loadMoreFailed(e.toUserMessage(context)))),
-          );
-        }
-      }
-
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _isLoadingMore = false;
-        });
-      }
+        _scrollController.position.maxScrollExtent - 200) {
+      _loader.loadNext();
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.season.title),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? ErrorView(
-                  message: _error!,
-                  onRetry: () => _fetchVideos(refresh: true),
-                )
-              : RefreshIndicator(
-                  onRefresh: () => _fetchVideos(refresh: true),
-                  child: _videos.isEmpty
-                      ? Center(
-                          child: Text(
-                              AppLocalizations.of(context)!.noVideosInSeason),
-                        )
-                      : ListView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.all(12),
-                          itemCount: _videos.length + (_hasMore ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (index == _videos.length) {
-                              return const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(8.0),
-                                  child: CircularProgressIndicator(),
-                                ),
-                              );
-                            }
-                            final video = _videos[index];
-                            return VideoTile(
-                              video: video,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => VideoPlayerScreen(
-                                      playlist: _videos,
-                                      initialIndex: index,
-                                    ),
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        ),
-                ),
+      appBar: AppBar(title: Text(widget.season.title)),
+      body: _buildBody(l10n),
     );
+  }
+
+  Widget _buildBody(AppLocalizations l10n) {
+    return switch (_loader.value) {
+      PagedLoading<Video>() =>
+        const Center(child: CircularProgressIndicator()),
+      PagedError<Video>(:final error) => ErrorView(
+          message: l10n.loadFailed(error.toUserMessage(context)),
+          onRetry: _loader.refresh,
+        ),
+      PagedLoaded<Video>(:final items, :final hasMore) =>
+        RefreshIndicator(
+          onRefresh: _loader.refresh,
+          child: items.isEmpty
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    SizedBox(
+                      height: 300,
+                      child: Center(child: Text(l10n.noVideosInSeason)),
+                    ),
+                  ],
+                )
+              : ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(12),
+                  itemCount: items.length + (hasMore ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index == items.length) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
+                    }
+                    final video = items[index];
+                    return VideoTile(
+                      video: video,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => VideoPlayerScreen(
+                              playlist: items,
+                              initialIndex: index,
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+        ),
+      PagedInitial<Video>() => const SizedBox.shrink(),
+    };
   }
 }

@@ -1,9 +1,10 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
+
 import '../models/bili_models.dart';
 import '../services/bili_api_service.dart';
 import '../services/bili_failure_message.dart';
+import '../services/paged_loader.dart';
 import '../widgets/common_image.dart';
 import '../widgets/error_view.dart';
 import '../widgets/video_tile.dart';
@@ -25,38 +26,51 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
   final ScrollController _scrollController = ScrollController();
 
   BiliUserInfo? _info;
-  List<Video> _videos = [];
   bool _loadingInfo = true;
-  bool _loadingList = true;
-  bool _loadingMore = false;
-  bool _hasMore = true;
-  int _page = 1;
   String _order = 'pubdate';
-  String? _error;
+  String? _infoError;
+
+  late final PagedLoader<Video> _loader;
 
   @override
   void initState() {
     super.initState();
+    _loader = PagedLoader<Video>(
+      fetchPage: (page) async {
+        final result = await _api.getUpVideos(
+          mid: widget.mid,
+          pn: page,
+          order: _order,
+        );
+        return PagedResult(items: result.videos, hasMore: result.hasMore);
+      },
+    );
+    _loader.addListener(_onLoaderChanged);
     _scrollController.addListener(_onScroll);
     _loadInitial();
   }
 
+  void _onLoaderChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    _loader.removeListener(_onLoaderChanged);
+    _loader.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  /// 首次加载，获取 UP 信息、合集与首屏投稿
+  /// 首次加载，获取 UP 信息与首屏投稿
   Future<void> _loadInitial() async {
     setState(() {
       _loadingInfo = true;
-      _loadingList = true;
-      _error = null;
+      _infoError = null;
     });
     await Future.wait([
       _loadInfo(),
-      _loadVideos(reset: true),
+      _loader.refresh(),
     ]);
   }
 
@@ -71,7 +85,7 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = AppLocalizations.of(context)!.loadUpFailed(
+        _infoError = AppLocalizations.of(context)!.loadUpFailed(
             e.toUserMessage(context));
       });
     } finally {
@@ -83,75 +97,11 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
     }
   }
 
-  /// 统一加载投稿列表
-  Future<void> _loadList({bool reset = false}) async {
-    await _loadVideos(reset: reset);
-  }
-
-  /// 加载投稿列表，支持排序
-  Future<void> _loadVideos({bool reset = false}) async {
-    if (reset) {
-      setState(() {
-        _loadingList = true;
-        _loadingMore = false;
-        _hasMore = true;
-        _page = 1;
-        _videos.clear();
-      });
-    } else {
-      if (_loadingMore || !_hasMore) return;
-      setState(() {
-        _loadingMore = true;
-      });
-    }
-
-    try {
-      final page = await _api.getUpVideos(
-        mid: widget.mid,
-        pn: _page,
-        order: _order,
-      );
-      if (!mounted) return;
-      setState(() {
-        if (reset) {
-          _videos = page.videos;
-        } else {
-          _videos.addAll(page.videos);
-        }
-        if (page.hasMore) {
-          _page++;
-        } else {
-          _hasMore = false;
-        }
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = AppLocalizations.of(context)!.loadUpVideosFailed(
-            e.toUserMessage(context));
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(AppLocalizations.of(context)!
-                .loadUpVideosFailed(e.toUserMessage(context)))),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _loadingList = false;
-          _loadingMore = false;
-        });
-      }
-    }
-  }
-
   /// 滚动监听以触发加载更多
   void _onScroll() {
     if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 200 &&
-        !_loadingMore &&
-        _hasMore) {
-      _loadList();
+        _scrollController.position.maxScrollExtent - 200) {
+      _loader.loadNext();
     }
   }
 
@@ -161,7 +111,7 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
     setState(() {
       _order = value;
     });
-    _loadVideos(reset: true);
+    _loader.refresh();
   }
 
   /// 构建用户信息卡片
@@ -176,7 +126,7 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
     final info = _info;
     if (info == null) {
       return ErrorView(
-        message: _error ?? AppLocalizations.of(context)!.loadUpFailed(''),
+        message: _infoError ?? AppLocalizations.of(context)!.loadUpFailed(''),
         onRetry: _loadInitial,
       );
     }
@@ -240,21 +190,14 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
 
   /// 构建列表主体
   Widget _buildBody() {
-    if (_loadingList && _videos.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    final l10n = AppLocalizations.of(context)!;
+    final state = _loader.value;
 
-    if (_error != null && _videos.isEmpty) {
-      return ErrorView(
-        message: _error!,
-        onRetry: () => _loadList(reset: true),
-      );
-    }
-
-    if (_videos.isEmpty) {
-      final emptyText = AppLocalizations.of(context)!.emptyUpVideos;
+    if (state is PagedLoading<Video> ||
+        (state is PagedLoaded<Video> && state.items.isEmpty)) {
+      // 首屏加载中或加载完成但为空
       return RefreshIndicator(
-        onRefresh: () => _loadList(reset: true),
+        onRefresh: _loader.refresh,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
@@ -263,55 +206,73 @@ class _UpSpaceScreenState extends State<UpSpaceScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: _buildFilters(),
             ),
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Center(child: Text(emptyText)),
-            ),
+            if (state is PagedLoaded<Video>)
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Center(child: Text(l10n.emptyUpVideos)),
+              ),
           ],
         ),
       );
     }
 
-    final itemCount = _videos.length + 2 + (_loadingMore ? 1 : 0);
-    return RefreshIndicator(
-      onRefresh: () => _loadList(reset: true),
-      child: ListView.builder(
-        controller: _scrollController,
-        padding: const EdgeInsets.all(12),
-        itemCount: itemCount,
-        itemBuilder: (context, index) {
-          if (index == 0) return _buildHeader();
-          if (index == 1) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _buildFilters(),
-            );
-          }
-          if (_loadingMore && index == itemCount - 1) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-          final videoIndex = index - 2;
-          final video = _videos[videoIndex];
-          return VideoTile(
-            video: video,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => VideoPlayerScreen(
-                    playlist: _videos,
-                    initialIndex: videoIndex,
-                  ),
-                ),
+    if (state is PagedError<Video>) {
+      return ErrorView(
+        message: _loader.hasLoaded
+            ? (state.error).toUserMessage(context)
+            : l10n.loadUpVideosFailed(state.error.toUserMessage(context)),
+        onRetry: () => _loader.refresh(),
+      );
+    }
+
+    if (state is PagedLoaded<Video>) {
+      final videos = state.items;
+      final hasMore = state.hasMore;
+      final loadingMore = state.loadingMore;
+      final showTail = hasMore || loadingMore;
+      final itemCount = videos.length + 2 + (showTail ? 1 : 0);
+      return RefreshIndicator(
+        onRefresh: _loader.refresh,
+        child: ListView.builder(
+          controller: _scrollController,
+          padding: const EdgeInsets.all(12),
+          itemCount: itemCount,
+          itemBuilder: (context, index) {
+            if (index == 0) return _buildHeader();
+            if (index == 1) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildFilters(),
               );
-            },
-          );
-        },
-      ),
-    );
+            }
+            if (showTail && index == itemCount - 1) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            final videoIndex = index - 2;
+            final video = videos[videoIndex];
+            return VideoTile(
+              video: video,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => VideoPlayerScreen(
+                      playlist: videos,
+                      initialIndex: videoIndex,
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
   /// 构建整体界面
