@@ -15,7 +15,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final AuthService _authService = AuthService();
   String? _qrUrl;
-  String? _qrKey;
+  String? _authCode;
   String _statusText = ''; // Will be set in initState
   Timer? _timer;
   bool _isExpired = false;
@@ -50,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         setState(() {
           _qrUrl = data['url'];
-          _qrKey = data['qrcode_key'];
+          _authCode = data['auth_code'];
           _statusText = AppLocalizations.of(context)!.scanQRCode;
         });
         _startPolling();
@@ -68,10 +68,10 @@ class _LoginScreenState extends State<LoginScreen> {
   void _startPolling() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 3), (timer) async {
-      if (_qrKey == null || !mounted) return;
+      if (_authCode == null || !mounted) return;
 
       try {
-        final result = await _authService.pollLoginStatus(_qrKey!);
+        final result = await _authService.pollLoginStatus(_authCode!);
         if (result != null) {
           // 登录成功
           timer.cancel();
