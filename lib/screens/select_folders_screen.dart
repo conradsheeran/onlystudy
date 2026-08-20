@@ -354,7 +354,7 @@ class _SelectFoldersScreenState extends State<SelectFoldersScreen>
           ),
           secondary: CircleAvatar(
             backgroundImage: NetworkImage(up.face),
-            onBackgroundImageError: (_, __) {},
+            onBackgroundImageError: (_, _) {},
           ),
           onChanged: (val) {
             setState(() {

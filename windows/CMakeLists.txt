@@ -46,9 +46,9 @@ function(APPLY_STANDARD_SETTINGS TARGET)
 endfunction()
 
 # VS2026 MSVC 14.51 makes STL1011 a hard error for /await + <experimental/coroutine>.
-# Microsoft provides this definition to suppress it; plugins using CppWinRT (/await)
-# (e.g. permission_handler_windows) otherwise fail to compile.
-add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+# Microsoft provides this definition to suppress it; previously required by
+# permission_handler_windows (CppWinRT). Removed together with the
+# permission_handler dependency; restore if a plugin with /await returns.
 
 # Flutter library and tool build rules.
 set(FLUTTER_MANAGED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/flutter")
