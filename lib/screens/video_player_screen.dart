@@ -9,12 +9,13 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/bili_models.dart';
 import '../models/history_entry.dart';
+import '../models/playback_progress_snapshot.dart';
 import '../services/bili_api_service.dart';
 import '../services/download_service.dart';
 import '../services/history_service.dart';
 import '../services/playback_bridge.dart';
+import '../services/progress_save_queue.dart';
 import '../services/settings_service.dart';
-
 /// 视频播放器页面
 class VideoPlayerScreen extends StatefulWidget {
   final List<Video> playlist;
@@ -50,7 +51,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   VideoDetail? _videoDetail;
   Timer? _saveHistoryTimer;
   Timer? _positionGuardTimer;
-
+  late final ProgressSaveQueue _progressQueue;
   List<int> _supportQualities = [];
   List<String> _supportQualityDescs = [];
 
@@ -118,6 +119,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     WidgetsBinding.instance.addObserver(this);
     _currentIndex = widget.initialIndex;
     _playbackSpeed = SettingsService().defaultPlaybackSpeed;
+    _progressQueue = ProgressSaveQueue(persist: _persistSnapshot);
     _playbackSpeedNotifier = ValueNotifier(_playbackSpeed);
 
     WakelockPlus.enable();
@@ -294,8 +296,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         startAt: resumeSeconds > 0 ? Duration(seconds: resumeSeconds) : null,
       );
       _syncBackgroundPlaybackMetadata();
-      await _syncHistoryContext(progressSeconds: resumeSeconds);
-
+      await _saveProgress();
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -326,28 +327,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
   }
 
-  Future<void> _syncHistoryContext({
-    required int progressSeconds,
-    bool isFinished = false,
-  }) async {
-    if (_cid == null) {
-      return;
-    }
-
-    await HistoryService().savePlaybackProgress(
-      video: _currentVideo,
-      aid: _videoDetail?.aid ?? 0,
-      cid: _cid!,
-      page: _currentPageNumber,
-      partTitle: _currentPartTitle,
-      duration: _currentDurationSeconds,
-      seconds: progressSeconds,
-      isFinished: isFinished,
-    );
-  }
-
-  /// 保存当前播放进度到 B 站服务器
-  Future<void> _saveProgress({bool markFinished = false}) async {
+  /// 在任何网络等待之前捕获当前播放进度的不可变快照。
+  PlaybackProgressSnapshot _captureSnapshot({
+    bool markFinished = false,
+  }) {
     final position = _player.state.position.inSeconds;
     final durationSeconds = _currentDurationSeconds;
     final effectivePosition = markFinished && durationSeconds > 0
@@ -356,17 +339,47 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     final isFinished = markFinished ||
         (durationSeconds > 0 && effectivePosition >= durationSeconds - 3);
 
-    if (effectivePosition > 5 && _videoDetail != null && _cid != null) {
-      await BiliApiService().reportHistory(
-        aid: _videoDetail!.aid,
-        cid: _cid!,
-        progress: effectivePosition,
-      );
+    return PlaybackProgressSnapshot(
+      video: _currentVideo,
+      aid: _videoDetail?.aid ?? 0,
+      cid: _cid ?? 0,
+      page: _currentPageNumber,
+      partTitle: _currentPartTitle,
+      duration: durationSeconds,
+      seconds: effectivePosition,
+      isFinished: isFinished,
+    );
+  }
+
+  /// 串行化提交进度保存，避免并发读改写 SharedPreferences。
+  Future<void> _saveProgress({bool markFinished = false}) {
+    return _progressQueue.submit(_captureSnapshot(markFinished: markFinished));
+  }
+
+  /// 保存单个快照：本地写入优先，远程上报独立失败。
+  Future<void> _persistSnapshot(PlaybackProgressSnapshot snapshot) async {
+    if (snapshot.seconds > 5 && snapshot.aid > 0 && snapshot.cid > 0) {
+      try {
+        await BiliApiService().reportHistory(
+          aid: snapshot.aid,
+          cid: snapshot.cid,
+          progress: snapshot.seconds,
+        );
+      } catch (e) {
+        // 远程上报失败不阻塞本地保存
+        debugPrint('Failed to report history: $e');
+      }
     }
 
-    await _syncHistoryContext(
-      progressSeconds: effectivePosition,
-      isFinished: isFinished,
+    await HistoryService().savePlaybackProgress(
+      video: snapshot.video,
+      aid: snapshot.aid,
+      cid: snapshot.cid,
+      page: snapshot.page,
+      partTitle: snapshot.partTitle,
+      duration: snapshot.duration,
+      seconds: snapshot.seconds,
+      isFinished: snapshot.isFinished,
     );
   }
 
@@ -561,8 +574,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             : Duration.zero,
       );
       _syncBackgroundPlaybackMetadata();
-      await _syncHistoryContext(progressSeconds: localPosition);
-
+      await _saveProgress();
       if (mounted) {
         setState(() {
           _isLoading = false;
