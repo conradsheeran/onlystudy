@@ -991,6 +991,12 @@ abstract final class AppNavigator {
 
 ## OPT-014：设置通知不统一，UpdateService 混合网络和 UI
 
+> ✅ 已完成（2026-08-21，commit 9b76f65）
+>
+> - SettingsService 已暴露 `ValueListenable<AppSettings> settings` 统一快照（此前已完成）。
+> - UpdateService 拆为 `UpdateChecker` 纯逻辑层（`check()` 返回 sealed `UpdateCheckResult`）+ UI 协调层。
+> - 新增 UpdateChecker 16 个纯逻辑测试、UpdateService 8 个 widget 测试。
+
 **优先级：中**
 
 涉及文件：
