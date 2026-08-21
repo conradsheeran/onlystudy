@@ -4,7 +4,6 @@ import '../models/bili_models.dart';
 import 'auth_service.dart';
 import 'favorites_catalog.dart';
 import 'up_library.dart';
-import 'bili_failure.dart';
 import 'database_service.dart';
 
 /// 主页内容条目（sealed，替代 `List<dynamic>`，OPT-009）。
@@ -216,9 +215,9 @@ class HomeLibraryController extends ValueNotifier<HomeLibraryState> {
               sign: info.sign,
               videoCount: info.videoCount,
             );
-          } on BiliFailure {
-            rethrow;
           } catch (e) {
+            // 单个 UP 信息加载失败（含风控 -799）不影响其他内容：
+            // 跳过该 UP，避免整个主页加载失败。
             debugPrint('Failed to load up $mid: $e');
             return null;
           }

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onlystudy/models/bili_models.dart';
+import 'package:onlystudy/services/bili_failure.dart';
 import 'package:onlystudy/services/auth_service.dart';
 import 'package:onlystudy/services/favorites_catalog.dart';
 import 'package:onlystudy/services/home_library_controller.dart';
@@ -35,9 +36,13 @@ class _FakeCatalog extends FavoritesCatalog {
 /// 可编程 [UpLibrary] 替身：返回预设的 UP 信息。
 class _FakeUpLibrary extends UpLibrary {
   Map<int, BiliUserInfo> upInfo = {};
+  Set<int> failingMids = {};
 
   @override
   Future<BiliUserInfo> getUpInfo(int mid) async {
+    if (failingMids.contains(mid)) {
+      throw const BiliFailure(BiliFailureKind.bizError, code: -799);
+    }
     return upInfo[mid] ??
         BiliUserInfo(
           mid: mid,
@@ -193,6 +198,28 @@ void main() {
       final ok = await controller.checkLockPassword('secret');
       expect(ok, isTrue);
       expect(controller.isLocked, isFalse);
+    });
+  });
+
+  group('HomeLibraryController UP 容错', () {
+    test('单个 UP 风控失败（BiliFailure）不影响主页加载', () async {
+      SharedPreferences.setMockInitialValues({
+        'visible_up_ids': ['111', '222'],
+      });
+      // 第一个 UP 抛风控 BiliFailure，第二个正常
+      final flakyUp = _FakeUpLibrary()
+        ..failingMids = {111};
+
+      final controller = HomeLibraryController(
+        catalog: catalog,
+        upLibrary: flakyUp,
+      );
+      await controller.init();
+      await controller.refresh();
+
+      expect(controller.value, isA<HomeLibraryLoaded>());
+      final loaded = controller.value as HomeLibraryLoaded;
+      expect(loaded.items, isNotEmpty);
     });
   });
 }
