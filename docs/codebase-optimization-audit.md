@@ -796,6 +796,14 @@ UI 只负责：
 
 ## OPT-010：全局解码图片缓存被提高到 500 MiB
 
+> ✅ 已完成（2026-08-21，commit a23ab20 + f3ef096）
+>
+> - 删除 500 MiB 解码缓存覆盖，回到 Flutter 默认 100 MiB 预算（a23ab20）。
+> - CommonImage 移除为动画时长做的 `getFileFromCache` 磁盘探测（a23ab20）。
+> - 缩略图按展示尺寸解码：CommonImage 按 width/height × devicePixelRatio 传 `memCacheWidth/Height`（f3ef096）。
+> - 图片缓存统一由 `CacheService.imageCacheManager` 管理，渲染与清理共用同一实例（f3ef096）。
+> - 设置页改为「清理图片缓存」，确认文案说明不影响搜索缓存与下载文件（f3ef096）。
+>
 **优先级：中高**
 
 涉及文件：
@@ -1080,6 +1088,14 @@ lint 升级应独立提交，先查看 6.0.0 引入的新增警告，再逐项�
 
 ## OPT-016：依赖中存在未使用项和 discontinued 包
 
+> ✅ 已完成（2026-08-21，commit c1fbf41 + ecf2c4e + c1b8c42）
+>
+> - 移除未使用的 `permission_handler` 并清理 Windows CMake 抑制宏（c1fbf41）。
+> - `flutter_markdown` → `flutter_markdown_plus 1.0.12`（discontinued 替换，API 兼容，ecf2c4e）。
+> - 升级 flutter_lints 2.x → 6.x（c1fbf41）。
+> - patch/minor 依赖升级：audio_service/audio_session/dio/flutter_cache_manager/media_kit/path_provider/shared_preferences，以及 screen_brightness 2.1.11、wakelock_plus 1.6.1、package_info_plus 10.2.1（c1b8c42）。
+> - 剩余 major 升级单独评估：flutter_volume_controller 2.x、media_kit_video 2.x、intl 0.20.3、sqflite 2.4.3、wakelock_plus 1.7.0。
+>
 **优先级：中**
 
 涉及文件：
@@ -1174,6 +1190,16 @@ loadFailed(e.toString())
 
 ## OPT-018：测试覆盖尚未覆盖最高风险模块
 
+> ✅ 已完成（2026-08-21；测试 123 → 127）
+>
+> - 下载：本地 HTTP Server 集成测试（download_transport_test）、队列/取消/恢复/重试（download_service_test）、进程重启恢复 running→paused（本次新增，commit 3e9c8ed）。
+> - 数据库 v3：多来源关系、UP 过滤、清理策略、v2→v3 迁移（database_service_test）。
+> - 网络：BiliHttpClient 错误映射、UpLibrary WBI 签名 fixture、FavoritesCatalog 端点差异（bili_http_client_test / up_library_test / favorites_catalog_test / playback_gateway_test）。
+> - 登录：AuthService 凭据解析与注销、LoginScreen challenge 字段映射/轮询防重入/成功只导航一次（auth_service_test + login_screen_test，本次新增，commit fc69cf9）。
+> - 分页：PagedLoader refresh/loadMore 竞争与旧响应覆盖防护（paged_loader_test）。
+> - 播放器：PlaybackSession 背景播放/中断/seek 钳制（playback_session_test）、DASH 音轨保留（play_info_test）、进度快照队列（progress_save_queue_test）。
+> - 主页：HomeLibraryController 来源过滤/锁定状态（home_library_controller_test）。
+>
 **优先级：中**
 
 当前测试：
