@@ -11,9 +11,10 @@ import '../models/qr_login.dart';
 class AuthService {
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
-  AuthService._internal();
 
-  final Dio _dio = Dio(
+  final Dio _dio;
+
+  AuthService._internal() : _dio = Dio(
     BaseOptions(
       baseUrl: 'https://passport.bilibili.com',
       headers: {
@@ -23,6 +24,13 @@ class AuthService {
       },
     ),
   );
+
+  /// 测试专用：注入自定义 Dio（例如固定响应或记录请求的 fake）。
+  @visibleForTesting
+  set dioForTest(Dio dio) => _dioOverride = dio;
+
+  Dio? _dioOverride;
+  Dio get _effectiveDio => _dioOverride ?? _dio;
 
   // HD 版登录接口使用的 appkey/appsec（与 PiliPlus 一致）
   static const String _appKey = 'dfca71928277209b';
@@ -113,7 +121,7 @@ class AuthService {
         'platform': 'android',
         'mobi_app': 'android_hd',
       });
-      final response = await _dio.post(
+      final response = await _effectiveDio.post(
         '/x/passport-tv-login/qrcode/auth_code',
         queryParameters: params,
       );
@@ -141,7 +149,7 @@ class AuthService {
   Future<Map<String, dynamic>?> pollLoginStatus(String authCode) async {
     try {
       final params = _appSign({'auth_code': authCode, 'local_id': '0'});
-      final response = await _dio.post(
+      final response = await _effectiveDio.post(
         '/x/passport-tv-login/qrcode/poll',
         queryParameters: params,
       );
@@ -168,7 +176,7 @@ class AuthService {
   Future<QrLoginPollResult> pollLoginTyped(String authCode) async {
     try {
       final params = _appSign({'auth_code': authCode, 'local_id': '0'});
-      final response = await _dio.post(
+      final response = await _effectiveDio.post(
         '/x/passport-tv-login/qrcode/poll',
         queryParameters: params,
       );
