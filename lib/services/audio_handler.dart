@@ -110,21 +110,14 @@ class OnlyStudyAudioHandler extends BaseAudioHandler
 
   @override
   void updatePosition(Duration position) {
-    playbackState.add(
-      playbackState.value.copyWith(
-        updatePosition: position,
-      ),
-    );
+    playbackState.add(playbackState.value.copyWith(updatePosition: position));
   }
 
   @override
   void clearSession() {
     mediaItem.add(null);
     playbackState.add(
-      PlaybackState(
-        processingState: AudioProcessingState.idle,
-        playing: false,
-      ),
+      PlaybackState(processingState: AudioProcessingState.idle, playing: false),
     );
   }
 }

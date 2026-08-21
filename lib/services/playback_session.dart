@@ -45,7 +45,6 @@ abstract class PlaybackSessionSink {
   void clearSession();
 }
 
-
 /// 音频会话适配（生产为 [RealAudioSessionAdapter]，测试可注入替身）。
 ///
 /// 会话通过该接口统一获得 AudioSession 生命周期，
@@ -221,10 +220,7 @@ class PlaybackSession with WidgetsBindingObserver {
   }
 
   /// 卸载播放器；[stopPlayback] 为 true 时先停止播放。
-  Future<void> detachPlayer(
-    Player player, {
-    bool stopPlayback = false,
-  }) async {
+  Future<void> detachPlayer(Player player, {bool stopPlayback = false}) async {
     if (!identical(_player, player)) return;
 
     if (stopPlayback) {

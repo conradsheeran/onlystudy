@@ -56,43 +56,43 @@ class _FakePlatformPlayer extends PlatformPlayer {
 
   @override
   PlayerState get state => PlayerState(
-        playing: _playing,
-        position: _position,
-        buffer: _buffer,
-        duration: _duration,
-        buffering: _buffering,
-        completed: _completed,
-        rate: _rate,
-      );
+    playing: _playing,
+    position: _position,
+    buffer: _buffer,
+    duration: _duration,
+    buffering: _buffering,
+    completed: _completed,
+    rate: _rate,
+  );
 
   @override
   PlayerStream get stream => PlayerStream(
-        const Stream.empty(),
-        playingCtrl.stream,
-        completedCtrl.stream,
-        positionCtrl.stream,
-        durationCtrl.stream,
-        const Stream.empty(),
-        const Stream.empty(),
-        const Stream.empty(),
-        bufferingCtrl.stream,
-        const Stream.empty(),
-        bufferCtrl.stream,
-        const Stream.empty(),
-        const Stream.empty(),
-        const Stream.empty(),
-        const Stream.empty(),
-        const Stream.empty(),
-        const Stream.empty(),
-        const Stream.empty(),
-        const Stream.empty(),
-        const Stream.empty(),
-        const Stream.empty(),
-        const Stream.empty(),
-        const Stream.empty(),
-        const Stream.empty(),
-        const Stream.empty(),
-      );
+    const Stream.empty(),
+    playingCtrl.stream,
+    completedCtrl.stream,
+    positionCtrl.stream,
+    durationCtrl.stream,
+    const Stream.empty(),
+    const Stream.empty(),
+    const Stream.empty(),
+    bufferingCtrl.stream,
+    const Stream.empty(),
+    bufferCtrl.stream,
+    const Stream.empty(),
+    const Stream.empty(),
+    const Stream.empty(),
+    const Stream.empty(),
+    const Stream.empty(),
+    const Stream.empty(),
+    const Stream.empty(),
+    const Stream.empty(),
+    const Stream.empty(),
+    const Stream.empty(),
+    const Stream.empty(),
+    const Stream.empty(),
+    const Stream.empty(),
+    const Stream.empty(),
+  );
 
   @override
   Future<void> play() async {
@@ -368,7 +368,8 @@ class _FakeAudioSession implements AudioSessionAdapter {
   AudioSessionConfiguration? configured;
   int activeCount = 0;
 
-  final _interruptionCtrl = StreamController<AudioInterruptionEvent>.broadcast();
+  final _interruptionCtrl =
+      StreamController<AudioInterruptionEvent>.broadcast();
   final _noisyCtrl = StreamController<void>.broadcast();
 
   @override

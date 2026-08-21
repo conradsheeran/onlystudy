@@ -19,9 +19,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.settings),
-      ),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.settings)),
       body: ValueListenableBuilder<AppSettings>(
         valueListenable: SettingsService().settings,
         builder: (context, settings, _) {
@@ -30,9 +28,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ListTile(
                 leading: const Icon(Icons.video_settings),
                 title: Text(AppLocalizations.of(context)!.defaultResolution),
-                subtitle: Text(SettingsService
-                        .resolutionMap[settings.defaultResolution] ??
-                    '720P'),
+                subtitle: Text(
+                  SettingsService.resolutionMap[settings.defaultResolution] ??
+                      '720P',
+                ),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: _showResolutionDialog,
               ),
@@ -130,7 +129,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           controller: controller,
           obscureText: true,
           decoration: InputDecoration(
-              hintText: AppLocalizations.of(context)!.enterPassword),
+            hintText: AppLocalizations.of(context)!.enterPassword,
+          ),
           autofocus: true,
         ),
         actions: [
@@ -140,8 +140,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           FilledButton(
             onPressed: () async {
-              final isCorrect =
-                  await AuthService().checkFolderLockPassword(controller.text);
+              final isCorrect = await AuthService().checkFolderLockPassword(
+                controller.text,
+              );
               if (!context.mounted) return;
 
               if (isCorrect) {
@@ -150,15 +151,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Navigator.pop(context); // Close dialog
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                        content: Text(AppLocalizations.of(context)!.unlocked)),
+                      content: Text(AppLocalizations.of(context)!.unlocked),
+                    ),
                   );
                   AppNavigator.toFolderSelection(context);
                 }
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                      content: Text(
-                          AppLocalizations.of(context)!.passwordIncorrect)),
+                    content: Text(
+                      AppLocalizations.of(context)!.passwordIncorrect,
+                    ),
+                  ),
                 );
               }
             },
@@ -211,7 +215,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           controller: controller,
           obscureText: true,
           decoration: InputDecoration(
-              hintText: AppLocalizations.of(context)!.enterPassword),
+            hintText: AppLocalizations.of(context)!.enterPassword,
+          ),
           autofocus: true,
         ),
         actions: [
@@ -221,16 +226,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           FilledButton(
             onPressed: () async {
-              final isCorrect =
-                  await AuthService().checkFolderLockPassword(controller.text);
+              final isCorrect = await AuthService().checkFolderLockPassword(
+                controller.text,
+              );
               if (context.mounted) {
                 if (isCorrect) {
                   Navigator.pop(context, true);
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                        content: Text(
-                            AppLocalizations.of(context)!.passwordIncorrect)),
+                      content: Text(
+                        AppLocalizations.of(context)!.passwordIncorrect,
+                      ),
+                    ),
                   );
                 }
               }
