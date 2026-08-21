@@ -141,6 +141,42 @@ void main() {
         .toList();
     expect(files, isEmpty);
   });
+
+  test('进程重启后遗留 running 任务恢复为 paused（不假跑）', () async {
+    final transport = makeFakeTransport();
+    service.transportForTest = transport;
+    service.playUrlProvider = (bvid, cid, qn) async =>
+        'https://example.com/video.mp4';
+
+    // 启动下载并让它保持在 running 状态（传输挂起未完成）
+    await service.startDownload(video, 1, 1000);
+    await transport.waitForDownloads(1, timeout: const Duration(seconds: 2));
+    expect(
+      service.currentTasks.any(
+        (t) => t.bvid == video.bvid && t.status == DownloadStatus.running,
+      ),
+      isTrue,
+    );
+
+    // 模拟进程崩溃：同目录重建服务并重新 init
+    final dbPath = await service.dbPathProvider!();
+    service.resetForTest();
+    service.dbPathProvider = () async => dbPath;
+
+    await service.init();
+
+    // running 任务被恢复为 paused，不会被自动重启
+    final restored = service.currentTasks
+        .where((t) => t.bvid == video.bvid)
+        .firstOrNull;
+    expect(restored, isNotNull);
+    expect(restored!.status, DownloadStatus.paused);
+    expect(
+      service.currentTasks.any((t) => t.status == DownloadStatus.running),
+      isFalse,
+    );
+    expect(transport.startedUrls, hasLength(1), reason: '重启后不得自动重新下载');
+  });
 }
 
 class FakeTransport extends DownloadTransport {
