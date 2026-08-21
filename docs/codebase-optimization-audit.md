@@ -1158,6 +1158,16 @@ _SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS
 
 ## OPT-017：本地化边界不完整
 
+> ✅ 已完成（2026-08-22；测试 133 → 142）
+>
+> - auth_service：三处中文异常（`无法获取二维码`/`二维码已过期`/`登录失败: 未获取到完整 Cookie`）改为类型化 `BiliFailure`（bizError/notFound + code），UI 经 `toUserMessage` 映射到 ARB 文案，不再泄漏中文或 `Exception:` 前缀。
+> - bili_models：`formattedViewCount`/`formattedDanmakuCount` 从硬编码“万/亿”改为接收 locale 参数、用 `NumberFormat.compact`（zh 出万/亿，en 出 K/M）；`未命名合集` fallback 改为空串。
+> - settings_screen：语言对话框/语言名改用 ARB `languageZh`/`languageEn` key（自称）。
+> - audio_handler：通知栏快退/快进 `MediaControl.label` 从硬编码英文改为按应用内 locale 从 ARB 构造（`buildTransportControls` 纯函数）。
+> - ARB：中英文 key 对齐（此前 zh 多 `@appTitle` 元数据，en 已补齐）；新增 languageZh/languageEn/rewind10/forward10。
+> - 测试：auth_service_test（BiliFailure 类型化）、bili_models_test（紧凑计数 locale）、audio_handler_test（label 本地化）、settings_screen_test（语言对话框）、l10n_alignment_test（既有 key 对齐）。
+> - 扫描确认：lib 非 l10n 代码已无用户可见硬编码中文/错误文案；仅剩 debugPrint 调试日志与 update_checker 的更新日志正则（均非 UI 文案）。
+>
 **优先级：中**
 
 涉及示例：
