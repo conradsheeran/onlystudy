@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/qr_login.dart';
-
+import 'bili_failure.dart';
 class AuthService {
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
@@ -158,7 +158,12 @@ class AuthService {
       if (response.data['code'] == 0) {
         return response.data['data'];
       } else {
-        throw Exception('无法获取二维码: ${response.data['message']}');
+        // 服务层不返回用户文案，只携带业务 code/message（OPT-017）
+        throw BiliFailure(
+          BiliFailureKind.bizError,
+          code: response.data['code'],
+          message: response.data['message']?.toString(),
+        );
       }
     } catch (e) {
       rethrow;
@@ -193,7 +198,7 @@ class AuthService {
         // 登录成功，返回 token_info + cookie_info
         return response.data['data'];
       } else if (topCode == 86038) {
-        throw Exception('二维码已过期，请刷新');
+        throw const BiliFailure(BiliFailureKind.bizError, code: 86038);
       } else {
         return null;
       }
@@ -255,7 +260,10 @@ class AuthService {
     final refreshToken = tokenInfo['refresh_token']?.toString();
 
     if (sessData == null || biliJct == null || uid == null) {
-      throw const FormatException('登录失败: 未获取到完整 Cookie');
+      throw const BiliFailure(
+        BiliFailureKind.notFound,
+        message: 'incomplete login cookie',
+      );
     }
 
     return LoginCredentials(

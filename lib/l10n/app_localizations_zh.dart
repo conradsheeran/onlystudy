@@ -377,6 +377,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get language => '语言';
 
   @override
+  String get languageZh => '中文';
+
+  @override
+  String get languageEn => 'English';
+
+  @override
   String get followSystem => '跟随系统';
 
   @override

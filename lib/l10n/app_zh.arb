@@ -114,34 +114,36 @@
   "videoCount": "{count} 个视频",
   "switchPartFailed": "切换分P失败: {error}",
   "language": "语言",
+  "languageZh": "中文",
+  "languageEn": "English",
   "followSystem": "跟随系统",
-  "selectLanguage": "选择语言"
-  ,"networkError": "网络连接失败，请检查网络后重试"
-  ,"unauthorizedError": "登录已失效，请重新登录"
-  ,"bizError": "服务开小差了，请稍后重试"
-  ,"bizErrorWithCode": "服务开小差了（{code}），请稍后重试"
-  ,"upHomeTitle": "{name} 的主页"
-  ,"upHomeFallback": "UP主主页"
-  ,"followers": "粉丝"
-  ,"following": "关注"
-  ,"likes": "获赞"
-  ,"plays": "总播放"
-  ,"videosCount": "投稿数"
-  ,"upIntroDefault": "这个UP很懒，还没有签名"
-  ,"upVideosTab": "投稿"
-  ,"upCollectionsTab": "合集"
-  ,"sortLabel": "排序"
-  ,"filterLabel": "筛选"
-  ,"allCategories": "全部分区"
-  ,"sortLatest": "最新发布"
-  ,"sortPlay": "最多播放"
-  ,"sortFavorite": "最多收藏"
-  ,"sortDanmaku": "最多弹幕"
-  ,"emptyUpVideos": "暂无投稿"
-  ,"emptyCollections": "暂无合集"
-  ,"loadUpFailed": "加载UP主信息失败: {error}"
-  ,"loadUpVideosFailed": "加载投稿失败: {error}"
-  ,"loadCollectionFailed": "加载合集失败: {error}"
-  ,"bootstrapFailed": "应用启动失败"
-  ,"bootstrapFailedPhase": "启动阶段 {phase} 出错，请重试"
+  "selectLanguage": "选择语言",
+  "networkError": "网络连接失败，请检查网络后重试",
+  "unauthorizedError": "登录已失效，请重新登录",
+  "bizError": "服务开小差了，请稍后重试",
+  "bizErrorWithCode": "服务开小差了（{code}），请稍后重试",
+  "upHomeTitle": "{name} 的主页",
+  "upHomeFallback": "UP主主页",
+  "followers": "粉丝",
+  "following": "关注",
+  "likes": "获赞",
+  "plays": "总播放",
+  "videosCount": "投稿数",
+  "upIntroDefault": "这个UP很懒，还没有签名",
+  "upVideosTab": "投稿",
+  "upCollectionsTab": "合集",
+  "sortLabel": "排序",
+  "filterLabel": "筛选",
+  "allCategories": "全部分区",
+  "sortLatest": "最新发布",
+  "sortPlay": "最多播放",
+  "sortFavorite": "最多收藏",
+  "sortDanmaku": "最多弹幕",
+  "emptyUpVideos": "暂无投稿",
+  "emptyCollections": "暂无合集",
+  "loadUpFailed": "加载UP主信息失败: {error}",
+  "loadUpVideosFailed": "加载投稿失败: {error}",
+  "loadCollectionFailed": "加载合集失败: {error}",
+  "bootstrapFailed": "应用启动失败",
+  "bootstrapFailedPhase": "启动阶段 {phase} 出错，请重试"
 }

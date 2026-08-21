@@ -1,6 +1,11 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onlystudy/models/qr_login.dart';
 import 'package:onlystudy/services/auth_service.dart';
+import 'package:onlystudy/services/bili_failure.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -243,4 +248,65 @@ void main() {
       expect(result, isNot(isA<QrLoginExpired>()));
     });
   });
+  group('AuthService 登录错误类型化（OPT-017）', () {
+    test('parseLoginCredentials 缺 Cookie 抛 BiliFailure 而非中文 FormatException', () {
+      expect(
+        () => AuthService.parseLoginCredentials({
+          'cookie_info': {
+            'cookies': [
+              {'name': 'bili_jct', 'value': 'csrf'},
+              {'name': 'DedeUserID', 'value': '123'},
+            ],
+          },
+        }),
+        throwsA(
+          isA<BiliFailure>().having((f) => f.kind, 'kind', BiliFailureKind.notFound),
+        ),
+      );
+    });
+
+    test('pollLoginStatus 二维码过期抛 BiliFailure(code 86038)', () async {
+      SharedPreferences.setMockInitialValues({});
+      final auth = AuthService();
+      final adapter = _FixedResponseAdapter({'code': 86038, 'data': null});
+      auth.dioForTest = Dio(BaseOptions(baseUrl: 'https://passport.bilibili.com'))
+        ..httpClientAdapter = adapter;
+
+      await expectLater(
+        auth.pollLoginStatus('CODE'),
+        throwsA(
+          isA<BiliFailure>().having(
+            (f) => f.code,
+            'code',
+            86038,
+          ),
+        ),
+      );
+    });
+  });
+}
+
+/// 返回固定 JSON 响应的 Dio adapter（供 pollLoginStatus 等测试注入）。
+class _FixedResponseAdapter implements HttpClientAdapter {
+  _FixedResponseAdapter(this.body);
+
+  final Map<String, dynamic> body;
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    return ResponseBody.fromString(
+      jsonEncode(body),
+      200,
+      headers: {
+        Headers.contentTypeHeader: ['application/json'],
+      },
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
 }

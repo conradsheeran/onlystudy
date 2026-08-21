@@ -1,4 +1,7 @@
 {
+  "@appTitle": {
+    "description": "The title of the application"
+  },
   "appTitle": "OnlyStudy",
   "login": "Login",
   "download": "Download",
@@ -111,6 +114,8 @@
   "videoCount": "{count} Videos",
   "switchPartFailed": "Failed to switch part: {error}",
   "language": "Language",
+  "languageZh": "中文",
+  "languageEn": "English",
   "followSystem": "Follow System",
   "selectLanguage": "Select Language",
   "networkError": "Network error. Please check your connection and retry.",

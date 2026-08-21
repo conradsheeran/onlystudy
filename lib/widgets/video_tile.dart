@@ -99,7 +99,9 @@ class VideoTile extends StatelessWidget {
                             size: 13, color: Colors.grey),
                         const SizedBox(width: 3),
                         Text(
-                          video.formattedViewCount,
+                          video.formattedViewCount(
+                            Localizations.localeOf(context).toString(),
+                          ),
                           style:
                               TextStyle(fontSize: 11, color: Colors.grey[600]),
                         ),
@@ -108,7 +110,9 @@ class VideoTile extends StatelessWidget {
                             size: 13, color: Colors.grey),
                         const SizedBox(width: 3),
                         Text(
-                          video.formattedDanmakuCount,
+                          video.formattedDanmakuCount(
+                            Localizations.localeOf(context).toString(),
+                          ),
                           style:
                               TextStyle(fontSize: 11, color: Colors.grey[600]),
                         ),

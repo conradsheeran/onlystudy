@@ -377,8 +377,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final current = SettingsService().localeCode;
     final options = <String?, String>{
       null: AppLocalizations.of(context)!.followSystem,
-      'en': 'English',
-      'zh': '中文',
+      'en': AppLocalizations.of(context)!.languageEn,
+      'zh': AppLocalizations.of(context)!.languageZh,
     };
 
     showDialog(
@@ -421,9 +421,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _getLanguageName(String? code) {
     switch (code) {
       case 'en':
-        return 'English';
+        return AppLocalizations.of(context)!.languageEn;
       case 'zh':
-        return '中文';
+        return AppLocalizations.of(context)!.languageZh;
       default:
         return AppLocalizations.of(context)!.followSystem;
     }

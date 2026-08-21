@@ -770,6 +770,18 @@ abstract class AppLocalizations {
   /// **'语言'**
   String get language;
 
+  /// No description provided for @languageZh.
+  ///
+  /// In zh, this message translates to:
+  /// **'中文'**
+  String get languageZh;
+
+  /// No description provided for @languageEn.
+  ///
+  /// In zh, this message translates to:
+  /// **'English'**
+  String get languageEn;
+
   /// No description provided for @followSystem.
   ///
   /// In zh, this message translates to:

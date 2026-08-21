@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 /// Bilibili UP主信息模型
 class BiliUpper {
   final int mid;
@@ -150,7 +152,7 @@ class UpSeries {
   factory UpSeries.fromJson(Map<String, dynamic> json) {
     return UpSeries(
       id: json['series_id'] ?? json['id'] ?? 0,
-      title: json['title'] ?? json['name'] ?? '未命名合集',
+      title: json['title'] ?? json['name'] ?? '',
       cover: json['cover'] ?? json['pic'] ?? 'https://via.placeholder.com/150',
       videoCount: json['video_count'] ?? json['count'] ?? json['number'] ?? 0,
     );
@@ -289,24 +291,14 @@ class Video {
   }
 
   /// 返回格式化后的播放量字符串
-  String get formattedViewCount {
-    if (view >= 100000000) {
-      return '${(view / 100000000).toStringAsFixed(1)}亿';
-    } else if (view >= 10000) {
-      return '${(view / 10000).toStringAsFixed(1)}万';
-    } else {
-      return view.toString();
-    }
-  }
+  /// 返回格式化后的播放量字符串（按 locale 使用万/亿或 K/M 等紧凑单位，OPT-017）。
+  String formattedViewCount(String locale) => _compactCount(view, locale);
 
-  /// 返回格式化后的弹幕数量字符串
-  String get formattedDanmakuCount {
-    if (danmaku >= 10000) {
-      return '${(danmaku / 10000).toStringAsFixed(1)}万';
-    } else {
-      return danmaku.toString();
-    }
-  }
+  /// 返回格式化后的弹幕数量字符串（紧凑单位，OPT-017）。
+  String formattedDanmakuCount(String locale) => _compactCount(danmaku, locale);
+
+  static String _compactCount(int value, String locale) =>
+      NumberFormat.compact(locale: locale).format(value);
 
   /// 返回格式化后的发布时间
   String get formattedPubDate {
