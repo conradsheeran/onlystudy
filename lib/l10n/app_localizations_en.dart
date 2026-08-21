@@ -77,7 +77,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get selectFolders => 'Select Displayed Folders';
 
   @override
-  String get clearCache => 'Clear Cache';
+  String get clearCache => 'Clear Image Cache';
 
   @override
   String get logout => 'Logout';
@@ -168,7 +168,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get verifyPassword => 'Verify Password';
 
   @override
-  String get confirmClearCache => 'Are you sure you want to clear all cache?';
+  String get confirmClearCache =>
+      'Clear image cache? Search cache and downloaded videos are not affected.';
 
   @override
   String get confirmLogout => 'Are you sure you want to logout?';
@@ -183,7 +184,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get passwordIncorrect => 'Incorrect Password';
 
   @override
-  String get cacheCleared => 'Cache Cleared';
+  String get cacheCleared => 'Image cache cleared';
 
   @override
   String get loginBilibili => 'Login to Bilibili';

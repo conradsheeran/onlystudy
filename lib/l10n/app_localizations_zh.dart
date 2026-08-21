@@ -77,7 +77,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get selectFolders => '选择显示的收藏夹';
 
   @override
-  String get clearCache => '清理缓存';
+  String get clearCache => '清理图片缓存';
 
   @override
   String get logout => '注销登录';
@@ -167,7 +167,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get verifyPassword => '验证密码';
 
   @override
-  String get confirmClearCache => '确定要清理所有缓存吗？';
+  String get confirmClearCache => '确定要清理图片缓存吗？搜索缓存和已下载视频不受影响。';
 
   @override
   String get confirmLogout => '确定要退出登录吗？';
@@ -182,7 +182,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get passwordIncorrect => '密码错误';
 
   @override
-  String get cacheCleared => '缓存已清理';
+  String get cacheCleared => '图片缓存已清理';
 
   @override
   String get loginBilibili => '登录 Bilibili';

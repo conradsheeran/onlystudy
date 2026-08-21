@@ -221,7 +221,7 @@ abstract class AppLocalizations {
   /// No description provided for @clearCache.
   ///
   /// In zh, this message translates to:
-  /// **'清理缓存'**
+  /// **'清理图片缓存'**
   String get clearCache;
 
   /// No description provided for @logout.
@@ -389,7 +389,7 @@ abstract class AppLocalizations {
   /// No description provided for @confirmClearCache.
   ///
   /// In zh, this message translates to:
-  /// **'确定要清理所有缓存吗？'**
+  /// **'确定要清理图片缓存吗？搜索缓存和已下载视频不受影响。'**
   String get confirmClearCache;
 
   /// No description provided for @confirmLogout.
@@ -419,7 +419,7 @@ abstract class AppLocalizations {
   /// No description provided for @cacheCleared.
   ///
   /// In zh, this message translates to:
-  /// **'缓存已清理'**
+  /// **'图片缓存已清理'**
   String get cacheCleared;
 
   /// No description provided for @loginBilibili.
