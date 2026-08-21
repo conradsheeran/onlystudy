@@ -1094,8 +1094,22 @@ lint 升级应独立提交，先查看 6.0.0 引入的新增警告，再逐项�
 > - `flutter_markdown` → `flutter_markdown_plus 1.0.12`（discontinued 替换，API 兼容，ecf2c4e）。
 > - 升级 flutter_lints 2.x → 6.x（c1fbf41）。
 > - patch/minor 依赖升级：audio_service/audio_session/dio/flutter_cache_manager/media_kit/path_provider/shared_preferences，以及 screen_brightness 2.1.11、wakelock_plus 1.6.1、package_info_plus 10.2.1（c1b8c42）。
-> - 剩余 major 升级单独评估：flutter_volume_controller 2.x、media_kit_video 2.x、intl 0.20.3、sqflite 2.4.3、wakelock_plus 1.7.0。
+> - 剩余 major 升级单独评估：flutter_volume_controller 2.x、media_kit_video 2.x、intl 0.20.3、sqflite 2.4.3、wakelock_plus 1.7.0（ade8f87 + 006bb06）。
 >
+> ✅ 剩余 major 升级（2026-08-22，commit ade8f87 + 006bb06）：
+>
+> - `flutter_volume_controller 1.3.4 → 2.0.2`：无 API 破坏（仅新增 SPM/HarmonyOS 支持），直接升级。
+> - `media_kit_video 1.2.4 → 2.0.1`（major）：BREAKING 仅移除 `screen_brightness`/`volume_controller` 依赖；本项目两者均为直接依赖，无需改动代码。连带升级 `media_kit 1.2.6`（media_kit_video 2.x 要求 ^1.2.3）、`media_kit_libs_video 1.0.7`。
+> - 生成文件：`volume_controller` 插件从各平台 generated plugin registrant 移除（006bb06）。
+> - 验证：flutter analyze 0 issues；133/133 tests；Android debug + Windows debug 构建通过。
+>
+> ⏳ 暂缓（受 Flutter 工具链版本阻塞，本地与 CI 均为 3.38.4 / Dart 3.10.3）：
+>
+> - `wakelock_plus 1.7.0`：要求 Flutter ≥3.41.0 / Dart ≥3.11.0。
+> - `sqflite 2.4.3`：要求 Flutter ≥3.44.0 / Dart ^3.12.0。
+> - `intl 0.20.3`：被 Flutter 3.38.4 SDK 自带的 `flutter_localizations` 钉死为 0.20.2（SDK version pinning）。
+>
+> 升级 Flutter 工具链后，将 `wakelock_plus` 升到 1.7.0、`sqflite` 升到 2.4.3、`intl` 升到 ^0.20.3 即可；均无已知 API 破坏。
 **优先级：中**
 
 涉及文件：
