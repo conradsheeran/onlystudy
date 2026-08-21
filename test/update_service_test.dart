@@ -1,68 +1,207 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onlystudy/l10n/app_localizations.dart';
+import 'package:onlystudy/services/update_checker.dart';
 import 'package:onlystudy/services/update_service.dart';
+import 'package:onlystudy/services/settings_service.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+/// 展示层测试：UpdateService 根据 UpdateCheckResult 显示正确的 UI。
 void main() {
-  group('UpdateService version parsing', () {
-    test('normalizes version prefixes', () {
-      expect(UpdateService.normalizeVersion('v0.7.0-alpha'), '0.7.0-alpha');
-      expect(UpdateService.normalizeVersion('V1.2.3'), '1.2.3');
-    });
+  TestWidgetsFlutterBinding.ensureInitialized();
 
-    test('detects newer semantic versions', () {
-      expect(UpdateService.isNewVersion('0.6.9', 'v0.7.0'), isTrue);
-      expect(UpdateService.isNewVersion('0.7.0', 'v0.7.1'), isTrue);
-      expect(UpdateService.isNewVersion('1.2.3', '1.2.3'), isFalse);
-      expect(UpdateService.isNewVersion('1.2.4', '1.2.3'), isFalse);
-    });
+  late UpdateService service;
 
-    test('ignores prerelease suffix when comparing versions', () {
-      expect(UpdateService.isNewVersion('0.6.9', 'v0.7.0-alpha'), isTrue);
-      expect(UpdateService.isNewVersion('0.7.0', 'v0.7.0-alpha'), isFalse);
-    });
+  setUp(() async {
+    service = UpdateService();
+    SharedPreferences.setMockInitialValues({});
+    PackageInfo.setMockInitialValues(
+      appName: 'onlystudy',
+      packageName: 'com.example.onlystudy',
+      version: '0.7.0',
+      buildNumber: '1',
+      buildSignature: '',
+    );
+    await SettingsService().init();
+  });
 
-    test('returns false for invalid versions', () {
-      expect(UpdateService.isNewVersion('0.7.0', 'latest'), isFalse);
-      expect(UpdateService.isNewVersion('dev', 'v0.8.0'), isFalse);
-    });
+  tearDown(() {
+    service.checkerFactory = null;
+    SettingsService().resetForTest();
+  });
 
-    test('extracts only content under release notes heading', () {
-      const body = '''### 更新日志：
+  Future<void> pumpApp(WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: Locale('zh'),
+        home: Scaffold(body: SizedBox()),
+      ),
+    );
+  }
 
-- 初步实现后台播放功能 #1
+  testWidgets('shows update dialog when a newer version exists', (
+    tester,
+  ) async {
+    service.checkerFactory = () => UpdateChecker(
+      currentVersion: '0.7.0',
+      fetchRelease: () async => const ReleaseInfo(
+        version: '0.8.0',
+        url: 'https://github.com/conradsheeran/onlystudy/releases',
+        notes: '- 新功能',
+      ),
+    );
 
-> 目前还有些许 Bug，不过基本能用，后续再慢慢修吧
+    await pumpApp(tester);
+    await service.checkUpdate(tester.element(find.byType(Scaffold)));
+    await tester.pumpAndSettle();
 
-### 我该下载哪个安装包？
+    expect(find.text('发现新版本: 0.8.0'), findsOneWidget);
+    expect(find.text('立即更新'), findsOneWidget);
+  });
 
-- 安卓手机通常来说使用 app-arm64-v8a-release.apk
-''';
-
-      expect(
-        UpdateService.extractReleaseNotes(body),
-        '- 初步实现后台播放功能 #1',
+  testWidgets(
+    'shows "already latest" snackbar on manual check when up to date',
+    (tester) async {
+      service.checkerFactory = () => UpdateChecker(
+        currentVersion: '0.8.0',
+        fetchRelease: () async => const ReleaseInfo(
+          version: '0.8.0',
+          url: 'https://github.com/conradsheeran/onlystudy/releases',
+          notes: '',
+        ),
       );
-    });
 
-    test('falls back to full body when release notes heading is missing', () {
-      const body = '没有标题的更新内容';
-      expect(UpdateService.extractReleaseNotes(body), isEmpty);
-    });
+      await pumpApp(tester);
+      await service.checkUpdate(tester.element(find.byType(Scaffold)));
+      await tester.pumpAndSettle();
 
-    test('keeps ordered and unordered list items only', () {
-      const body = '''### 更新日志
+      expect(find.text('已是最新版本'), findsOneWidget);
+    },
+  );
 
-1. 第一项
-2. 第二项
+  testWidgets('shows failure snackbar on manual check when check fails', (
+    tester,
+  ) async {
+    service.checkerFactory = () =>
+        UpdateChecker(currentVersion: '0.7.0', fetchRelease: () async => null);
 
-补充说明
+    await pumpApp(tester);
+    await service.checkUpdate(tester.element(find.byType(Scaffold)));
+    await tester.pumpAndSettle();
 
-- 第三项
-''';
+    expect(find.text('检查更新失败'), findsOneWidget);
+  });
 
-      expect(
-        UpdateService.extractReleaseNotes(body),
-        '1. 第一项\n2. 第二项\n\n- 第三项',
+  testWidgets('stays silent on auto check when up to date', (tester) async {
+    service.checkerFactory = () => UpdateChecker(
+      currentVersion: '0.8.0',
+      fetchRelease: () async => const ReleaseInfo(
+        version: '0.8.0',
+        url: 'https://github.com/conradsheeran/onlystudy/releases',
+        notes: '',
+      ),
+    );
+
+    await pumpApp(tester);
+    await service.checkUpdate(
+      tester.element(find.byType(Scaffold)),
+      silent: true,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('已是最新版本'), findsNothing);
+  });
+
+  testWidgets('stays silent on auto check when check fails', (tester) async {
+    service.checkerFactory = () => UpdateChecker(
+      currentVersion: '0.7.0',
+      fetchRelease: () async => throw Exception('network down'),
+    );
+
+    await pumpApp(tester);
+    await service.checkUpdate(
+      tester.element(find.byType(Scaffold)),
+      silent: true,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('检查更新失败'), findsNothing);
+  });
+
+  testWidgets('skips auto check when auto check is disabled', (tester) async {
+    SharedPreferences.setMockInitialValues({'auto_check_update': false});
+    await SettingsService().init();
+    var checkerCalled = false;
+    service.checkerFactory = () {
+      checkerCalled = true;
+      return UpdateChecker(
+        currentVersion: '0.7.0',
+        fetchRelease: () async => null,
       );
+    };
+
+    await pumpApp(tester);
+    await service.checkUpdate(
+      tester.element(find.byType(Scaffold)),
+      silent: true,
+    );
+    await tester.pumpAndSettle();
+
+    expect(checkerCalled, isFalse);
+  });
+
+  testWidgets('auto check remembers prompted version', (tester) async {
+    service.checkerFactory = () => UpdateChecker(
+      currentVersion: '0.7.0',
+      fetchRelease: () async => const ReleaseInfo(
+        version: '0.8.0',
+        url: 'https://github.com/conradsheeran/onlystudy/releases',
+        notes: '',
+      ),
+    );
+
+    await pumpApp(tester);
+    await service.checkUpdate(
+      tester.element(find.byType(Scaffold)),
+      silent: true,
+    );
+    await tester.pumpAndSettle();
+
+    // 弹窗出现，且记录已提示版本
+    expect(find.text('发现新版本: 0.8.0'), findsOneWidget);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('last_prompted_update_version'), '0.8.0');
+  });
+
+  testWidgets('auto check does not re-prompt same version', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'last_prompted_update_version': '0.8.0',
     });
+    await SettingsService().init();
+    var checkerCalled = false;
+    service.checkerFactory = () {
+      checkerCalled = true;
+      return UpdateChecker(
+        currentVersion: '0.7.0',
+        fetchRelease: () async => const ReleaseInfo(
+          version: '0.8.0',
+          url: 'https://github.com/conradsheeran/onlystudy/releases',
+          notes: '',
+        ),
+      );
+    };
+
+    await pumpApp(tester);
+    await service.checkUpdate(
+      tester.element(find.byType(Scaffold)),
+      silent: true,
+    );
+    await tester.pumpAndSettle();
+
+    expect(checkerCalled, isTrue);
+    expect(find.text('发现新版本: 0.8.0'), findsNothing);
   });
 }

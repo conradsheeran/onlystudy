@@ -5,74 +5,23 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
 import 'settings_service.dart';
+import 'update_checker.dart';
 
-class ReleaseInfo {
-  const ReleaseInfo({
-    required this.version,
-    required this.url,
-    required this.notes,
-  });
-
-  final String version;
-  final String url;
-  final String notes;
-}
-
-/// 应用更新检查服务
+/// 应用更新检查的 UI 协调层（OPT-014）。
+///
+/// 网络请求与版本比较的纯逻辑在 [UpdateChecker]，本类只负责
+/// 根据 [UpdateCheckResult] 显示 Dialog/SnackBar。
 class UpdateService {
   static final UpdateService _instance = UpdateService._internal();
   factory UpdateService() => _instance;
   UpdateService._internal();
 
-  /// 检查 GitHub Release 更新
-  Future<void> checkUpdate(BuildContext context, {bool silent = false}) async {
-    // 如果是静默检查且用户关闭了自动检查，则直接返回
-    if (silent && !SettingsService().autoCheckUpdate) {
-      return;
-    }
+  /// 测试专用：替换 checker 工厂以注入 fake 结果。
+  @visibleForTesting
+  UpdateChecker Function()? checkerFactory;
 
-    try {
-      final packageInfo = await PackageInfo.fromPlatform();
-      final currentVersion = packageInfo.version;
-
-      final releaseInfo = await _fetchLatestRelease();
-      if (releaseInfo == null) {
-        return;
-      }
-
-      if (_isNewVersion(currentVersion, releaseInfo.version)) {
-        if (silent &&
-            SettingsService().lastPromptedUpdateVersion ==
-                releaseInfo.version) {
-          return;
-        }
-
-        if (context.mounted) {
-          if (silent) {
-            SettingsService().setLastPromptedUpdateVersion(
-              releaseInfo.version,
-            );
-          }
-          _showUpdateDialog(context, currentVersion, releaseInfo);
-        }
-      } else if (!silent && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(AppLocalizations.of(context)!.noUpdateAvailable)),
-        );
-      }
-    } catch (e) {
-      if (!silent && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(AppLocalizations.of(context)!.checkUpdateFailed)),
-        );
-      }
-      debugPrint('Error checking update: $e');
-    }
-  }
-
-  Future<ReleaseInfo?> _fetchLatestRelease() async {
+  /// 默认的生产 fetch：请求 GitHub Releases API。
+  static Future<ReleaseInfo?> _fetchLatestRelease() async {
     final dio = Dio();
     final response = await dio.get(
       'https://api.github.com/repos/conradsheeran/onlystudy/releases/latest',
@@ -81,129 +30,61 @@ class UpdateService {
     if (response.statusCode != 200) {
       return null;
     }
-
-    final data = response.data;
-    final tagName = data['tag_name'] as String?;
-    final htmlUrl = data['html_url'] as String?;
-    if (tagName == null || htmlUrl == null) {
-      return null;
-    }
-
-    return ReleaseInfo(
-      version: _normalizeVersion(tagName),
-      url: htmlUrl,
-      notes: _extractReleaseNotes((data['body'] as String?)?.trim() ?? ''),
-    );
+    return UpdateChecker.parseReleaseResponse(response.data);
   }
 
-  @visibleForTesting
-  static String normalizeVersion(String version) => _normalizeVersion(version);
-
-  static String _normalizeVersion(String version) {
-    return version.trim().replaceFirst(RegExp(r'^[vV]'), '');
-  }
-
-  @visibleForTesting
-  static bool isNewVersion(String current, String latest) {
-    return _isNewVersion(current, latest);
-  }
-
-  /// 简单的版本号比对逻辑，忽略预发布后缀
-  static bool _isNewVersion(String current, String latest) {
-    final currentParts = _parseVersionParts(current);
-    final latestParts = _parseVersionParts(latest);
-
-    if (currentParts == null || latestParts == null) {
-      return false;
+  /// 检查更新并展示结果。
+  ///
+  /// [silent] 为 true 时仅在有新版本时弹窗，无更新/失败保持静默；
+  /// 为 false 时（手动检查）无更新显示"已是最新版本"，失败显示错误。
+  Future<void> checkUpdate(BuildContext context, {bool silent = false}) async {
+    // 静默检查且用户关闭了自动检查，直接返回
+    if (silent && !SettingsService().autoCheckUpdate) {
+      return;
     }
 
-    final maxLength = currentParts.length > latestParts.length
-        ? currentParts.length
-        : latestParts.length;
-    for (int i = 0; i < maxLength; i++) {
-      final currentPart = i < currentParts.length ? currentParts[i] : 0;
-      final latestPart = i < latestParts.length ? latestParts[i] : 0;
-      if (latestPart > currentPart) {
-        return true;
-      }
-      if (latestPart < currentPart) {
-        return false;
-      }
+    final packageInfo = await PackageInfo.fromPlatform();
+
+    final checkerFactory =
+        this.checkerFactory ??
+        (() => UpdateChecker(
+          currentVersion: packageInfo.version,
+          fetchRelease: _fetchLatestRelease,
+        ));
+    final result = await checkerFactory().check();
+
+    if (!context.mounted) {
+      return;
     }
 
-    return false;
-  }
-
-  static List<int>? _parseVersionParts(String version) {
-    final normalizedVersion = _normalizeVersion(version);
-    final match = RegExp(r'^\d+(?:\.\d+)*').firstMatch(normalizedVersion);
-    if (match == null) {
-      return null;
-    }
-
-    try {
-      return match.group(0)!.split('.').map(int.parse).toList();
-    } catch (_) {
-      return null;
-    }
-  }
-
-  @visibleForTesting
-  static String extractReleaseNotes(String body) => _extractReleaseNotes(body);
-
-  static String _extractReleaseNotes(String body) {
-    if (body.trim().isEmpty) {
-      return '';
-    }
-
-    final headingMatch = RegExp(
-      r'^###\s*更新日志\s*[:：]?\s*$',
-      multiLine: true,
-      caseSensitive: false,
-    ).firstMatch(body);
-    if (headingMatch == null) {
-      return _keepOnlyListItems(body);
-    }
-
-    final sectionStart = headingMatch.end;
-    final remaining = body.substring(sectionStart);
-    final nextHeadingMatch =
-        RegExp(r'^###\s+', multiLine: true).firstMatch(remaining);
-    final section = nextHeadingMatch == null
-        ? remaining
-        : remaining.substring(0, nextHeadingMatch.start);
-
-    return _keepOnlyListItems(section);
-  }
-
-  static String _keepOnlyListItems(String markdown) {
-    final lines = markdown
-        .split('\n')
-        .map((line) => line.replaceAll(RegExp(r'\s+$'), ''))
-        .toList();
-
-    final keptLines = <String>[];
-    var previousWasListItem = false;
-
-    for (final line in lines) {
-      final trimmed = line.trimLeft();
-      final isListItem = RegExp(r'^([-*+]|\d+\.)\s+').hasMatch(trimmed);
-
-      if (isListItem) {
-        if (keptLines.isNotEmpty && !previousWasListItem) {
-          keptLines.add('');
+    switch (result) {
+      case UpdateAvailable(:final release):
+        if (silent &&
+            SettingsService().lastPromptedUpdateVersion == release.version) {
+          return;
         }
-        keptLines.add(trimmed);
-        previousWasListItem = true;
-        continue;
-      }
-
-      if (trimmed.isEmpty && previousWasListItem) {
-        previousWasListItem = false;
-      }
+        if (silent) {
+          await SettingsService().setLastPromptedUpdateVersion(release.version);
+          if (!context.mounted) return;
+        }
+        _showUpdateDialog(context, packageInfo.version, release);
+      case UpToDate():
+        if (!silent) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.noUpdateAvailable),
+            ),
+          );
+        }
+      case UpdateCheckFailed():
+        if (!silent) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.checkUpdateFailed),
+            ),
+          );
+        }
     }
-
-    return keptLines.join('\n').trim();
   }
 
   /// 显示更新提示对话框
