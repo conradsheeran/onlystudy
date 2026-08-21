@@ -38,7 +38,8 @@ class _FakeAdapter implements HttpClientAdapter {
       return _json({
         'code': 0,
         'data': {
-          'url': 'https://passport.bilibili.com/x/passport-tv-login/qrcode/auth_code?auth_code=CODE123',
+          'url':
+              'https://passport.bilibili.com/x/passport-tv-login/qrcode/auth_code?auth_code=CODE123',
           'auth_code': 'CODE123',
         },
       });
@@ -131,7 +132,10 @@ void main() {
   testWidgets('challenge 字段映射：auth_code 与 url 被读取并开始轮询', (tester) async {
     await pumpLogin(tester);
 
-    expect(adapter.requestedPaths, contains('/x/passport-tv-login/qrcode/auth_code'));
+    expect(
+      adapter.requestedPaths,
+      contains('/x/passport-tv-login/qrcode/auth_code'),
+    );
     expect(find.text('请使用 Bilibili 手机端扫码'), findsOneWidget);
     // poll 每 3 秒一次；首 tick 尚未发生
     expect(adapter.pollCallCount, 0);
@@ -158,25 +162,25 @@ void main() {
     adapter.completePendingWithSuccess();
     // 让 dio 内部 Future/timer 链条跑完，避免 pending timer
     await tester.pumpAndSettle();
-    await tester.pumpWidget(const SizedBox()); // dispose LoginScreen, cancel timer
+    await tester.pumpWidget(
+      const SizedBox(),
+    ); // dispose LoginScreen, cancel timer
   });
 
   testWidgets('轮询成功只保存一次凭据、只导航一次', (tester) async {
     adapter.pollResponder = () => {
-          'code': 0,
-          'data': {
-            'token_info': {
-              'refresh_token': 'REFRESH',
-            },
-            'cookie_info': {
-              'cookies': [
-                {'name': 'SESSDATA', 'value': 'sess-1'},
-                {'name': 'bili_jct', 'value': 'jct-1'},
-                {'name': 'DedeUserID', 'value': '12345'},
-              ],
-            },
-          },
-        };
+      'code': 0,
+      'data': {
+        'token_info': {'refresh_token': 'REFRESH'},
+        'cookie_info': {
+          'cookies': [
+            {'name': 'SESSDATA', 'value': 'sess-1'},
+            {'name': 'bili_jct', 'value': 'jct-1'},
+            {'name': 'DedeUserID', 'value': '12345'},
+          ],
+        },
+      },
+    };
 
     final navigatorObserver = _RecordingObserver();
     await tester.pumpWidget(

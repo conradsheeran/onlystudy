@@ -14,16 +14,17 @@ class AuthService {
 
   final Dio _dio;
 
-  AuthService._internal() : _dio = Dio(
-    BaseOptions(
-      baseUrl: 'https://passport.bilibili.com',
-      headers: {
-        'User-Agent':
-            'Mozilla/5.0 BiliDroid/2.0.1 (bbcallen@gmail.com) os/android model/android_hd mobi_app/android_hd build/2001100 channel/master innerVer/2001100 osVer/15 network/2',
-        'Referer': 'https://www.bilibili.com/',
-      },
-    ),
-  );
+  AuthService._internal()
+    : _dio = Dio(
+        BaseOptions(
+          baseUrl: 'https://passport.bilibili.com',
+          headers: {
+            'User-Agent':
+                'Mozilla/5.0 BiliDroid/2.0.1 (bbcallen@gmail.com) os/android model/android_hd mobi_app/android_hd build/2001100 channel/master innerVer/2001100 osVer/15 network/2',
+            'Referer': 'https://www.bilibili.com/',
+          },
+        ),
+      );
 
   /// 测试专用：注入自定义 Dio（例如固定响应或记录请求的 fake）。
   @visibleForTesting
