@@ -209,4 +209,27 @@ void main() {
         .toList();
     expect(navigationEvents, hasLength(1));
   });
+
+  testWidgets('已扫码未确认（86090）时提示用户到手机确认', (tester) async {
+    adapter.pollResponder = () => {'code': 86090, 'data': null};
+    await pumpLogin(tester);
+
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
+    expect(find.text('已扫码，请在手机上确认登录'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox()); // dispose, cancel timer
+  });
+
+  testWidgets('二维码过期（86038）显示过期并可刷新', (tester) async {
+    adapter.pollResponder = () => {'code': 86038, 'data': null};
+    await pumpLogin(tester);
+
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
+    expect(find.text('二维码已过期'), findsOneWidget);
+    expect(find.text('刷新二维码'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox()); // dispose, cancel timer
+  });
 }

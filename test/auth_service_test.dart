@@ -190,6 +190,20 @@ void main() {
       expect(buvid, startsWith('XY'));
       expect(buvid.length, greaterThanOrEqualTo(20));
     });
+
+    test('getBuvid 首次生成并持久化到 prefs', () async {
+      SharedPreferences.setMockInitialValues({});
+      final auth = AuthService();
+      final buvid = await auth.getBuvid();
+      expect(buvid, startsWith('XY'));
+
+      // 已写入 prefs，供重启后复用
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('buvid'), buvid);
+
+      // 同一实例内保持稳定
+      expect(await auth.getBuvid(), buvid);
+    });
   });
 
   group('QrLoginChallenge', () {

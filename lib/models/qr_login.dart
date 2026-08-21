@@ -42,8 +42,17 @@ sealed class QrLoginPollResult {
 }
 
 /// 未扫码或已扫码未确认，继续轮询。
+///
+/// [code] 为 B 站返回的顶层业务码：
+/// - 86039/86101：未扫码
+/// - 86090：已扫码，等待手机确认
 class QrLoginPending extends QrLoginPollResult {
-  const QrLoginPending();
+  final int code;
+
+  const QrLoginPending({this.code = 0});
+
+  /// 是否已扫码（86090），UI 可据此提示“请在手机上确认”。
+  bool get scanned => code == 86090;
 }
 
 /// 扫码确认成功。

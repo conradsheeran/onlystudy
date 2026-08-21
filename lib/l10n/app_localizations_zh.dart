@@ -194,10 +194,23 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scanQRCode => '请使用 Bilibili 手机端扫码';
 
   @override
+  String get scanDetectedConfirm => '已扫码，请在手机上确认登录';
+
+  @override
   String get loginSuccess => '登录成功! 正在跳转...';
 
   @override
+  String loginFailed(Object error) {
+    return '登录失败: $error';
+  }
+
+  @override
   String get qrCodeExpired => '二维码已过期';
+
+  @override
+  String qrPollFailed(Object error) {
+    return '二维码状态获取失败: $error';
+  }
 
   @override
   String get refreshQRCode => '刷新二维码';

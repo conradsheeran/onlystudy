@@ -196,10 +196,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scanQRCode => 'Please scan with Bilibili App';
 
   @override
+  String get scanDetectedConfirm =>
+      'Scanned! Please confirm login on your phone';
+
+  @override
   String get loginSuccess => 'Login Successful! Redirecting...';
 
   @override
+  String loginFailed(Object error) {
+    return 'Login failed: $error';
+  }
+
+  @override
   String get qrCodeExpired => 'QR Code Expired';
+
+  @override
+  String qrPollFailed(Object error) {
+    return 'Failed to check QR status: $error';
+  }
 
   @override
   String get refreshQRCode => 'Refresh QR Code';

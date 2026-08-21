@@ -22,6 +22,14 @@ class AuthService {
             'User-Agent':
                 'Mozilla/5.0 BiliDroid/2.0.1 (bbcallen@gmail.com) os/android model/android_hd mobi_app/android_hd build/2001100 channel/master innerVer/2001100 osVer/15 network/2',
             'Referer': 'https://www.bilibili.com/',
+            'env': 'prod',
+            'app-key': 'android_hd',
+            'x-bili-trace-id':
+                '11111111111111111111111111111111:1111111111111111:0:0',
+            'x-bili-aurora-eid': '',
+            'x-bili-aurora-zone': '',
+            'bili-http-engine': 'cronet',
+            'content-type': 'application/x-www-form-urlencoded; charset=utf-8',
           },
         ),
       );
@@ -36,6 +44,25 @@ class AuthService {
   // HD 版登录接口使用的 appkey/appsec（与 PiliPlus 一致）
   static const String _appKey = 'dfca71928277209b';
   static const String _appSec = 'b5475a8825547a4fc26c7d518eaaa02e';
+
+  /// 本机稳定 buvid（B 站客户端风控标识）。
+  /// 首次生成后持久化，后续登录与轮询请求都带同一 buvid（与 PiliPlus 的
+  /// `LoginUtils.buvid` 一致）。
+  String? _cachedBuvid;
+
+  /// 获取（并首次生成）稳定的 buvid。
+  Future<String> getBuvid() async {
+    final cached = _cachedBuvid;
+    if (cached != null) return cached;
+    final prefs = await SharedPreferences.getInstance();
+    var buvid = prefs.getString('buvid');
+    if (buvid == null || buvid.isEmpty) {
+      buvid = generateBuvid();
+      await prefs.setString('buvid', buvid);
+    }
+    _cachedBuvid = buvid;
+    return buvid;
+  }
 
   /// 生成用于请求的 buvid（B 站客户端风控标识）
   String generateBuvid() {
@@ -122,9 +149,11 @@ class AuthService {
         'platform': 'android',
         'mobi_app': 'android_hd',
       });
+      final buvid = await getBuvid();
       final response = await _effectiveDio.post(
         '/x/passport-tv-login/qrcode/auth_code',
         queryParameters: params,
+        options: Options(headers: {'buvid': buvid}),
       );
       if (response.data['code'] == 0) {
         return response.data['data'];
@@ -177,9 +206,11 @@ class AuthService {
   Future<QrLoginPollResult> pollLoginTyped(String authCode) async {
     try {
       final params = _appSign({'auth_code': authCode, 'local_id': '0'});
+      final buvid = await getBuvid();
       final response = await _effectiveDio.post(
         '/x/passport-tv-login/qrcode/poll',
         queryParameters: params,
+        options: Options(headers: {'buvid': buvid}),
       );
 
       final int topCode = response.data['code'] ?? -1;
@@ -192,7 +223,7 @@ class AuthService {
       } else if (topCode == 86038) {
         return const QrLoginExpired();
       } else {
-        return const QrLoginPending();
+        return QrLoginPending(code: topCode);
       }
     } catch (e) {
       rethrow;

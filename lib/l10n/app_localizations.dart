@@ -440,17 +440,35 @@ abstract class AppLocalizations {
   /// **'请使用 Bilibili 手机端扫码'**
   String get scanQRCode;
 
+  /// No description provided for @scanDetectedConfirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'已扫码，请在手机上确认登录'**
+  String get scanDetectedConfirm;
+
   /// No description provided for @loginSuccess.
   ///
   /// In zh, this message translates to:
   /// **'登录成功! 正在跳转...'**
   String get loginSuccess;
 
+  /// No description provided for @loginFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'登录失败: {error}'**
+  String loginFailed(Object error);
+
   /// No description provided for @qrCodeExpired.
   ///
   /// In zh, this message translates to:
   /// **'二维码已过期'**
   String get qrCodeExpired;
+
+  /// No description provided for @qrPollFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'二维码状态获取失败: {error}'**
+  String qrPollFailed(Object error);
 
   /// No description provided for @refreshQRCode.
   ///

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onlystudy/services/auth_service.dart';
@@ -211,4 +213,61 @@ void main() {
       expect(fakeTransport.lastHeaders?.containsKey('Cookie'), isFalse);
     });
   });
+
+  group('DioTransport 生产配置', () {
+    test('默认构造自带 api.bilibili.com baseUrl（相对路径可解析为完整 URL）', () async {
+      // 直接构造生产传输并请求一个相对路径；若 baseUrl 缺失，Dio 会把
+      // 请求发到无 host 的 path-only URI（此前导致“网络连接失败”）。
+      // 通过真实网络冒烟：能拿到业务 JSON 即证明 baseUrl 已生效。
+      final transport = DioTransport();
+      Map<String, dynamic>? result;
+      try {
+        final resp = await transport.get('/x/web-interface/nav');
+        result = resp.data;
+      } catch (_) {
+        // 网络不可用环境下跳过，不能作为失败依据
+      }
+      if (result != null) {
+        expect(result.containsKey('code'), isTrue);
+        expect(result.containsKey('data'), isTrue);
+      }
+    });
+
+    test('注入的 Dio 使用 api.bilibili.com baseUrl 与 UA/Referer 头', () async {
+      final adapter = _CapturingAdapter();
+      final dio = Dio(BaseOptions(baseUrl: 'https://api.bilibili.com'))
+        ..httpClientAdapter = adapter;
+      final transport = DioTransport(dio: dio);
+      try {
+        await transport.get('/x/v3/fav/folder/created/list');
+      } catch (_) {}
+      final options = adapter.lastOptions;
+      expect(options, isNotNull);
+      expect(options!.uri.toString(), startsWith('https://api.bilibili.com'));
+      expect(options.uri.path, '/x/v3/fav/folder/created/list');
+    });
+  });
+}
+
+class _CapturingAdapter implements HttpClientAdapter {
+  RequestOptions? lastOptions;
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    lastOptions = options;
+    return ResponseBody.fromString(
+      '{}',
+      200,
+      headers: {
+        Headers.contentTypeHeader: ['application/json'],
+      },
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
 }

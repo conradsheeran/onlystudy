@@ -86,7 +86,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 _statusText = AppLocalizations.of(context)!.loginSuccess;
               });
             }
-            await _authService.saveLoginCredentials(credentials);
+            try {
+              await _authService.saveLoginCredentials(credentials);
+            } catch (e) {
+              // 保存凭据失败：不导航，把错误展示给用户
+              if (mounted) {
+                setState(() {
+                  _statusText = AppLocalizations.of(
+                    context,
+                  )!.loginFailed(e.toString());
+                });
+              }
+              break;
+            }
             if (mounted) {
               AppNavigator.resetToFolderSelection(context);
             }
@@ -98,12 +110,28 @@ class _LoginScreenState extends State<LoginScreen> {
                 _statusText = AppLocalizations.of(context)!.qrCodeExpired;
               });
             }
-          case QrLoginPending():
-            // 继续轮询
+          case QrLoginPending(:final scanned):
+            // 已扫码未确认时提示用户到手机上确认，避免“扫码后没反应”。
+            if (scanned && mounted) {
+              setState(() {
+                _statusText = AppLocalizations.of(
+                  context,
+                )!.scanDetectedConfirm;
+              });
+            }
+            // 未扫码时保持提示继续轮询
             break;
         }
       } catch (e) {
-        // 网络错误：不停止轮询，等待下一次 tick
+        // 网络错误：不停止轮询，等待下一次 tick；但把错误展示给用户，
+        // 避免“扫码后没反应”这类无反馈的失败。
+        if (mounted) {
+          setState(() {
+            _statusText = AppLocalizations.of(
+              context,
+            )!.qrPollFailed(e.toUserMessage(context));
+          });
+        }
         debugPrint('QR poll error: $e');
       } finally {
         _pollInFlight = false;
