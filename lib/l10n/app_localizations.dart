@@ -961,6 +961,18 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'启动阶段 {phase} 出错，请重试'**
   String bootstrapFailedPhase(Object phase);
+
+  /// No description provided for @rewind10.
+  ///
+  /// In zh, this message translates to:
+  /// **'后退10秒'**
+  String get rewind10;
+
+  /// No description provided for @forward10.
+  ///
+  /// In zh, this message translates to:
+  /// **'快进10秒'**
+  String get forward10;
 }
 
 class _AppLocalizationsDelegate

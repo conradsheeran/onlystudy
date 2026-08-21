@@ -145,5 +145,7 @@
   "loadUpVideosFailed": "Failed to load videos: {error}",
   "loadCollectionFailed": "Failed to load collections: {error}",
   "bootstrapFailed": "App failed to start",
-  "bootstrapFailedPhase": "Error during startup phase {phase}. Please retry."
+  "bootstrapFailedPhase": "Error during startup phase {phase}. Please retry.",
+  "rewind10": "Rewind 10 seconds",
+  "forward10": "Fast forward 10 seconds"
 }

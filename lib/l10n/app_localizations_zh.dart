@@ -483,4 +483,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String bootstrapFailedPhase(Object phase) {
     return '启动阶段 $phase 出错，请重试';
   }
+
+  @override
+  String get rewind10 => '后退10秒';
+
+  @override
+  String get forward10 => '快进10秒';
 }

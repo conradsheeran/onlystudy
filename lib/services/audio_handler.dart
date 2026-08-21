@@ -1,20 +1,40 @@
 import 'package:audio_service/audio_service.dart';
 
+import 'package:flutter/widgets.dart';
+
+import '../l10n/app_localizations.dart';
 import 'playback_session.dart';
+import 'settings_service.dart';
 
 late OnlyStudyAudioHandler audioHandler;
 
-const _rewind10Control = MediaControl(
-  androidIcon: 'drawable/ic_notification_replay_10',
-  label: 'Rewind 10 seconds',
-  action: MediaAction.rewind,
-);
+/// 通知栏快退/快进控制（label 按应用内语言本地化，OPT-017）。
+class TransportControls {
+  const TransportControls({required this.rewind, required this.forward});
 
-const _fastForward10Control = MediaControl(
-  androidIcon: 'drawable/ic_notification_forward_10',
-  label: 'Fast forward 10 seconds',
-  action: MediaAction.fastForward,
-);
+  final MediaControl rewind;
+  final MediaControl forward;
+}
+
+/// 按 [localeCode]（null 跟随系统）构造通知栏控制。
+TransportControls buildTransportControls(String? localeCode) {
+  final locale = localeCode == null || localeCode.isEmpty
+      ? const Locale('zh')
+      : Locale(localeCode);
+  final l10n = lookupAppLocalizations(locale);
+  return TransportControls(
+    rewind: MediaControl(
+      androidIcon: 'drawable/ic_notification_replay_10',
+      label: l10n.rewind10,
+      action: MediaAction.rewind,
+    ),
+    forward: MediaControl(
+      androidIcon: 'drawable/ic_notification_forward_10',
+      label: l10n.forward10,
+      action: MediaAction.fastForward,
+    ),
+  );
+}
 
 /// 初始化后台音频服务（OPT-012）。
 ///
@@ -77,12 +97,13 @@ class OnlyStudyAudioHandler extends BaseAudioHandler
 
   @override
   void updatePlaybackState(PlaybackSessionState state) {
+    final controls = buildTransportControls(SettingsService().localeCode);
     playbackState.add(
       playbackState.value.copyWith(
         controls: [
-          _rewind10Control,
+          controls.rewind,
           if (state.playing) MediaControl.pause else MediaControl.play,
-          _fastForward10Control,
+          controls.forward,
         ],
         systemActions: const {
           MediaAction.seek,

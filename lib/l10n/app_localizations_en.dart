@@ -490,4 +490,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String bootstrapFailedPhase(Object phase) {
     return 'Error during startup phase $phase. Please retry.';
   }
+
+  @override
+  String get rewind10 => 'Rewind 10 seconds';
+
+  @override
+  String get forward10 => 'Fast forward 10 seconds';
 }
