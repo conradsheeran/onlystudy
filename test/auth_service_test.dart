@@ -32,7 +32,7 @@ void main() {
             {
               'name': 'DedeUserID__ckMd5',
               'value': 'ckmd5_value',
-              'http_only': 0
+              'http_only': 0,
             },
             {'name': 'sid', 'value': 'sid_value', 'http_only': 0},
           ],
@@ -73,14 +73,11 @@ void main() {
 
       expect(
         () => auth.saveLoginInfo({
-          'cookie_info': {'cookies': null}
+          'cookie_info': {'cookies': null},
         }),
         throwsA(isA<Exception>()),
       );
-      expect(
-        () => auth.saveLoginInfo({}),
-        throwsA(isA<Exception>()),
-      );
+      expect(() => auth.saveLoginInfo({}), throwsA(isA<Exception>()));
     });
   });
 
@@ -101,8 +98,10 @@ void main() {
       });
 
       final prefs = await SharedPreferences.getInstance();
-      expect(await auth.getCookieString(),
-          'SESSDATA=sess_value; bili_jct=csrf_value');
+      expect(
+        await auth.getCookieString(),
+        'SESSDATA=sess_value; bili_jct=csrf_value',
+      );
       expect(prefs.getString('uid'), '987654');
       expect(await auth.getCsrfToken(), 'csrf_value');
       expect(await auth.isLoggedIn(), isTrue);
@@ -214,7 +213,8 @@ void main() {
   group('QrLoginChallenge', () {
     test('解析完整 challenge', () {
       final challenge = QrLoginChallenge.fromJson({
-        'url': 'https://passport.bilibili.com/x/passport-tv-login/h5/qrcode/scan?auth_code=abc',
+        'url':
+            'https://passport.bilibili.com/x/passport-tv-login/h5/qrcode/scan?auth_code=abc',
         'auth_code': 'abc123',
       });
       expect(challenge.url.toString(), contains('auth_code=abc'));
@@ -223,18 +223,14 @@ void main() {
 
     test('缺少 auth_code 时抛出解析失败', () {
       expect(
-        () => QrLoginChallenge.fromJson({
-          'url': 'https://example.com/qr',
-        }),
+        () => QrLoginChallenge.fromJson({'url': 'https://example.com/qr'}),
         throwsA(isA<FormatException>()),
       );
     });
 
     test('缺少 url 时抛出解析失败', () {
       expect(
-        () => QrLoginChallenge.fromJson({
-          'auth_code': 'abc123',
-        }),
+        () => QrLoginChallenge.fromJson({'auth_code': 'abc123'}),
         throwsA(isA<FormatException>()),
       );
     });
@@ -249,38 +245,40 @@ void main() {
     });
   });
   group('AuthService 登录错误类型化（OPT-017）', () {
-    test('parseLoginCredentials 缺 Cookie 抛 BiliFailure 而非中文 FormatException', () {
-      expect(
-        () => AuthService.parseLoginCredentials({
-          'cookie_info': {
-            'cookies': [
-              {'name': 'bili_jct', 'value': 'csrf'},
-              {'name': 'DedeUserID', 'value': '123'},
-            ],
-          },
-        }),
-        throwsA(
-          isA<BiliFailure>().having((f) => f.kind, 'kind', BiliFailureKind.notFound),
-        ),
-      );
-    });
+    test(
+      'parseLoginCredentials 缺 Cookie 抛 BiliFailure 而非中文 FormatException',
+      () {
+        expect(
+          () => AuthService.parseLoginCredentials({
+            'cookie_info': {
+              'cookies': [
+                {'name': 'bili_jct', 'value': 'csrf'},
+                {'name': 'DedeUserID', 'value': '123'},
+              ],
+            },
+          }),
+          throwsA(
+            isA<BiliFailure>().having(
+              (f) => f.kind,
+              'kind',
+              BiliFailureKind.notFound,
+            ),
+          ),
+        );
+      },
+    );
 
     test('pollLoginStatus 二维码过期抛 BiliFailure(code 86038)', () async {
       SharedPreferences.setMockInitialValues({});
       final auth = AuthService();
       final adapter = _FixedResponseAdapter({'code': 86038, 'data': null});
-      auth.dioForTest = Dio(BaseOptions(baseUrl: 'https://passport.bilibili.com'))
-        ..httpClientAdapter = adapter;
+      auth.dioForTest = Dio(
+        BaseOptions(baseUrl: 'https://passport.bilibili.com'),
+      )..httpClientAdapter = adapter;
 
       await expectLater(
         auth.pollLoginStatus('CODE'),
-        throwsA(
-          isA<BiliFailure>().having(
-            (f) => f.code,
-            'code',
-            86038,
-          ),
-        ),
+        throwsA(isA<BiliFailure>().having((f) => f.code, 'code', 86038)),
       );
     });
   });
