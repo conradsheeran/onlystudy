@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onlystudy/models/bili_models.dart';
 import 'package:onlystudy/models/download_task.dart';
@@ -183,6 +184,8 @@ class FakeTransport extends DownloadTransport {
   final List<String> startedUrls = [];
   final List<Completer<void>> _completers = [];
 
+  /// 每次有下载开始时通知（用于事件驱动地等待 N 个下载）。
+  final ChangeNotifier startedUrlsChange = ChangeNotifier();
   bool cancelled = false;
 
   /// 下载开始后自动完成（用于 retry/恢复等无需手动控制的场景）。
@@ -199,6 +202,7 @@ class FakeTransport extends DownloadTransport {
     void Function(int received, int total)? onProgress,
   }) async {
     startedUrls.add(url);
+    startedUrlsChange.notifyListeners();
     // 模拟真实写入：创建 .part 文件（供后续 rename）
     final file = File(savePath);
     if (!await file.exists()) {
@@ -231,15 +235,23 @@ class FakeTransport extends DownloadTransport {
   }
 
   Future<void> waitForDownloads(int count, {required Duration timeout}) async {
-    final deadline = DateTime.now().add(timeout);
-    while (startedUrls.length < count && DateTime.now().isBefore(deadline)) {
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+    if (startedUrls.length >= count) return;
+    final completer = Completer<void>();
+    late void Function() listener;
+    listener = () {
+      if (startedUrls.length >= count) {
+        completer.complete();
+      }
+    };
+    startedUrlsChange.addListener(listener);
+    listener();
+    try {
+      await completer.future.timeout(timeout);
+    } catch (_) {
+      fail('等待 $count 个下载开始超时（当前 ${startedUrls.length} 个）');
+    } finally {
+      startedUrlsChange.removeListener(listener);
     }
-    expect(
-      startedUrls.length,
-      greaterThanOrEqualTo(count),
-      reason: '等待 $count 个下载开始超时',
-    );
   }
 }
 

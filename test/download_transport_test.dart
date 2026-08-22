@@ -73,36 +73,25 @@ void main() {
     final transport = DownloadTransport();
     final target = path('resume.mp4');
 
-    // 第一次下载到一半就取消
-    final cancelToken = CancelToken();
-    Future<void> failingDownload() async {
-      await transport.download(
-        url: '$baseUrl/file',
-        savePath: target,
-        cancelToken: cancelToken,
-        onProgress: (received, total) {
-          if (received >= fileBytes.length ~/ 2) {
-            cancelToken.cancel('stop for resume test');
-          }
-        },
-      );
-    }
+    // 模拟下载到一半留下的部分文件（真实场景中由取消/中断产生）。
+    // 不用"下载到一半再取消"来制造部分文件：取消时机取决于 dio 收到的
+    // chunk 大小，服务器可能一次发完整文件，取消时文件已写满，
+    // 在 CI（Linux）上不稳定。
+    const half = 128 * 1024;
+    await File(target).writeAsBytes(fileBytes.sublist(0, half));
+    expect(File(target).lengthSync(), half);
 
-    await expectLater(failingDownload(), throwsA(isA<DioException>()));
-    final halfBytes = File(target).lengthSync();
-    expect(halfBytes, greaterThan(0));
-    expect(halfBytes, lessThan(fileBytes.length));
-
-    // 第二次从已有字节继续
+    // 从已有字节继续：发送 Range 请求并追加写入
     final result = await transport.download(
       url: '$baseUrl/file',
       savePath: target,
-      existingBytes: halfBytes,
+      existingBytes: half,
     );
 
     expect(result.receivedBytes, fileBytes.length);
-    expect(File(target).lengthSync(), fileBytes.length);
+    expect(result.totalBytes, fileBytes.length);
     // 内容完整
+    expect(File(target).lengthSync(), fileBytes.length);
     expect(File(target).readAsBytesSync(), fileBytes);
   });
 

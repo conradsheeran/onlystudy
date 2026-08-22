@@ -361,9 +361,18 @@ class DownloadService {
 
     final task = _memoryTasks[index];
 
+    // 取消网络请求，并等待传输真正收尾（dio 的取消回调会关闭文件句柄），
+    // 否则删除 .part 时句柄可能仍被占用（Windows 上会抛 PathAccessException）。
     _cancelTokens[key]?.cancel();
+    final running = _runningFutures[key];
+    if (running != null) {
+      try {
+        await running;
+      } catch (_) {
+        // 取消导致的异常是预期内的
+      }
+    }
     _queue.remove(key);
-
     if (task.filePath != null) {
       final file = File(task.filePath!);
       if (await file.exists()) {
