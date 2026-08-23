@@ -202,15 +202,18 @@ class FakeTransport extends DownloadTransport {
     void Function(int received, int total)? onProgress,
   }) async {
     startedUrls.add(url);
+    // 先注册 completer，再通知监听者：保证 waitForDownloads 返回时
+    // 该下载的 completer 一定已可被 completeAll() 完成（否则 completeAll
+    // 可能漏掉刚开始的下载，导致队列永久卡住）。
+    final completer = Completer<void>();
+    _completers.add(completer);
+
     startedUrlsChange.notifyListeners();
     // 模拟真实写入：创建 .part 文件（供后续 rename）
     final file = File(savePath);
     if (!await file.exists()) {
       await file.writeAsBytes(List.filled(2048, 1));
     }
-
-    final completer = Completer<void>();
-    _completers.add(completer);
 
     // 监听取消
     cancelToken?.whenCancel.then((_) {
