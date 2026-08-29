@@ -43,7 +43,7 @@
 
 ### Issue tracker
 
-Issues live in the GitHub Issues of this repo, operated via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues live as markdown files under `.scratch/` in this repo. See `docs/agents/issue-tracker.md`.
 
 ### Domain docs
 
