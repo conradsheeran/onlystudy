@@ -27,20 +27,51 @@ class PlaybackGateway {
     return VideoDetail.fromJson(data['data']);
   }
 
-  /// 获取播放地址。
-  Future<VideoPlayInfo> getVideoPlayUrl(String bvid, int cid, {int? qn}) async {
+  /// 获取用于在线播放的 DASH 地址。
+  Future<VideoPlayInfo> getVideoPlayUrl(String bvid, int cid, {int? qn}) {
+    return _getPlayUrl(
+      bvid,
+      cid,
+      qn: qn,
+      fnval: 4048,
+    );
+  }
+
+  /// 获取适合单文件下载的渐进式地址。
+  ///
+  /// DownloadService 只消费一个 URL，不能直接把 DASH 的 video/audio
+  /// 两条轨道当作下载文件，因此下载请求必须明确保留 progressive 格式。
+  Future<VideoPlayInfo> getDownloadUrl(String bvid, int cid, {int? qn}) {
+    return _getPlayUrl(
+      bvid,
+      cid,
+      qn: qn,
+      fnval: 1,
+    );
+  }
+
+  Future<VideoPlayInfo> _getPlayUrl(
+    String bvid,
+    int cid, {
+    required int fnval,
+    int? qn,
+  }) async {
+    final targetQuality = qn ?? SettingsService().defaultResolution;
     final data = await _client.get(
       '/x/player/playurl',
       queryParameters: {
         'bvid': bvid,
         'cid': cid,
-        'qn': qn ?? SettingsService().defaultResolution,
-        'fnval': 1,
+        'qn': targetQuality,
+        'fnval': fnval,
         'fnver': 0,
         'fourk': 1,
       },
     );
-    return VideoPlayInfo.fromJson(data['data']);
+    return VideoPlayInfo.fromJson(
+      data['data'],
+      targetQuality: targetQuality,
+    );
   }
 
   /// 上报播放进度（失败静默，不阻塞本地保存）。

@@ -39,7 +39,7 @@ class DownloadService {
   DownloadTransport get _effectiveTransport =>
       _transport ??= DownloadTransport();
 
-  /// 获取播放地址；默认走 PlaybackGateway，测试可注入。
+  /// 获取单 URL 渐进式下载地址；默认走 PlaybackGateway，测试可注入。
   Future<String> Function(String bvid, int cid, int qn)? playUrlProvider;
 
   /// 下载保存目录；默认走系统文档目录，测试可注入。
@@ -214,7 +214,7 @@ class DownloadService {
       final playUrlProvider =
           this.playUrlProvider ??
           (bvid, cid, qn) async =>
-              (await PlaybackGateway().getVideoPlayUrl(bvid, cid, qn: qn)).url;
+              (await PlaybackGateway().getDownloadUrl(bvid, cid, qn: qn)).url;
       final url = await playUrlProvider(task.bvid, task.cid, task.quality);
       if (url.isEmpty) {
         throw Exception('No playable URL');

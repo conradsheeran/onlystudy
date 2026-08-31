@@ -11,6 +11,7 @@ import '../models/bili_models.dart';
 import '../models/history_entry.dart';
 import '../models/playback_progress_snapshot.dart';
 import '../services/playback_gateway.dart';
+import '../services/playback_media_strategy.dart';
 import '../services/bili_failure_message.dart';
 import '../services/download_service.dart';
 import '../services/history_service.dart';
@@ -56,7 +57,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   VideoPlayInfo? _playInfo;
   VideoDetail? _videoDetail;
   Timer? _saveHistoryTimer;
-  Timer? _positionGuardTimer;
   late final ProgressSaveQueue _progressQueue;
   List<int> _supportQualities = [];
   List<String> _supportQualityDescs = [];
@@ -198,7 +198,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _playbackSpeedNotifier.dispose();
     _qualityNotifier.dispose();
     _saveHistoryTimer?.cancel();
-    _positionGuardTimer?.cancel();
     _overlayTimer?.cancel();
     _completedSubscription?.cancel();
     final player = _playerInstance;
@@ -230,7 +229,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   Future<void> _initializePlayer() async {
     try {
       if (widget.localFilePath != null) {
-        await _setupController(widget.localFilePath!, isLocal: true);
+        await _setupController(
+          VideoPlayInfo(
+            url: widget.localFilePath!,
+            quality: 0,
+            acceptQuality: const [],
+            acceptDescription: const [],
+          ),
+          isLocal: true,
+        );
         _syncBackgroundPlaybackMetadata();
         if (mounted) {
           setState(() {
@@ -318,8 +325,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             );
 
       await _setupController(
-        _playInfo!.url,
-        audioUrl: _playInfo!.audioUrl,
+        _playInfo!,
         startAt: resumeSeconds > 0 ? Duration(seconds: resumeSeconds) : null,
       );
       _syncBackgroundPlaybackMetadata();
@@ -423,8 +429,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   /// 配置并启动播放器控制器
   Future<void> _setupController(
-    String url, {
-    String? audioUrl,
+    VideoPlayInfo info, {
     Duration? startAt,
     bool isLocal = false,
     bool shouldPlay = true,
@@ -437,89 +442,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       'Referer': 'https://www.bilibili.com/video/${_currentVideo.bvid}',
     };
 
-    final media = Media(url, httpHeaders: isLocal ? null : httpHeaders);
+    final media = Media(
+      PlaybackMediaStrategy.composeSource(info, isLocal: isLocal),
+      httpHeaders: isLocal ? null : httpHeaders,
+      start: startAt,
+      extras: PlaybackMediaStrategy.mediaExtras(isLocal: isLocal),
+    );
 
     await _player.open(media, play: false);
-
-    if (audioUrl != null && audioUrl.isNotEmpty) {
-      await _player.setAudioTrack(AudioTrack.uri(audioUrl));
-    }
-
     _player.setRate(_playbackSpeed);
-
-    Duration? effectiveTarget;
-
-    if (startAt != null) {
-      effectiveTarget = await _waitForReadyAndClamp(startAt);
-      await PlaybackSession.instance.seek(effectiveTarget);
-    }
 
     if (shouldPlay) {
       await PlaybackSession.instance.play();
     }
-
-    if (effectiveTarget != null) {
-      await _ensurePositionSticks(effectiveTarget);
-      _startPositionGuard(effectiveTarget);
-    }
-  }
-
-  /// 等待媒体就绪并对起始时间进行合理化处理
-  Future<Duration> _waitForReadyAndClamp(Duration target) async {
-    final durationFuture = _player.stream.duration
-        .firstWhere((d) => d > Duration.zero)
-        .timeout(const Duration(seconds: 3), onTimeout: () => Duration.zero);
-
-    final bufferingFuture = _player.stream.buffering
-        .firstWhere((b) => b == false)
-        .timeout(const Duration(seconds: 3), onTimeout: () => false);
-
-    final duration = await durationFuture;
-    await bufferingFuture;
-
-    if (duration > Duration.zero && target > duration) {
-      target = duration - const Duration(milliseconds: 500);
-    }
-    if (target < Duration.zero) {
-      target = Duration.zero;
-    }
-    return target;
-  }
-
-  /// 确保跳转位置稳定粘住
-  Future<void> _ensurePositionSticks(Duration target) async {
-    const attempts = 4;
-    const interval = Duration(milliseconds: 220);
-
-    for (var i = 0; i < attempts; i++) {
-      await Future.delayed(interval);
-      final current = _player.state.position;
-      if ((current - target).abs() <= const Duration(milliseconds: 500)) {
-        return;
-      }
-      await PlaybackSession.instance.seek(target);
-    }
-  }
-
-  /// 短时间内守护位置防止回跳
-  void _startPositionGuard(Duration target) {
-    _positionGuardTimer?.cancel();
-    var remaining = 8;
-    _positionGuardTimer = Timer.periodic(const Duration(milliseconds: 250), (
-      timer,
-    ) {
-      remaining--;
-      if (remaining <= 0) {
-        timer.cancel();
-        return;
-      }
-      final current = _player.state.position;
-      if ((current - target).abs() <= const Duration(milliseconds: 500)) {
-        timer.cancel();
-        return;
-      }
-      PlaybackSession.instance.seek(target);
-    });
   }
 
   void _syncBackgroundPlaybackMetadata() {
@@ -615,8 +550,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       );
 
       await _setupController(
-        _playInfo!.url,
-        audioUrl: _playInfo!.audioUrl,
+        _playInfo!,
         startAt: localPosition > 0
             ? Duration(seconds: localPosition)
             : Duration.zero,
@@ -670,8 +604,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
       // 保留完整 newInfo（含 audioUrl），避免 DASH 音轨丢失
       await _setupController(
-        newInfo.url,
-        audioUrl: newInfo.audioUrl,
+        newInfo,
         startAt: position,
         shouldPlay: wasPlaying,
       );
@@ -898,10 +831,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       },
       onHorizontalDragUpdate: (details) {
         final delta = details.primaryDelta ?? 0;
-        final currentMs = _seekTarget.inMilliseconds;
-        final newMs = (currentMs + delta * 200)
-            .clamp(0, _player.state.duration.inMilliseconds)
-            .toInt();
+        final screenWidth = MediaQuery.of(context).size.width;
+        final newMs = PlaybackMediaStrategy.seekTargetMs(
+          currentMs: _seekTarget.inMilliseconds,
+          deltaPixels: delta,
+          durationMs: _player.state.duration.inMilliseconds,
+          screenWidth: screenWidth,
+        );
         _seekTarget = Duration(milliseconds: newMs);
 
         final isForward = delta > 0;

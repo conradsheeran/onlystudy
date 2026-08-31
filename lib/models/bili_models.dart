@@ -313,6 +313,112 @@ class Video {
   }
 }
 
+List<String> _jsonStrings(Object? value) {
+  if (value is String) {
+    return value.isEmpty ? const [] : [value];
+  }
+  if (value is! List) return const [];
+  return value
+      .whereType<String>()
+      .where((item) => item.isNotEmpty)
+      .toList(growable: false);
+}
+
+List<int> _jsonInts(Object? value) {
+  if (value is! List) return const [];
+  return value
+      .map(_jsonInt)
+      .whereType<int>()
+      .toList(growable: false);
+}
+
+int? _jsonInt(Object? value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value);
+  return null;
+}
+
+Map<String, dynamic>? _jsonMap(Object? value) {
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) return Map<String, dynamic>.from(value);
+  return null;
+}
+
+List<Map<String, dynamic>> _jsonMaps(Object? value) {
+  if (value is! List) return const [];
+  return value
+      .map(_jsonMap)
+      .whereType<Map<String, dynamic>>()
+      .toList(growable: false);
+}
+
+List<String> _mediaUrls(
+  Map<String, dynamic> item, {
+  required String primaryKey,
+  String? alternatePrimaryKey,
+}) {
+  final urls = <String>[];
+  var primary = item[primaryKey];
+  if ((primary is! String || primary.isEmpty) &&
+      alternatePrimaryKey != null) {
+    primary = item[alternatePrimaryKey];
+  }
+  if (primary is String && primary.isNotEmpty) {
+    urls.add(primary);
+  }
+
+  final backups = _jsonStrings(item['backup_url'] ?? item['backupUrl']);
+  for (final backup in backups) {
+    if (!urls.contains(backup)) urls.add(backup);
+  }
+  return urls;
+}
+
+Map<String, dynamic>? _selectVideoRepresentation(
+  List<Map<String, dynamic>> representations,
+  int targetQuality,
+) {
+  if (representations.isEmpty) return null;
+
+  final withQuality = representations
+      .where((representation) => _jsonInt(representation['id']) != null)
+      .toList();
+  if (withQuality.isEmpty) return representations.first;
+
+  final notAboveTarget = withQuality
+      .where((representation) =>
+          _jsonInt(representation['id'])! <= targetQuality)
+      .toList();
+  final candidates = notAboveTarget.isNotEmpty ? notAboveTarget : withQuality;
+  candidates.sort((a, b) {
+    final aId = _jsonInt(a['id'])!;
+    final bId = _jsonInt(b['id'])!;
+    return aId.compareTo(bId);
+  });
+  // If every representation is above the target, the lowest one is the
+  // closest available match; otherwise choose the highest one not above it.
+  return notAboveTarget.isNotEmpty ? candidates.last : candidates.first;
+}
+
+Map<String, dynamic>? _selectAudioRepresentation(
+  List<Map<String, dynamic>> representations,
+) {
+  if (representations.isEmpty) return null;
+
+  final candidates = representations.toList();
+  candidates.sort((a, b) {
+    final idComparison = (_jsonInt(a['id']) ?? 0).compareTo(
+      _jsonInt(b['id']) ?? 0,
+    );
+    if (idComparison != 0) return idComparison;
+    return (_jsonInt(a['bandwidth']) ?? 0).compareTo(
+      _jsonInt(b['bandwidth']) ?? 0,
+    );
+  });
+  return candidates.last;
+}
+
 /// 视频播放地址信息模型 (包含清晰度信息)
 class VideoPlayInfo {
   final String url;
@@ -321,49 +427,124 @@ class VideoPlayInfo {
   final List<int> acceptQuality;
   final List<String> acceptDescription;
 
+  /// Progressive 响应中的完整 durl 分段，按 `order` 排序。
+  final List<String> segmentUrls;
+
+  /// durl 分段的时长，单位为毫秒，与 [segmentUrls] 一一对应。
+  final List<int> segmentDurationsMs;
+
+  /// DASH video representation 的备用地址。
+  final List<String> backupUrls;
+
+  /// DASH audio representation 的备用地址。
+  final List<String> audioBackupUrls;
+
   VideoPlayInfo({
     required this.url,
     this.audioUrl,
     required this.quality,
     required this.acceptQuality,
     required this.acceptDescription,
+    this.segmentUrls = const [],
+    this.segmentDurationsMs = const [],
+    this.backupUrls = const [],
+    this.audioBackupUrls = const [],
   });
 
-  factory VideoPlayInfo.fromJson(Map<String, dynamic> json) {
-    String url = '';
-    if (json['durl'] != null && (json['durl'] as List).isNotEmpty) {
-      url = json['durl'][0]['url'];
-    }
-
-    // 尝试解析 DASH 音频
+  factory VideoPlayInfo.fromJson(
+    Map<String, dynamic> json, {
+    int? targetQuality,
+  }) {
+    var url = '';
     String? audioUrl;
-    if (json['dash'] != null) {
-      if (url.isEmpty && json['dash']['video'] != null) {
-        final videoList = json['dash']['video'] as List;
-        if (videoList.isNotEmpty) {
-          url = videoList[0]['baseUrl'] ?? '';
+    var quality = _jsonInt(json['quality']) ?? 0;
+    var segmentUrls = <String>[];
+    var segmentDurationsMs = <int>[];
+    var backupUrls = <String>[];
+    var audioBackupUrls = <String>[];
+
+    final dash = _jsonMap(json['dash']);
+    final videoRepresentations = _jsonMaps(dash?['video']);
+    if (videoRepresentations.isNotEmpty) {
+      final requestedQuality = targetQuality ?? quality;
+      final selectedVideo = _selectVideoRepresentation(
+        videoRepresentations,
+        requestedQuality,
+      );
+      if (selectedVideo != null) {
+        final videoUrls = _mediaUrls(
+          selectedVideo,
+          primaryKey: 'baseUrl',
+          alternatePrimaryKey: 'base_url',
+        );
+        if (videoUrls.isNotEmpty) {
+          url = videoUrls.first;
+          backupUrls = videoUrls.skip(1).toList(growable: false);
+        }
+        quality = _jsonInt(selectedVideo['id']) ?? quality;
+      }
+
+      final selectedAudio = _selectAudioRepresentation(
+        _jsonMaps(dash?['audio']),
+      );
+      if (selectedAudio != null) {
+        final audioUrls = _mediaUrls(
+          selectedAudio,
+          primaryKey: 'baseUrl',
+          alternatePrimaryKey: 'base_url',
+        );
+        if (audioUrls.isNotEmpty) {
+          audioUrl = audioUrls.first;
+          audioBackupUrls = audioUrls.skip(1).toList(growable: false);
         }
       }
+    }
 
-      final audioList = json['dash']['audio'];
-      if (audioList != null && (audioList as List).isNotEmpty) {
-        final firstAudio = audioList[0];
-        final baseUrl = firstAudio['baseUrl'] as String? ?? '';
-        audioUrl = baseUrl.isNotEmpty
-            ? baseUrl
-            : (firstAudio['backup_url'] != null &&
-                    (firstAudio['backup_url'] as List).isNotEmpty
-                ? firstAudio['backup_url'][0]
-                : null);
+    // DASH is preferred. If it is absent or unusable, retain every durl
+    // segment so the player can build one continuous timeline.
+    if (url.isEmpty) {
+      final indexedDurl = _jsonMaps(json['durl']).asMap().entries.toList();
+      indexedDurl.sort((a, b) {
+        final aOrder = _jsonInt(a.value['order']);
+        final bOrder = _jsonInt(b.value['order']);
+        if (aOrder == null && bOrder == null) {
+          return a.key.compareTo(b.key);
+        }
+        if (aOrder == null) return 1;
+        if (bOrder == null) return -1;
+        final orderComparison = aOrder.compareTo(bOrder);
+        return orderComparison != 0
+            ? orderComparison
+            : a.key.compareTo(b.key);
+      });
+
+      for (final entry in indexedDurl) {
+        final durl = entry.value;
+        final urls = _mediaUrls(
+          durl,
+          primaryKey: 'url',
+          alternatePrimaryKey: 'baseUrl',
+        );
+        if (urls.isEmpty) continue;
+        segmentUrls.add(urls.first);
+        segmentDurationsMs.add((_jsonInt(durl['length']) ?? 0).clamp(0, 1 << 31));
+        if (backupUrls.isEmpty && urls.length > 1) {
+          backupUrls = urls.skip(1).toList(growable: false);
+        }
       }
+      if (segmentUrls.isNotEmpty) url = segmentUrls.first;
     }
 
     return VideoPlayInfo(
       url: url,
       audioUrl: audioUrl,
-      quality: json['quality'] ?? 0,
-      acceptQuality: List<int>.from(json['accept_quality'] ?? []),
-      acceptDescription: List<String>.from(json['accept_description'] ?? []),
+      quality: quality,
+      acceptQuality: _jsonInts(json['accept_quality']),
+      acceptDescription: _jsonStrings(json['accept_description']),
+      segmentUrls: segmentUrls,
+      segmentDurationsMs: segmentDurationsMs,
+      backupUrls: backupUrls,
+      audioBackupUrls: audioBackupUrls,
     );
   }
 }
