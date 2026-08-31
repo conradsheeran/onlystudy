@@ -14,6 +14,30 @@ class HistoryService {
   static const String _legacyHistoryKey = 'local_watch_history';
   static const String _legacyProgressKey = 'local_watch_progress';
 
+  /// 接近片尾时从头播放，避免 seek 到片尾后立即触发完成事件。
+  static const int kNearEndToleranceSeconds = 5;
+
+  /// 将持久化进度转换为安全的起播位置。
+  ///
+  /// 已完成、接近片尾或超出已知时长的记录都从头开始；时长未知时
+  /// 保留原始进度，等待播放器获得真实时长后再处理。
+  static int resolveResumePosition(int rawSeconds, int durationSeconds) {
+    if (rawSeconds <= 0) return 0;
+    if (durationSeconds <= 0) return rawSeconds;
+    if (rawSeconds >= durationSeconds - kNearEndToleranceSeconds) return 0;
+    return rawSeconds;
+  }
+
+  /// 获取经过片尾策略处理的起播位置。
+  Future<int> getResumePosition(
+    String bvid,
+    int cid,
+    int durationSeconds,
+  ) async {
+    final raw = await getProgress(bvid, cid);
+    return resolveResumePosition(raw, durationSeconds);
+  }
+
   Future<List<HistoryEntry>> getHistoryEntries() async {
     final prefs = await SharedPreferences.getInstance();
     final storedHistory = prefs.getStringList(_historyKey);
@@ -70,13 +94,33 @@ class HistoryService {
     required int duration,
     required int seconds,
     required bool isFinished,
+    Iterable<int> knownCids = const [],
   }) async {
     final existingEntry = await getHistoryEntry(video.bvid);
     final viewedAt = DateTime.now().millisecondsSinceEpoch;
     final normalizedDuration = duration > 0 ? duration : video.duration;
-    final normalizedProgress = seconds
-        .clamp(0, normalizedDuration > 0 ? normalizedDuration : seconds)
-        .toInt();
+    final normalizedProgress = isFinished
+        ? 0
+        : seconds
+              .clamp(0, normalizedDuration > 0 ? normalizedDuration : seconds)
+              .toInt();
+
+    final nextFinishedCids = Set<String>.from(
+      existingEntry?.finishedCids ?? const <String>{},
+    );
+    if (isFinished && cid > 0) {
+      nextFinishedCids.add('$cid');
+    } else {
+      nextFinishedCids.remove('$cid');
+    }
+
+    final knownCidStrings = knownCids
+        .where((knownCid) => knownCid > 0)
+        .map((knownCid) => '$knownCid')
+        .toSet();
+    final entryIsFinished =
+        knownCidStrings.isNotEmpty &&
+        knownCidStrings.every(nextFinishedCids.contains);
 
     final nextEntry = (existingEntry ?? HistoryEntry.fromVideo(video))
         .copyWith(
@@ -90,7 +134,8 @@ class HistoryService {
           duration: normalizedDuration,
           progressSeconds: normalizedProgress,
           viewedAt: viewedAt,
-          isFinished: isFinished,
+          isFinished: entryIsFinished,
+          finishedCids: nextFinishedCids,
         )
         .withPartProgress(cid, normalizedProgress);
 

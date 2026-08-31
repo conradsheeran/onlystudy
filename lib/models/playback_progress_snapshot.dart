@@ -13,6 +13,7 @@ class PlaybackProgressSnapshot {
   final int duration;
   final int seconds;
   final bool isFinished;
+  final List<int> knownCids;
 
   const PlaybackProgressSnapshot({
     required this.video,
@@ -23,9 +24,14 @@ class PlaybackProgressSnapshot {
     required this.duration,
     required this.seconds,
     required this.isFinished,
+    this.knownCids = const [],
   });
 
-  PlaybackProgressSnapshot copyWith({int? seconds, bool? isFinished}) {
+  PlaybackProgressSnapshot copyWith({
+    int? seconds,
+    bool? isFinished,
+    List<int>? knownCids,
+  }) {
     return PlaybackProgressSnapshot(
       video: video,
       aid: aid,
@@ -35,6 +41,7 @@ class PlaybackProgressSnapshot {
       duration: duration,
       seconds: seconds ?? this.seconds,
       isFinished: isFinished ?? this.isFinished,
+      knownCids: knownCids ?? this.knownCids,
     );
   }
 }

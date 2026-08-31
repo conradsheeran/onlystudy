@@ -18,9 +18,11 @@ class HistoryTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final progress = entry.duration > 0
-        ? (entry.progressSeconds / entry.duration).clamp(0.0, 1.0).toDouble()
-        : 0.0;
+    final progress = entry.isFinished
+        ? 1.0
+        : entry.duration > 0
+            ? (entry.progressSeconds / entry.duration).clamp(0.0, 1.0).toDouble()
+            : 0.0;
 
     return Card(
       elevation: 0,

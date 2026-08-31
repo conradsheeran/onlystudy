@@ -14,6 +14,7 @@ import '../services/playback_gateway.dart';
 import '../services/bili_failure_message.dart';
 import '../services/download_service.dart';
 import '../services/history_service.dart';
+import '../services/playback_completion_strategy.dart';
 import '../services/playback_session.dart';
 import '../services/progress_save_queue.dart';
 import '../services/settings_service.dart';
@@ -45,6 +46,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   late final Future<void> _playerBootstrap;
   bool _disposed = false;
   final PlaybackGateway _playback = PlaybackGateway();
+  final PlaybackCompletionStrategy _completionStrategy =
+      PlaybackCompletionStrategy();
 
   late int _currentIndex;
   bool _isLoading = true;
@@ -115,6 +118,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
     return _currentVideo.duration;
   }
+
+  List<int> get _knownCids => _pages
+      .map((page) => page.cid)
+      .where((cid) => cid > 0)
+      .toList(growable: false);
 
   /// 初始化组件状态并准备播放器
   @override
@@ -296,9 +304,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         _supportQualityDescs = _playInfo!.acceptDescription;
       }
 
-      final resumeSeconds =
-          resumeHistory?.progressForCid(_cid!) ??
-          await HistoryService().getProgress(_currentVideo.bvid, _cid!);
+      final historyService = HistoryService();
+      final initialHistory = _resumeHistoryEntry;
+      final resumeSeconds = initialHistory != null
+          ? HistoryService.resolveResumePosition(
+              initialHistory.progressForCid(_cid!),
+              _currentDurationSeconds,
+            )
+          : await historyService.getResumePosition(
+              _currentVideo.bvid,
+              _cid!,
+              _currentDurationSeconds,
+            );
 
       await _setupController(
         _playInfo!.url,
@@ -346,9 +363,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   PlaybackProgressSnapshot _captureSnapshot({bool markFinished = false}) {
     final position = _player.state.position.inSeconds;
     final durationSeconds = _currentDurationSeconds;
-    final effectivePosition = markFinished && durationSeconds > 0
-        ? durationSeconds
-        : position;
+    final effectivePosition = markFinished ? 0 : position;
     final isFinished =
         markFinished ||
         (durationSeconds > 0 && effectivePosition >= durationSeconds - 3);
@@ -362,6 +377,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       duration: durationSeconds,
       seconds: effectivePosition,
       isFinished: isFinished,
+      knownCids: _knownCids,
     );
   }
 
@@ -394,6 +410,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       duration: snapshot.duration,
       seconds: snapshot.seconds,
       isFinished: snapshot.isFinished,
+      knownCids: snapshot.knownCids,
     );
   }
 
@@ -412,6 +429,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     bool isLocal = false,
     bool shouldPlay = true,
   }) async {
+    _completionStrategy.reset();
+
     final httpHeaders = {
       'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -522,6 +541,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   /// 检查视频播放结束
   void _checkVideoEnd() {
+    if (!_completionStrategy.shouldHandle(
+      completed: true,
+      isLoading: _isLoading,
+    )) {
+      return;
+    }
+
     _saveProgress(markFinished: true);
     if (_pages.isNotEmpty && _currentPartIndex < _pages.length - 1) {
       _switchPart(_currentPartIndex + 1);
@@ -582,9 +608,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         _supportQualityDescs = _playInfo!.acceptDescription;
       }
 
-      final localPosition = await HistoryService().getProgress(
+      final localPosition = await HistoryService().getResumePosition(
         _currentVideo.bvid,
         _cid!,
+        _currentDurationSeconds,
       );
 
       await _setupController(

@@ -54,6 +54,92 @@ void main() {
       expect(entries.first.progressForCid(200), 87);
     });
 
+    test(
+      'completed part stores zero progress without finishing unknown parts',
+      () async {
+        final video = buildVideo('BV1', 'Video 1');
+
+        await service.savePlaybackProgress(
+          video: video,
+          aid: 100,
+          cid: 200,
+          page: 1,
+          partTitle: 'Part 1',
+          duration: 120,
+          seconds: 120,
+          isFinished: true,
+          knownCids: [200, 201],
+        );
+
+        final entry = await service.getHistoryEntry('BV1');
+        expect(entry, isNotNull);
+        expect(entry!.progressForCid(200), 0);
+        expect(entry.finishedCids, contains('200'));
+        expect(entry.isFinished, isFalse);
+      },
+    );
+
+    test(
+      'reads a damaged tail position as zero without rewriting history',
+      () async {
+        final video = buildVideo('BV1', 'Video 1');
+
+        await service.savePlaybackProgress(
+          video: video,
+          aid: 100,
+          cid: 200,
+          page: 1,
+          partTitle: 'Part 1',
+          duration: 120,
+          seconds: 119,
+          isFinished: false,
+          knownCids: [200],
+        );
+
+        expect(await service.getProgress('BV1', 200), 119);
+        expect(await service.getResumePosition('BV1', 200, 120), 0);
+      },
+    );
+
+    test(
+      'all known parts must be finished before the entry is finished',
+      () async {
+        final video = buildVideo('BV1', 'Video 1');
+
+        await service.savePlaybackProgress(
+          video: video,
+          aid: 100,
+          cid: 200,
+          page: 1,
+          partTitle: 'Part 1',
+          duration: 120,
+          seconds: 120,
+          isFinished: true,
+          knownCids: [200, 201],
+        );
+        var entry = await service.getHistoryEntry('BV1');
+        expect(entry!.isFinished, isFalse);
+        expect(entry.finishedCids, {'200'});
+
+        await service.savePlaybackProgress(
+          video: video,
+          aid: 100,
+          cid: 201,
+          page: 2,
+          partTitle: 'Part 2',
+          duration: 120,
+          seconds: 120,
+          isFinished: true,
+          knownCids: [200, 201],
+        );
+        entry = await service.getHistoryEntry('BV1');
+        expect(entry!.isFinished, isTrue);
+        expect(entry.finishedCids, {'200', '201'});
+        expect(entry.progressForCid(200), 0);
+        expect(entry.progressForCid(201), 0);
+      },
+    );
+
     test('sorts entries by latest viewed time', () async {
       final video1 = buildVideo('BV1', 'Video 1');
       final video2 = buildVideo('BV2', 'Video 2');
@@ -75,6 +161,19 @@ void main() {
 
       final entries = await service.getHistoryEntries();
       expect(entries.map((entry) => entry.bvid).toList(), ['BV1', 'BV2']);
+    });
+
+    test('reads old entries without a finishedCids field', () async {
+      SharedPreferences.setMockInitialValues({
+        'local_watch_history_entries': [
+          '{"bvid":"BV8","cid":333,"title":"Old Video","cover":"cover","upperName":"Old UP","duration":90,"progressSeconds":90,"viewedAt":123456,"isFinished":true,"partProgress":{"333":90}}',
+        ],
+      });
+
+      final entry = await HistoryService().getHistoryEntry('BV8');
+      expect(entry, isNotNull);
+      expect(entry!.isFinished, isTrue);
+      expect(entry.finishedCids, isEmpty);
     });
 
     test('migrates legacy local history and progress data', () async {

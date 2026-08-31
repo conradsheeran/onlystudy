@@ -14,6 +14,7 @@ class HistoryEntry {
   final int viewedAt;
   final bool isFinished;
   final Map<String, int> partProgress;
+  final Set<String> finishedCids;
 
   const HistoryEntry({
     required this.bvid,
@@ -29,17 +30,28 @@ class HistoryEntry {
     required this.viewedAt,
     this.isFinished = false,
     this.partProgress = const {},
+    this.finishedCids = const {},
   });
 
   factory HistoryEntry.fromJson(Map<String, dynamic> json) {
     final rawPartProgress = json['partProgress'];
     final parsedPartProgress = <String, int>{};
+    final rawFinishedCids = json['finishedCids'];
+    final parsedFinishedCids = <String>{};
 
     if (rawPartProgress is Map) {
       for (final entry in rawPartProgress.entries) {
         final value = entry.value;
         if (value is num) {
           parsedPartProgress[entry.key.toString()] = value.toInt();
+        }
+      }
+    }
+
+    if (rawFinishedCids is Iterable) {
+      for (final cid in rawFinishedCids) {
+        if (cid != null) {
+          parsedFinishedCids.add(cid.toString());
         }
       }
     }
@@ -58,6 +70,7 @@ class HistoryEntry {
       viewedAt: json['viewedAt'] ?? 0,
       isFinished: json['isFinished'] ?? false,
       partProgress: parsedPartProgress,
+      finishedCids: parsedFinishedCids,
     );
   }
 
@@ -87,6 +100,7 @@ class HistoryEntry {
       'viewedAt': viewedAt,
       'isFinished': isFinished,
       'partProgress': partProgress,
+      'finishedCids': finishedCids.toList()..sort(),
     };
   }
 
@@ -104,6 +118,7 @@ class HistoryEntry {
     int? viewedAt,
     bool? isFinished,
     Map<String, int>? partProgress,
+    Set<String>? finishedCids,
   }) {
     return HistoryEntry(
       bvid: bvid ?? this.bvid,
@@ -119,6 +134,7 @@ class HistoryEntry {
       viewedAt: viewedAt ?? this.viewedAt,
       isFinished: isFinished ?? this.isFinished,
       partProgress: partProgress ?? this.partProgress,
+      finishedCids: finishedCids ?? this.finishedCids,
     );
   }
 
