@@ -18,6 +18,9 @@ class AuthService {
     : _dio = Dio(
         BaseOptions(
           baseUrl: 'https://passport.bilibili.com',
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+          sendTimeout: const Duration(seconds: 10),
           headers: {
             'User-Agent':
                 'Mozilla/5.0 BiliDroid/2.0.1 (bbcallen@gmail.com) os/android model/android_hd mobi_app/android_hd build/2001100 channel/master innerVer/2001100 osVer/15 network/2',

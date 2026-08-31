@@ -9,6 +9,8 @@ import 'package:onlystudy/l10n/app_localizations.dart';
 import 'package:onlystudy/screens/login_screen.dart';
 import 'package:onlystudy/services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher_platform_interface/link.dart';
+import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 
 /// LoginScreen 轮询行为测试（OPT-018）。
 ///
@@ -52,7 +54,19 @@ class _FakeAdapter implements HttpClientAdapter {
         final completer = Completer<void>();
         pending.add(completer);
         await completer.future;
-        return _json({'code': 86039});
+        return _json({
+          'code': 0,
+          'data': {
+            'token_info': {'refresh_token': 'REFRESH'},
+            'cookie_info': {
+              'cookies': [
+                {'name': 'SESSDATA', 'value': 'sess-1'},
+                {'name': 'bili_jct', 'value': 'jct-1'},
+                {'name': 'DedeUserID', 'value': '12345'},
+              ],
+            },
+          },
+        });
       }
       return _json(responder()!);
     }
@@ -82,6 +96,25 @@ class _FakeAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
+/// 测试专用 URL launcher platform，用于验证系统边界调用。
+class _FakeUrlLauncherPlatform extends UrlLauncherPlatform {
+  _FakeUrlLauncherPlatform({this.result = true});
+
+  final bool result;
+  String? launchedUrl;
+  PreferredLaunchMode? launchMode;
+
+  @override
+  LinkDelegate? get linkDelegate => null;
+
+  @override
+  Future<bool> launchUrl(String url, LaunchOptions options) async {
+    launchedUrl = url;
+    launchMode = options.mode;
+    return result;
+  }
+}
+
 /// 记录导航事件的 observer，用于断言"只导航一次"。
 class _RecordingObserver extends NavigatorObserver {
   final List<String> events = [];
@@ -107,8 +140,10 @@ void main() {
 
   late _FakeAdapter adapter;
   late Dio dio;
+  late UrlLauncherPlatform originalUrlLauncher;
 
   setUp(() {
+    originalUrlLauncher = UrlLauncherPlatform.instance;
     SharedPreferences.setMockInitialValues({});
     adapter = _FakeAdapter();
     dio = Dio(BaseOptions(baseUrl: 'https://passport.bilibili.com'))
@@ -116,13 +151,21 @@ void main() {
     AuthService().dioForTest = dio;
   });
 
-  Future<void> pumpLogin(WidgetTester tester) async {
+  tearDown(() {
+    UrlLauncherPlatform.instance = originalUrlLauncher;
+  });
+
+  Future<void> pumpLogin(
+    WidgetTester tester, {
+    List<NavigatorObserver> navigatorObservers = const [],
+  }) async {
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        locale: Locale('zh'),
-        home: LoginScreen(),
+        locale: const Locale('zh'),
+        navigatorObservers: navigatorObservers,
+        home: const LoginScreen(),
       ),
     );
     // 等待 addPostFrameCallback + _loadQRCode 完成
@@ -137,7 +180,7 @@ void main() {
       contains('/x/passport-tv-login/qrcode/auth_code'),
     );
     expect(find.text('请使用 Bilibili 手机端扫码'), findsOneWidget);
-    // poll 每 3 秒一次；首 tick 尚未发生
+    // poll 每 1.5 秒一次；首 tick 尚未发生
     expect(adapter.pollCallCount, 0);
 
     // 拆掉 widget 让 Timer 取消
@@ -219,6 +262,100 @@ void main() {
     expect(find.text('已扫码，请在手机上确认登录'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox()); // dispose, cancel timer
+  });
+
+  testWidgets('poll 请求超过看门狗时间后会发起新的请求', (tester) async {
+    await pumpLogin(tester);
+
+    await tester.pump(const Duration(milliseconds: 1500));
+    await tester.pump();
+    expect(adapter.pollCallCount, 1);
+    expect(adapter.pending, hasLength(1));
+
+    adapter.pollResponder = () => {'code': 86090, 'data': null};
+    await tester.pump(const Duration(seconds: 15));
+    await tester.pump();
+
+    expect(adapter.pollCallCount, 2);
+    expect(find.text('已扫码，请在手机上确认登录'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('回到前台立即补轮询并丢弃旧 generation 响应', (tester) async {
+    final navigatorObserver = _RecordingObserver();
+    await pumpLogin(tester, navigatorObservers: [navigatorObserver]);
+
+    await tester.pump(const Duration(milliseconds: 1500));
+    await tester.pump();
+    expect(adapter.pollCallCount, 1);
+    expect(adapter.pending, hasLength(1));
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.pump();
+    await tester.pump();
+
+    expect(adapter.pollCallCount, 2);
+    expect(adapter.pending, hasLength(2));
+
+    adapter.completePendingWithSuccess();
+    await tester.pumpAndSettle();
+
+    final navigationEvents = navigatorObserver.events
+        .where((e) => e.startsWith('push:MaterialPageRoute'))
+        .toList();
+    expect(navigationEvents, hasLength(1));
+    expect((await SharedPreferences.getInstance()).getBool('isLoggedIn'), isTrue);
+  });
+
+  testWidgets('二维码显示剩余时间并在180秒后自动过期', (tester) async {
+    await pumpLogin(tester);
+
+    expect(find.textContaining('二维码剩余'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 179));
+    expect(find.textContaining('二维码剩余'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('二维码已过期'), findsOneWidget);
+    expect(find.text('刷新二维码'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('点击二维码入口可拉起本机 Bilibili App', (tester) async {
+    final launcher = _FakeUrlLauncherPlatform();
+    UrlLauncherPlatform.instance = launcher;
+    await pumpLogin(tester);
+
+    await tester.tap(find.text('用本机哔哩哔哩 App 扫码'));
+    await tester.pump();
+
+    expect(
+      launcher.launchedUrl,
+      'https://passport.bilibili.com/x/passport-tv-login/qrcode/auth_code?auth_code=CODE123',
+    );
+    expect(launcher.launchMode, PreferredLaunchMode.externalApplication);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('本机 Bilibili App 打开失败时显示安全回退提示', (tester) async {
+    final launcher = _FakeUrlLauncherPlatform(result: false);
+    UrlLauncherPlatform.instance = launcher;
+    await pumpLogin(tester);
+
+    await tester.tap(find.text('用本机哔哩哔哩 App 扫码'));
+    await tester.pump();
+
+    expect(
+      find.text('无法打开本机哔哩哔哩 App，请使用其他设备扫码'),
+      findsOneWidget,
+    );
+
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('二维码过期（86038）显示过期并可刷新', (tester) async {

@@ -440,6 +440,24 @@ abstract class AppLocalizations {
   /// **'请使用 Bilibili 手机端扫码'**
   String get scanQRCode;
 
+  /// No description provided for @qrCodeRemainingTime.
+  ///
+  /// In zh, this message translates to:
+  /// **'二维码剩余 {seconds} 秒'**
+  String qrCodeRemainingTime(Object seconds);
+
+  /// No description provided for @openBilibiliApp.
+  ///
+  /// In zh, this message translates to:
+  /// **'用本机哔哩哔哩 App 扫码'**
+  String get openBilibiliApp;
+
+  /// No description provided for @openBilibiliAppFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法打开本机哔哩哔哩 App，请使用其他设备扫码'**
+  String get openBilibiliAppFailed;
+
   /// No description provided for @scanDetectedConfirm.
   ///
   /// In zh, this message translates to:

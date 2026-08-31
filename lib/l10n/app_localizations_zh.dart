@@ -194,6 +194,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scanQRCode => '请使用 Bilibili 手机端扫码';
 
   @override
+  String qrCodeRemainingTime(Object seconds) {
+    return '二维码剩余 $seconds 秒';
+  }
+
+  @override
+  String get openBilibiliApp => '用本机哔哩哔哩 App 扫码';
+
+  @override
+  String get openBilibiliAppFailed => '无法打开本机哔哩哔哩 App，请使用其他设备扫码';
+
+  @override
   String get scanDetectedConfirm => '已扫码，请在手机上确认登录';
 
   @override
