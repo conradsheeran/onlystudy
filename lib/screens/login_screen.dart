@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
 import '../models/qr_login.dart';
 import '../services/auth_service.dart';
@@ -253,29 +252,6 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
-  Future<void> _openBilibiliApp() async {
-    final qrUrl = _qrUrl;
-    if (qrUrl == null || _isExpired) return;
-
-    try {
-      final launched = await launchUrl(
-        Uri.parse(qrUrl),
-        mode: LaunchMode.externalApplication,
-      );
-      if (!launched && mounted && _qrUrl == qrUrl && !_isExpired) {
-        setState(() {
-          _statusText = AppLocalizations.of(context)!.openBilibiliAppFailed;
-        });
-      }
-    } catch (error) {
-      if (mounted && _qrUrl == qrUrl && !_isExpired) {
-        setState(() {
-          _statusText = AppLocalizations.of(context)!.openBilibiliAppFailed;
-        });
-      }
-      debugPrint('QR app launch error type=${error.runtimeType}');
-    }
-  }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -344,14 +320,6 @@ class _LoginScreenState extends State<LoginScreen>
                   _qrCodeSecondsRemaining,
                 ),
                 style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: _openBilibiliApp,
-                icon: const Icon(Icons.open_in_new),
-                label: Text(
-                  AppLocalizations.of(context)!.openBilibiliApp,
-                ),
               ),
               const SizedBox(height: 8),
             ],

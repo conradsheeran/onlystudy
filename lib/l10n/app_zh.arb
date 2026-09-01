@@ -60,8 +60,6 @@
   "fetchingQRCode": "正在获取二维码...",
   "scanQRCode": "请使用 Bilibili 手机端扫码",
   "qrCodeRemainingTime": "二维码剩余 {seconds} 秒",
-  "openBilibiliApp": "用本机哔哩哔哩 App 扫码",
-  "openBilibiliAppFailed": "无法打开本机哔哩哔哩 App，请使用其他设备扫码",
   "scanDetectedConfirm": "已扫码，请在手机上确认登录",
   "loginSuccess": "登录成功! 正在跳转...",
   "loginFailed": "登录失败: {error}",

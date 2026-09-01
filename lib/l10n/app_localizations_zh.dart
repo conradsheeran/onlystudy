@@ -199,12 +199,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get openBilibiliApp => '用本机哔哩哔哩 App 扫码';
-
-  @override
-  String get openBilibiliAppFailed => '无法打开本机哔哩哔哩 App，请使用其他设备扫码';
-
-  @override
   String get scanDetectedConfirm => '已扫码，请在手机上确认登录';
 
   @override

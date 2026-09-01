@@ -201,13 +201,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get openBilibiliApp => 'Scan with the Bilibili App on this device';
-
-  @override
-  String get openBilibiliAppFailed =>
-      'Couldn\'t open the Bilibili App. Please scan with another device.';
-
-  @override
   String get scanDetectedConfirm =>
       'Scanned! Please confirm login on your phone';
 

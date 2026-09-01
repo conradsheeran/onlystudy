@@ -9,8 +9,6 @@ import 'package:onlystudy/l10n/app_localizations.dart';
 import 'package:onlystudy/screens/login_screen.dart';
 import 'package:onlystudy/services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher_platform_interface/link.dart';
-import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 
 /// LoginScreen 轮询行为测试（OPT-018）。
 ///
@@ -96,24 +94,6 @@ class _FakeAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
-/// 测试专用 URL launcher platform，用于验证系统边界调用。
-class _FakeUrlLauncherPlatform extends UrlLauncherPlatform {
-  _FakeUrlLauncherPlatform({this.result = true});
-
-  final bool result;
-  String? launchedUrl;
-  PreferredLaunchMode? launchMode;
-
-  @override
-  LinkDelegate? get linkDelegate => null;
-
-  @override
-  Future<bool> launchUrl(String url, LaunchOptions options) async {
-    launchedUrl = url;
-    launchMode = options.mode;
-    return result;
-  }
-}
 
 /// 记录导航事件的 observer，用于断言"只导航一次"。
 class _RecordingObserver extends NavigatorObserver {
@@ -140,10 +120,8 @@ void main() {
 
   late _FakeAdapter adapter;
   late Dio dio;
-  late UrlLauncherPlatform originalUrlLauncher;
 
   setUp(() {
-    originalUrlLauncher = UrlLauncherPlatform.instance;
     SharedPreferences.setMockInitialValues({});
     adapter = _FakeAdapter();
     dio = Dio(BaseOptions(baseUrl: 'https://passport.bilibili.com'))
@@ -151,9 +129,6 @@ void main() {
     AuthService().dioForTest = dio;
   });
 
-  tearDown(() {
-    UrlLauncherPlatform.instance = originalUrlLauncher;
-  });
 
   Future<void> pumpLogin(
     WidgetTester tester, {
@@ -325,35 +300,11 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('点击二维码入口可拉起本机 Bilibili App', (tester) async {
-    final launcher = _FakeUrlLauncherPlatform();
-    UrlLauncherPlatform.instance = launcher;
+  testWidgets('二维码区域不提供本机 Bilibili App 入口', (tester) async {
     await pumpLogin(tester);
 
-    await tester.tap(find.text('用本机哔哩哔哩 App 扫码'));
-    await tester.pump();
-
-    expect(
-      launcher.launchedUrl,
-      'https://passport.bilibili.com/x/passport-tv-login/qrcode/auth_code?auth_code=CODE123',
-    );
-    expect(launcher.launchMode, PreferredLaunchMode.externalApplication);
-
-    await tester.pumpWidget(const SizedBox());
-  });
-
-  testWidgets('本机 Bilibili App 打开失败时显示安全回退提示', (tester) async {
-    final launcher = _FakeUrlLauncherPlatform(result: false);
-    UrlLauncherPlatform.instance = launcher;
-    await pumpLogin(tester);
-
-    await tester.tap(find.text('用本机哔哩哔哩 App 扫码'));
-    await tester.pump();
-
-    expect(
-      find.text('无法打开本机哔哩哔哩 App，请使用其他设备扫码'),
-      findsOneWidget,
-    );
+    expect(find.text('用本机哔哩哔哩 App 扫码'), findsNothing);
+    expect(find.byIcon(Icons.open_in_new), findsNothing);
 
     await tester.pumpWidget(const SizedBox());
   });

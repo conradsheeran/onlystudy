@@ -60,8 +60,6 @@
   "fetchingQRCode": "Fetching QR Code...",
   "scanQRCode": "Please scan with Bilibili App",
   "qrCodeRemainingTime": "QR code expires in {seconds} seconds",
-  "openBilibiliApp": "Scan with the Bilibili App on this device",
-  "openBilibiliAppFailed": "Couldn't open the Bilibili App. Please scan with another device.",
   "scanDetectedConfirm": "Scanned! Please confirm login on your phone",
   "loginSuccess": "Login Successful! Redirecting...",
   "loginFailed": "Login failed: {error}",
