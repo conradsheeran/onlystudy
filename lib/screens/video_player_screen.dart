@@ -2,9 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart' as mkv;
-import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
-import 'package:screen_brightness/screen_brightness.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/bili_models.dart';
@@ -19,6 +17,7 @@ import '../services/playback_completion_strategy.dart';
 import '../services/playback_session.dart';
 import '../services/progress_save_queue.dart';
 import '../services/settings_service.dart';
+import '../widgets/player_chrome.dart';
 
 /// 视频播放器页面
 class VideoPlayerScreen extends StatefulWidget {
@@ -44,6 +43,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   Player? _playerInstance;
   mkv.VideoController? _controllerInstance;
   StreamSubscription<bool>? _completedSubscription;
+  StreamSubscription<Duration>? _positionSubscription;
+  StreamSubscription<Duration>? _durationSubscription;
+  StreamSubscription<Duration>? _bufferSubscription;
+  StreamSubscription<bool>? _playingSubscription;
+  StreamSubscription<bool>? _bufferingSubscription;
+  bool _isFullscreen = false;
+  Duration _currentPosition = Duration.zero;
+  Duration _currentDuration = Duration.zero;
+  Duration _currentBuffered = Duration.zero;
+  bool _isPlaying = false;
+  bool _isBuffering = false;
   late final Future<void> _playerBootstrap;
   bool _disposed = false;
   final PlaybackGateway _playback = PlaybackGateway();
@@ -68,18 +78,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   late final ValueNotifier<double> _playbackSpeedNotifier;
   final ValueNotifier<int?> _qualityNotifier = ValueNotifier(null);
   int _qualitySwitchGeneration = 0;
-  bool _showOverlay = false;
-  String _overlayText = '';
-  IconData _overlayIcon = Icons.info;
-  Timer? _overlayTimer;
-
-  double _accumulatedDy = 0.0;
-  double? _startVolume;
-  double? _startBrightness;
-  bool _isAdjustingVolume = false;
-  bool _isAdjustingBrightness = false;
-
-  Duration _seekTarget = Duration.zero;
 
   Player get _player => _playerInstance!;
   mkv.VideoController get _controller => _controllerInstance!;
@@ -169,6 +167,41 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         _checkVideoEnd();
       }
     });
+    _positionSubscription = player.stream.position.listen((pos) {
+      if (!_disposed && mounted && pos.inSeconds != _currentPosition.inSeconds) {
+        setState(() {
+          _currentPosition = pos;
+        });
+      }
+    });
+    _durationSubscription = player.stream.duration.listen((dur) {
+      if (!_disposed && mounted && dur != _currentDuration) {
+        setState(() {
+          _currentDuration = dur;
+        });
+      }
+    });
+    _bufferSubscription = player.stream.buffer.listen((buf) {
+      if (!_disposed && mounted && buf != _currentBuffered) {
+        setState(() {
+          _currentBuffered = buf;
+        });
+      }
+    });
+    _playingSubscription = player.stream.playing.listen((playing) {
+      if (!_disposed && mounted && playing != _isPlaying) {
+        setState(() {
+          _isPlaying = playing;
+        });
+      }
+    });
+    _bufferingSubscription = player.stream.buffering.listen((buffering) {
+      if (!_disposed && mounted && buffering != _isBuffering) {
+        setState(() {
+          _isBuffering = buffering;
+        });
+      }
+    });
   }
 
   /// 开始播放当前视频（初始化状态、记录历史、加载播放器）
@@ -198,8 +231,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _playbackSpeedNotifier.dispose();
     _qualityNotifier.dispose();
     _saveHistoryTimer?.cancel();
-    _overlayTimer?.cancel();
     _completedSubscription?.cancel();
+    _positionSubscription?.cancel();
+    _durationSubscription?.cancel();
+    _bufferSubscription?.cancel();
+    _playingSubscription?.cancel();
+    _bufferingSubscription?.cancel();
     final player = _playerInstance;
     if (player != null) {
       _saveProgress();
@@ -642,30 +679,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _playbackSpeedNotifier.value = speed;
     _player.setRate(speed);
     PlaybackSession.instance.refreshConfiguration();
-    _showOverlayInfo(
-      Icons.speed,
-      '${AppLocalizations.of(context)!.speed} ${speed}x',
-    );
   }
 
-  /// 显示覆盖信息（音量/亮度/倍速）
-  void _showOverlayInfo(IconData icon, String text, {bool autoHide = true}) {
-    setState(() {
-      _showOverlay = true;
-      _overlayIcon = icon;
-      _overlayText = text;
-    });
-    _overlayTimer?.cancel();
-    if (autoHide) {
-      _overlayTimer = Timer(const Duration(seconds: 2), () {
-        if (mounted) {
-          setState(() {
-            _showOverlay = false;
-          });
-        }
-      });
-    }
-  }
 
   /// 展示分集选择列表
   void _showPartsList() {
@@ -736,318 +751,110 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     );
   }
 
-  /// 构建手势层
-  Widget _buildGestureLayer(mkv.VideoState state) {
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onDoubleTap: () {
+  PlayerChromeState _buildPlayerChromeState() {
+    final partLabel = (_pages.isNotEmpty &&
+            _pages.length > 1 &&
+            _currentPartIndex < _pages.length)
+        ? 'P${_currentPartIndex + 1} ${_pages[_currentPartIndex].part}'
+        : null;
+
+    final duration = _currentDuration > Duration.zero
+        ? _currentDuration
+        : (_currentDurationSeconds > 0
+            ? Duration(seconds: _currentDurationSeconds)
+            : Duration.zero);
+
+    return PlayerChromeState(
+      position: _currentPosition,
+      duration: duration,
+      buffered: _currentBuffered,
+      isPlaying: _isPlaying,
+      isBuffering: _isBuffering,
+      title: _currentVideo.title,
+      partLabel: partLabel,
+      speedLabel: '${_playbackSpeed}x',
+      qualityLabel: _getCurrentQualityDesc(),
+      hasParts: _pages.isNotEmpty && _pages.length > 1,
+      isFullscreen: _isFullscreen,
+      availableSpeeds: const [0.5, 0.75, 1.0, 1.25, 1.5, 2.0],
+      availableQualities: _supportQualities,
+      availableQualityDescs: _supportQualityDescs,
+      currentQuality: _playInfo?.quality,
+    );
+  }
+
+  PlayerChromeCallbacks _buildPlayerChromeCallbacks() {
+    return PlayerChromeCallbacks(
+      onBack: () => Navigator.of(context).pop(),
+      onPlayPause: () {
         if (_player.state.playing) {
           PlaybackSession.instance.pause();
         } else {
           PlaybackSession.instance.play();
         }
       },
-      onLongPressStart: (_) {
-        _player.setRate(2.0);
-        PlaybackSession.instance.refreshConfiguration();
-        _showOverlayInfo(
-          Icons.fast_forward,
-          '${AppLocalizations.of(context)!.speed} 2.0x',
-          autoHide: false,
-        );
-        _overlayTimer?.cancel();
-        _overlayTimer = Timer(const Duration(milliseconds: 1500), () {
-          if (mounted && _showOverlay) {
-            setState(() {
-              _showOverlay = false;
-            });
-          }
+      onSeek: (target) {
+        PlaybackSession.instance.seek(target);
+      },
+      onToggleFullscreen: () {
+        setState(() {
+          _isFullscreen = !_isFullscreen;
         });
       },
-      onLongPressEnd: (_) {
-        _player.setRate(_playbackSpeed);
-        PlaybackSession.instance.refreshConfiguration();
-        if (_showOverlay) {
-          setState(() {
-            _showOverlay = false;
-          });
-        }
-      },
-      onVerticalDragStart: (details) {
-        final screenWidth = MediaQuery.of(context).size.width;
-        final x = details.globalPosition.dx;
-
-        _accumulatedDy = 0.0;
-        _isAdjustingVolume = false;
-        _isAdjustingBrightness = false;
-
-        if (x > screenWidth / 2) {
-          _isAdjustingVolume = true;
-          FlutterVolumeController.getVolume().then((v) {
-            _startVolume = v ?? 0.5;
-          });
-        } else {
-          _isAdjustingBrightness = true;
-          ScreenBrightness().application
-              .then((v) {
-                _startBrightness = v;
-              })
-              .catchError((e) {
-                _startBrightness = 0.5;
-              });
-        }
-      },
-      onVerticalDragUpdate: (details) async {
-        if (!_isAdjustingVolume && !_isAdjustingBrightness) return;
-
-        _accumulatedDy += details.primaryDelta ?? 0;
-
-        double change = -_accumulatedDy / 200.0;
-
-        if (_isAdjustingVolume && _startVolume != null) {
-          double newVol = (_startVolume! + change).clamp(0.0, 1.0);
-          await FlutterVolumeController.setVolume(newVol);
-          _showOverlayInfo(
-            newVol <= 0
-                ? Icons.volume_off
-                : (newVol < 0.5 ? Icons.volume_down : Icons.volume_up),
-            '${(newVol * 100).toInt()}%',
+      onShowParts: _showPartsList,
+      onSelectSpeed: _setPlaybackSpeed,
+      onSelectQuality: _switchQuality,
+      onDownload: () {
+        if (_cid != null && _videoDetail != null) {
+          DownloadService().startDownload(
+            _currentVideo,
+            _cid!,
+            _videoDetail!.aid,
+            qn: _playInfo?.quality ?? 64,
           );
-        } else if (_isAdjustingBrightness && _startBrightness != null) {
-          try {
-            double newB = (_startBrightness! + change).clamp(0.0, 1.0);
-            await ScreenBrightness().setApplicationScreenBrightness(newB);
-            _showOverlayInfo(
-              Icons.brightness_medium,
-              '${(newB * 100).toInt()}%',
-            );
-          } catch (e) {
-            debugPrint('调整亮度失败: $e');
-          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.addToDownload),
+            ),
+          );
         }
       },
-      onHorizontalDragStart: (details) {
-        _seekTarget = _player.state.position;
-      },
-      onHorizontalDragUpdate: (details) {
-        final delta = details.primaryDelta ?? 0;
-        final screenWidth = MediaQuery.of(context).size.width;
-        final newMs = PlaybackMediaStrategy.seekTargetMs(
-          currentMs: _seekTarget.inMilliseconds,
-          deltaPixels: delta,
-          durationMs: _player.state.duration.inMilliseconds,
-          screenWidth: screenWidth,
-        );
-        _seekTarget = Duration(milliseconds: newMs);
-
-        final isForward = delta > 0;
-        _showOverlayInfo(
-          isForward ? Icons.fast_forward : Icons.fast_rewind,
-          _formatDuration(_seekTarget.inSeconds),
-        );
-      },
-      onHorizontalDragEnd: (details) {
-        PlaybackSession.instance.seek(_seekTarget);
-      },
     );
-  }
-
-  /// 构建信息覆盖层
-  Widget _buildOverlay() {
-    if (!_showOverlay) return const SizedBox.shrink();
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.7),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(_overlayIcon, color: Colors.white, size: 48),
-            const SizedBox(height: 8),
-            Text(
-              _overlayText,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// 构建顶部按钮区域
-  List<Widget> _buildTopBarActions() {
-    return [
-      IconButton(
-        icon: const Icon(Icons.arrow_back, color: Colors.white),
-        onPressed: () => Navigator.pop(context),
-      ),
-      Expanded(
-        child: Text(
-          _pages.isNotEmpty && _pages.length > 1
-              ? '${_currentVideo.title} - P${_currentPartIndex + 1} ${_pages[_currentPartIndex].part}'
-              : _currentVideo.title,
-          style: const TextStyle(color: Colors.white, fontSize: 16),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
-      if (_pages.isNotEmpty && _pages.length > 1)
-        IconButton(
-          icon: const Icon(Icons.list, color: Colors.white),
-          tooltip: AppLocalizations.of(context)!.partsList,
-          onPressed: _showPartsList,
-        ),
-      PopupMenuButton<double>(
-        initialValue: _playbackSpeed,
-        tooltip: AppLocalizations.of(context)!.playbackSpeed,
-        onSelected: _setPlaybackSpeed,
-        color: Colors.grey[900],
-        itemBuilder: (context) {
-          return [0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((speed) {
-            return PopupMenuItem(
-              value: speed,
-              child: Text(
-                '${speed}x',
-                style: const TextStyle(color: Colors.white),
-              ),
-            );
-          }).toList();
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12.0),
-          child: Center(
-            child: ValueListenableBuilder<double>(
-              valueListenable: _playbackSpeedNotifier,
-              builder: (context, value, child) {
-                return Text(
-                  '${value}x',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-      ),
-      IconButton(
-        icon: const Icon(Icons.download, color: Colors.white),
-        tooltip: AppLocalizations.of(context)!.downloadCache,
-        onPressed: () {
-          if (_cid != null && _videoDetail != null) {
-            DownloadService().startDownload(
-              _currentVideo,
-              _cid!,
-              _videoDetail!.aid,
-              qn: _playInfo?.quality ?? 64,
-            );
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(AppLocalizations.of(context)!.addToDownload),
-              ),
-            );
-          }
-        },
-      ),
-      if (_playInfo != null && _supportQualities.isNotEmpty)
-        PopupMenuButton<int>(
-          initialValue: _playInfo!.quality,
-          onSelected: _switchQuality,
-          color: Colors.grey[900],
-          itemBuilder: (context) {
-            return List.generate(_supportQualities.length, (index) {
-              final quality = _supportQualities[index];
-              final description = index < _supportQualityDescs.length
-                  ? _supportQualityDescs[index]
-                  : '$quality';
-              return PopupMenuItem(
-                value: quality,
-                child: Text(
-                  description,
-                  style: const TextStyle(color: Colors.white),
-                ),
-              );
-            });
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Center(
-              child: ValueListenableBuilder<int?>(
-                valueListenable: _qualityNotifier,
-                builder: (context, value, child) {
-                  return Text(
-                    _getCurrentQualityDesc(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-    ];
   }
 
   /// 构建播放器界面
   @override
   Widget build(BuildContext context) {
+    final Widget playerContent = _isLoading
+        ? const Center(
+            child: CircularProgressIndicator(color: Colors.white),
+          )
+        : _error != null
+            ? Center(
+                child: Text(_error!, style: const TextStyle(color: Colors.white)),
+              )
+            : Stack(
+                children: [
+                  Center(
+                    child: mkv.Video(
+                      controller: _controller,
+                      pauseUponEnteringBackgroundMode:
+                          !SettingsService().enableBackgroundPlayback,
+                      controls: mkv.NoVideoControls,
+                    ),
+                  ),
+                  PlayerChrome(
+                    state: _buildPlayerChromeState(),
+                    callbacks: _buildPlayerChromeCallbacks(),
+                  ),
+                ],
+              );
+
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Center(
-          child: _isLoading
-              ? const CircularProgressIndicator(color: Colors.white)
-              : _error != null
-              ? Text(_error!, style: const TextStyle(color: Colors.white))
-              : mkv.MaterialVideoControlsTheme(
-                  normal: mkv.MaterialVideoControlsThemeData(
-                    seekBarPositionColor: Theme.of(context).colorScheme.primary,
-                    seekBarThumbColor: Theme.of(context).colorScheme.primary,
-                    seekBarMargin: const EdgeInsets.fromLTRB(12, 0, 12, 60),
-                    topButtonBar: _buildTopBarActions(),
-                    topButtonBarMargin: const EdgeInsets.fromLTRB(
-                      16,
-                      16,
-                      16,
-                      0,
-                    ),
-                  ),
-                  fullscreen: mkv.MaterialVideoControlsThemeData(
-                    topButtonBar: _buildTopBarActions(),
-                    topButtonBarMargin: const EdgeInsets.fromLTRB(
-                      16,
-                      16,
-                      16,
-                      0,
-                    ),
-                  ),
-                  child: mkv.Video(
-                    controller: _controller,
-                    pauseUponEnteringBackgroundMode:
-                        !SettingsService().enableBackgroundPlayback,
-                    controls: (state) {
-                      return Stack(
-                        children: [
-                          mkv.MaterialVideoControls(state),
-                          _buildGestureLayer(state),
-                          _buildOverlay(),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-        ),
-      ),
+      body: _isFullscreen
+          ? playerContent
+          : SafeArea(child: playerContent),
     );
   }
 
