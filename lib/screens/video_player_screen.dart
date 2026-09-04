@@ -18,6 +18,7 @@ import '../services/playback_session.dart';
 import '../services/progress_save_queue.dart';
 import '../services/settings_service.dart';
 import '../widgets/player_chrome.dart';
+import '../widgets/error_view.dart';
 import '../services/screen_mode_service.dart';
 
 /// 视频播放器页面
@@ -888,7 +889,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           )
         : _error != null
             ? Center(
-                child: Text(_error!, style: const TextStyle(color: Colors.white)),
+                child: ErrorView(
+                  message: _error!,
+                  onRetry: _playCurrentVideo,
+                ),
               )
             : Stack(
                 children: [

@@ -226,6 +226,34 @@ class _PlayerChromeState extends State<PlayerChrome> {
     return '$minutes:$seconds';
   }
 
+  Widget _buildTimeReadout(Duration position, Duration duration) {
+    final posStr = _formatDuration(position);
+    final durStr = _formatDuration(duration);
+    final sampleStr =
+        duration.inHours > 0 ? '00:00:00 / 00:00:00' : '00:00 / 00:00';
+    const textStyle = TextStyle(
+      color: Colors.white,
+      fontSize: 12,
+      fontFeatures: [FontFeature.tabularFigures()],
+    );
+
+    final painter = TextPainter(
+      text: TextSpan(text: sampleStr, style: textStyle),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    return SizedBox(
+      key: const Key('player_chrome_time_readout'),
+      width: painter.width + 4.0,
+      child: Text(
+        '$posStr / $durStr',
+        style: textStyle,
+        textAlign: TextAlign.center,
+        maxLines: 1,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -245,7 +273,10 @@ class _PlayerChromeState extends State<PlayerChrome> {
     final positionSeconds = _dragPositionSeconds ??
         (widget.state.position.inMilliseconds / 1000.0);
     final sliderMax = max(1.0, durationSeconds);
-    final sliderValue = positionSeconds.clamp(0.0, sliderMax);
+    final progressFraction = (positionSeconds / sliderMax).clamp(0.0, 1.0);
+    final bufferFraction = (widget.state.buffered.inMilliseconds /
+            max(1, widget.state.duration.inMilliseconds))
+        .clamp(0.0, 1.0);
 
     return Stack(
       children: [
@@ -454,61 +485,43 @@ class _PlayerChromeState extends State<PlayerChrome> {
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                     child: Row(
                       children: [
-                        Text(
-                          _formatDuration(Duration(
-                            milliseconds: (sliderValue * 1000).round(),
-                          )),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
+                        _buildTimeReadout(
+                          Duration(
+                            milliseconds: (positionSeconds * 1000).round(),
                           ),
+                          widget.state.duration,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 12),
                         Expanded(
-                          child: SliderTheme(
-                            data: SliderTheme.of(context).copyWith(
-                              activeTrackColor: primaryColor,
-                              thumbColor: primaryColor,
-                              inactiveTrackColor: Colors.white24,
-                              trackHeight: 3.5,
-                              thumbShape: const RoundSliderThumbShape(
-                                enabledThumbRadius: 7,
-                              ),
-                              overlayShape: const RoundSliderOverlayShape(
-                                overlayRadius: 14,
-                              ),
-                            ),
-                            child: Slider(
-                              value: sliderValue,
-                              min: 0.0,
-                              max: sliderMax,
-                              onChanged: (v) {
-                                setState(() {
-                                  _dragPositionSeconds = v;
-                                });
-                                _hideTimer?.cancel();
-                                widget.callbacks.onSeekPreview?.call(
-                                  Duration(milliseconds: (v * 1000).round()),
-                                );
-                              },
-                              onChangeEnd: (v) {
-                                setState(() {
-                                  _dragPositionSeconds = null;
-                                });
-                                _resetHideTimer();
-                                widget.callbacks.onSeek?.call(
-                                  Duration(milliseconds: (v * 1000).round()),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _formatDuration(widget.state.duration),
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
+                          child: PlayerProgressBar(
+                            key: const Key('player_chrome_main_progress_bar'),
+                            progressFraction: progressFraction,
+                            bufferFraction: bufferFraction,
+                            primaryColor: primaryColor,
+                            onSeekPreview: (fraction) {
+                              final targetSeconds = fraction * durationSeconds;
+                              setState(() {
+                                _dragPositionSeconds = targetSeconds;
+                              });
+                              _hideTimer?.cancel();
+                              widget.callbacks.onSeekPreview?.call(
+                                Duration(
+                                  milliseconds: (targetSeconds * 1000).round(),
+                                ),
+                              );
+                            },
+                            onSeek: (fraction) {
+                              final targetSeconds = fraction * durationSeconds;
+                              setState(() {
+                                _dragPositionSeconds = null;
+                              });
+                              _resetHideTimer();
+                              widget.callbacks.onSeek?.call(
+                                Duration(
+                                  milliseconds: (targetSeconds * 1000).round(),
+                                ),
+                              );
+                            },
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -533,7 +546,186 @@ class _PlayerChromeState extends State<PlayerChrome> {
             ),
           ),
         ),
+
+        // 4. 控件隐藏后的常驻细进度条
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: IgnorePointer(
+            ignoring: true,
+            child: AnimatedOpacity(
+              opacity: _controlsVisible ? 0.0 : 1.0,
+              duration: const Duration(milliseconds: 150),
+              child: SizedBox(
+                key: const Key('player_chrome_tiny_progress_bar'),
+                height: 2.5,
+                child: CustomPaint(
+                  painter: _ProgressBarPainter(
+                    progressFraction: progressFraction,
+                    bufferFraction: bufferFraction,
+                    trackHeight: 2.5,
+                    thumbRadius: 0.0,
+                    primaryColor: primaryColor,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ],
+    );
+  }
+}
+
+/// 进度条绘制器（支持缓冲进度与等比圆角轨道）
+class _ProgressBarPainter extends CustomPainter {
+  final double progressFraction;
+  final double bufferFraction;
+  final double trackHeight;
+  final double thumbRadius;
+  final Color primaryColor;
+
+  _ProgressBarPainter({
+    required this.progressFraction,
+    required this.bufferFraction,
+    required this.trackHeight,
+    required this.thumbRadius,
+    required this.primaryColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final trackRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(
+        0,
+        (size.height - trackHeight) / 2,
+        size.width,
+        trackHeight,
+      ),
+      Radius.circular(trackHeight / 2),
+    );
+
+    // 1. 底轨色
+    final bgPaint = Paint()..color = const Color(0x33FFFFFF);
+    canvas.drawRRect(trackRect, bgPaint);
+
+    // 2. 缓冲轨
+    if (bufferFraction > 0) {
+      final bufferWidth = size.width * bufferFraction.clamp(0.0, 1.0);
+      final bufferRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(
+          0,
+          (size.height - trackHeight) / 2,
+          bufferWidth,
+          trackHeight,
+        ),
+        Radius.circular(trackHeight / 2),
+      );
+      final bufferPaint = Paint()..color = primaryColor.withValues(alpha: 0.4);
+      canvas.drawRRect(bufferRect, bufferPaint);
+    }
+
+    // 3. 播放进度轨
+    final progressWidth = size.width * progressFraction.clamp(0.0, 1.0);
+    final progressRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(
+        0,
+        (size.height - trackHeight) / 2,
+        progressWidth,
+        trackHeight,
+      ),
+      Radius.circular(trackHeight / 2),
+    );
+    final progressPaint = Paint()..color = primaryColor;
+    canvas.drawRRect(progressRect, progressPaint);
+
+    // 4. Thumb 拖动点
+    if (thumbRadius > 0) {
+      final thumbCenter = Offset(
+        progressWidth.clamp(thumbRadius, size.width - thumbRadius),
+        size.height / 2,
+      );
+      final thumbPaint = Paint()..color = primaryColor;
+      canvas.drawCircle(thumbCenter, thumbRadius, thumbPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ProgressBarPainter oldDelegate) {
+    return oldDelegate.progressFraction != progressFraction ||
+        oldDelegate.bufferFraction != bufferFraction ||
+        oldDelegate.trackHeight != trackHeight ||
+        oldDelegate.thumbRadius != thumbRadius ||
+        oldDelegate.primaryColor != primaryColor;
+  }
+}
+
+/// 应用自有进度条 Widget（支持缓冲展示、拖动交互与冻结更新）
+class PlayerProgressBar extends StatelessWidget {
+  final double progressFraction;
+  final double bufferFraction;
+  final double trackHeight;
+  final double thumbRadius;
+  final Color primaryColor;
+  final ValueChanged<double>? onSeekPreview;
+  final ValueChanged<double>? onSeek;
+
+  const PlayerProgressBar({
+    super.key,
+    required this.progressFraction,
+    required this.bufferFraction,
+    this.trackHeight = 3.5,
+    this.thumbRadius = 7.0,
+    required this.primaryColor,
+    this.onSeekPreview,
+    this.onSeek,
+  });
+
+  void _handleDrag(Offset localPosition, double width) {
+    if (width <= 0) return;
+    final fraction = (localPosition.dx / width).clamp(0.0, 1.0);
+    onSeekPreview?.call(fraction);
+  }
+
+  void _handleDragEnd(Offset localPosition, double width) {
+    if (width <= 0) return;
+    final fraction = (localPosition.dx / width).clamp(0.0, 1.0);
+    onSeek?.call(fraction);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragStart: (details) =>
+              _handleDrag(details.localPosition, width),
+          onHorizontalDragUpdate: (details) =>
+              _handleDrag(details.localPosition, width),
+          onHorizontalDragEnd: (details) =>
+              _handleDragEnd(details.localPosition, width),
+          onTapDown: (details) {
+            _handleDrag(details.localPosition, width);
+            _handleDragEnd(details.localPosition, width);
+          },
+          child: SizedBox(
+            height: max(24.0, thumbRadius * 2),
+            child: CustomPaint(
+              size: Size(width, max(24.0, thumbRadius * 2)),
+              painter: _ProgressBarPainter(
+                progressFraction: progressFraction,
+                bufferFraction: bufferFraction,
+                trackHeight: trackHeight,
+                thumbRadius: thumbRadius,
+                primaryColor: primaryColor,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

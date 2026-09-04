@@ -269,5 +269,67 @@ void main() {
       final backButtonPortrait = tester.getTopLeft(find.byIcon(Icons.arrow_back));
       expect(backButtonPortrait.dx, lessThan(24.0));
     });
+
+    testWidgets('时间格式正确且秒数变化时宽度稳定（预留总时长宽度）', (tester) async {
+      await tester.pumpWidget(
+        _buildTestablePlayerChrome(
+          state: testState.copyWith(
+            position: const Duration(seconds: 1),
+            duration: const Duration(minutes: 10),
+          ),
+          callbacks: const PlayerChromeCallbacks(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final timeFinder = find.byKey(const Key('player_chrome_time_readout'));
+      expect(timeFinder, findsOneWidget);
+      final size1 = tester.getSize(timeFinder);
+
+      // 切换到包含较多宽数字的时间
+      await tester.pumpWidget(
+        _buildTestablePlayerChrome(
+          state: testState.copyWith(
+            position: const Duration(minutes: 8, seconds: 58),
+            duration: const Duration(minutes: 10),
+          ),
+          callbacks: const PlayerChromeCallbacks(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final size2 = tester.getSize(timeFinder);
+      expect(size1.width, equals(size2.width));
+    });
+
+    testWidgets('控件隐藏后常驻细进度条渲染且不拦截命中测试', (tester) async {
+      bool backgroundTapped = false;
+      await tester.pumpWidget(
+        _buildTestablePlayerChrome(
+          state: testState.copyWith(controlsVisible: false),
+          callbacks: PlayerChromeCallbacks(
+            onToggleControls: () => backgroundTapped = true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final tinyBarFinder = find.byKey(const Key('player_chrome_tiny_progress_bar'));
+      expect(tinyBarFinder, findsOneWidget);
+
+      // 验证外层包着 IgnorePointer(ignoring: true)
+      final ignorePointer = tester.widget<IgnorePointer>(
+        find.ancestor(
+          of: tinyBarFinder,
+          matching: find.byType(IgnorePointer),
+        ).first,
+      );
+      expect(ignorePointer.ignoring, isTrue);
+
+      // 点击屏幕最底部细进度条位置，手势仍能穿透到全局背景触发切换
+      final bottomCenter = tester.getCenter(tinyBarFinder);
+      await tester.tapAt(bottomCenter);
+      expect(backgroundTapped, isTrue);
+    });
   });
 }
