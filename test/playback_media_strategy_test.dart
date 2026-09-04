@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onlystudy/models/bili_models.dart';
 import 'package:onlystudy/services/playback_media_strategy.dart';
+import 'package:flutter/services.dart';
 
 void main() {
   test('DASH video 与 audio 使用 mpv EDL 合成单一连续媒体源', () {
@@ -77,6 +78,41 @@ void main() {
         screenWidth: 1000,
       ),
       200,
+    );
+  });
+
+  test('全屏方向决策：竖屏视频保持竖屏，横屏视频请求横屏，宽高未知按横屏处理', () {
+    // 竖屏视频 (1080x1920)
+    expect(
+      PlaybackMediaStrategy.decideFullscreenOrientations(width: 1080, height: 1920),
+      [DeviceOrientation.portraitUp],
+    );
+
+    // 横屏视频 (1920x1080)
+    expect(
+      PlaybackMediaStrategy.decideFullscreenOrientations(width: 1920, height: 1080),
+      [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight],
+    );
+
+    // 宽高未知 (null 或 0)
+    expect(
+      PlaybackMediaStrategy.decideFullscreenOrientations(width: null, height: null),
+      [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight],
+    );
+    expect(
+      PlaybackMediaStrategy.decideFullscreenOrientations(width: 0, height: 0),
+      [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight],
+    );
+  });
+
+  test('退出全屏方向决策：明确恢复 portraitUp 而不是空列表', () {
+    expect(
+      PlaybackMediaStrategy.decideExitFullscreenOrientations(),
+      [DeviceOrientation.portraitUp],
+    );
+    expect(
+      PlaybackMediaStrategy.decideExitFullscreenOrientations(),
+      isNot(isEmpty),
     );
   });
 }

@@ -18,6 +18,7 @@ import '../services/playback_session.dart';
 import '../services/progress_save_queue.dart';
 import '../services/settings_service.dart';
 import '../widgets/player_chrome.dart';
+import '../services/screen_mode_service.dart';
 
 /// 视频播放器页面
 class VideoPlayerScreen extends StatefulWidget {
@@ -54,6 +55,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   Duration _currentBuffered = Duration.zero;
   bool _isPlaying = false;
   bool _isBuffering = false;
+  bool _fsProcessing = false;
+  final GlobalKey _videoKey = GlobalKey();
   late final Future<void> _playerBootstrap;
   bool _disposed = false;
   final PlaybackGateway _playback = PlaybackGateway();
@@ -244,6 +247,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       player.dispose();
     }
     WakelockPlus.disable();
+    if (_isFullscreen) {
+      ScreenModeService().exitFullscreen();
+    }
+    ScreenModeService().reset();
     super.dispose();
   }
 
@@ -783,9 +790,63 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     );
   }
 
+  Future<void> _enterFullscreen() async {
+    if (_fsProcessing || _isFullscreen) return;
+    _fsProcessing = true;
+    try {
+      final width = _playerInstance?.state.width;
+      final height = _playerInstance?.state.height;
+      final orientations = PlaybackMediaStrategy.decideFullscreenOrientations(
+        width: width,
+        height: height,
+      );
+      await ScreenModeService().enterFullscreen(orientations);
+    } finally {
+      _fsProcessing = false;
+      if (mounted) {
+        setState(() {
+          _isFullscreen = true;
+        });
+      }
+    }
+  }
+
+  Future<void> _exitFullscreen() async {
+    if (_fsProcessing || !_isFullscreen) return;
+    _fsProcessing = true;
+    try {
+      await ScreenModeService().exitFullscreen();
+    } finally {
+      _fsProcessing = false;
+      if (mounted) {
+        setState(() {
+          _isFullscreen = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _toggleFullscreen() async {
+    if (_isFullscreen) {
+      await _exitFullscreen();
+    } else {
+      await _enterFullscreen();
+    }
+  }
+
+  Future<void> _handleBack() async {
+    if (_isFullscreen) {
+      await _exitFullscreen();
+    } else {
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    }
+  }
+
   PlayerChromeCallbacks _buildPlayerChromeCallbacks() {
     return PlayerChromeCallbacks(
-      onBack: () => Navigator.of(context).pop(),
+      onBack: _handleBack,
       onPlayPause: () {
         if (_player.state.playing) {
           PlaybackSession.instance.pause();
@@ -796,11 +857,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       onSeek: (target) {
         PlaybackSession.instance.seek(target);
       },
-      onToggleFullscreen: () {
-        setState(() {
-          _isFullscreen = !_isFullscreen;
-        });
-      },
+      onToggleFullscreen: _toggleFullscreen,
       onShowParts: _showPartsList,
       onSelectSpeed: _setPlaybackSpeed,
       onSelectQuality: _switchQuality,
@@ -837,6 +894,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                 children: [
                   Center(
                     child: mkv.Video(
+                      key: _videoKey,
                       controller: _controller,
                       pauseUponEnteringBackgroundMode:
                           !SettingsService().enableBackgroundPlayback,
@@ -850,11 +908,20 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                 ],
               );
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: _isFullscreen
-          ? playerContent
-          : SafeArea(child: playerContent),
+    return PopScope(
+      canPop: !_isFullscreen,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        if (_isFullscreen) {
+          await _exitFullscreen();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: _isFullscreen
+            ? playerContent
+            : SafeArea(child: playerContent),
+      ),
     );
   }
 

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/services.dart';
 
 import '../models/bili_models.dart';
 
@@ -94,5 +95,25 @@ class PlaybackMediaStrategy {
         '%${_edlLength(videoUrl, isLocal: isLocal)}%$videoUrl;'
         '!new_stream;!no_clip;!no_chapters;'
         '%${_edlLength(audioUrl, isLocal: isLocal)}%$audioUrl';
+  }
+
+  /// 根据视频宽高比决策进入全屏时的目标方向：
+  /// 宽高比 < 1.0 为竖屏视频，保持竖屏；否则锁定横屏。宽高未知或异常按横屏处理。
+  static List<DeviceOrientation> decideFullscreenOrientations({
+    int? width,
+    int? height,
+  }) {
+    if (width != null && height != null && height > 0 && (width / height < 1.0)) {
+      return const [DeviceOrientation.portraitUp];
+    }
+    return const [
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ];
+  }
+
+  /// 退出全屏时恢复的方向（明确为 portraitUp，避免解锁为任意方向）
+  static List<DeviceOrientation> decideExitFullscreenOrientations() {
+    return const [DeviceOrientation.portraitUp];
   }
 }

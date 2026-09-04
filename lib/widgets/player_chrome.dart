@@ -231,6 +231,10 @@ class _PlayerChromeState extends State<PlayerChrome> {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final primaryColor = theme.colorScheme.primary;
+    final viewPadding = MediaQuery.viewPaddingOf(context);
+    final horizontalSafePadding = widget.state.isFullscreen
+        ? EdgeInsets.only(left: viewPadding.left, right: viewPadding.right)
+        : EdgeInsets.zero;
 
     final titleText = (widget.state.partLabel != null &&
             widget.state.partLabel!.isNotEmpty)
@@ -268,7 +272,9 @@ class _PlayerChromeState extends State<PlayerChrome> {
           curve: Curves.easeInOut,
           child: IgnorePointer(
             ignoring: !_controlsVisible,
-            child: Stack(
+            child: Padding(
+              padding: horizontalSafePadding,
+              child: Stack(
               children: [
                 // 顶部操作栏
                 Positioned(
@@ -523,6 +529,7 @@ class _PlayerChromeState extends State<PlayerChrome> {
                   ),
                 ),
               ],
+              ),
             ),
           ),
         ),

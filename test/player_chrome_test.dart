@@ -236,5 +236,38 @@ void main() {
       expect(find.byTooltip('Playback Speed'), findsOneWidget);
       expect(find.byTooltip('Cache Video'), findsOneWidget);
     });
+
+    testWidgets('全屏时应用 viewPadding.left/right，非全屏不受影响', (tester) async {
+      tester.view.physicalSize = const Size(2400, 1080);
+      tester.view.devicePixelRatio = 2.0;
+      tester.view.viewPadding = const FakeViewPadding(left: 48, right: 48);
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        tester.view.resetViewPadding();
+      });
+
+      // 1. 全屏时有内边距
+      await tester.pumpWidget(
+        _buildTestablePlayerChrome(
+          state: testState.copyWith(isFullscreen: true),
+          callbacks: const PlayerChromeCallbacks(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final backButton = tester.getTopLeft(find.byIcon(Icons.arrow_back));
+      expect(backButton.dx, greaterThanOrEqualTo(24.0)); // 48 / 2.0 = 24.0
+
+      // 2. 非全屏时不受 viewPadding 影响
+      await tester.pumpWidget(
+        _buildTestablePlayerChrome(
+          state: testState.copyWith(isFullscreen: false),
+          callbacks: const PlayerChromeCallbacks(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final backButtonPortrait = tester.getTopLeft(find.byIcon(Icons.arrow_back));
+      expect(backButtonPortrait.dx, lessThan(24.0));
+    });
   });
 }
