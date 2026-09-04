@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
 import '../services/playback_media_strategy.dart';
+import '../models/bili_models.dart';
 
 /// HUD 显示类型
 sealed class PlayerChromeHud {
@@ -1022,6 +1023,189 @@ class PlayerProgressBar extends StatelessWidget {
                 primaryColor: primaryColor,
               ),
             ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// 分集列表选择弹窗内容（统一主题令牌与响应式排版）
+class VideoPartsSheet extends StatelessWidget {
+  final List<VideoPage> pages;
+  final int currentPartIndex;
+  final ValueChanged<int> onSelectPart;
+  final bool isFullscreen;
+
+  const VideoPartsSheet({
+    super.key,
+    required this.pages,
+    required this.currentPartIndex,
+    required this.onSelectPart,
+    this.isFullscreen = false,
+  });
+
+  String _formatDuration(int seconds) {
+    final m = (seconds ~/ 60).toString().padLeft(2, '0');
+    final s = (seconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
+    final primaryColor = theme.colorScheme.primary;
+
+    Widget content = Column(
+      mainAxisSize: MainAxisSize.max,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+          child: Text(
+            '${l10n?.partsList ?? "分集列表"} (${pages.length})',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        const Divider(height: 1, color: Colors.white12),
+        Expanded(
+          child: ListView.builder(
+            itemCount: pages.length,
+            padding: const EdgeInsets.symmetric(vertical: 4.0),
+            itemBuilder: (context, index) {
+              final page = pages[index];
+              final isSelected = index == currentPartIndex;
+              return ListTile(
+                selected: isSelected,
+                selectedTileColor: primaryColor.withValues(alpha: 0.12),
+                leading: Text(
+                  'P${page.page}',
+                  style: TextStyle(
+                    color: isSelected
+                        ? primaryColor
+                        : theme.colorScheme.onSurfaceVariant,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+                title: Text(
+                  page.part,
+                  style: TextStyle(
+                    color: isSelected ? primaryColor : Colors.white,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: Text(
+                  _formatDuration(page.duration),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                onTap: () {
+                  onSelectPart(index);
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+
+    if (isFullscreen) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: Container(
+          key: const Key('video_parts_sheet_content'),
+          width: MediaQuery.of(context).size.width * 0.5,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainer,
+            border: const Border(left: BorderSide(color: Colors.white12)),
+          ),
+          child: SafeArea(
+            left: false,
+            child: content,
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      key: const Key('video_parts_sheet_content'),
+      color: theme.colorScheme.surfaceContainer,
+      child: SafeArea(
+        child: content,
+      ),
+    );
+  }
+}
+
+/// 弹出分集列表选择弹窗（横竖屏自适应）
+void showVideoPartsSheet({
+  required BuildContext context,
+  required List<VideoPage> pages,
+  required int currentPartIndex,
+  required ValueChanged<int> onSelectPart,
+  required bool isFullscreen,
+}) {
+  if (isFullscreen) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Dismiss',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 350),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeInOut,
+        );
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(1, 0),
+            end: Offset.zero,
+          ).animate(curved),
+          child: child,
+        );
+      },
+      pageBuilder: (context, _, _) {
+        return VideoPartsSheet(
+          pages: pages,
+          currentPartIndex: currentPartIndex,
+          onSelectPart: (i) {
+            Navigator.of(context).pop();
+            onSelectPart(i);
+          },
+          isFullscreen: true,
+        );
+      },
+    );
+  } else {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SizedBox(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: VideoPartsSheet(
+            pages: pages,
+            currentPartIndex: currentPartIndex,
+            onSelectPart: (i) {
+              Navigator.of(context).pop();
+              onSelectPart(i);
+            },
+            isFullscreen: false,
           ),
         );
       },

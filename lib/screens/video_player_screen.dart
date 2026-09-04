@@ -698,70 +698,16 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   /// 展示分集选择列表
   void _showPartsList() {
-    showModalBottomSheet(
+    showVideoPartsSheet(
       context: context,
-      backgroundColor: Colors.grey[900],
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text(
-                '${AppLocalizations.of(context)!.partsList} (${_pages.length})',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _pages.length,
-                itemBuilder: (context, index) {
-                  final page = _pages[index];
-                  final isSelected = index == _currentPartIndex;
-                  return ListTile(
-                    selected: isSelected,
-                    selectedTileColor: Colors.white10,
-                    leading: Text(
-                      'P${page.page}',
-                      style: TextStyle(
-                        color: isSelected
-                            ? Theme.of(context).colorScheme.primary
-                            : Colors.grey,
-                      ),
-                    ),
-                    title: Text(
-                      page.part,
-                      style: TextStyle(
-                        color: isSelected
-                            ? Theme.of(context).colorScheme.primary
-                            : Colors.white,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: Text(
-                      _formatDuration(page.duration),
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context);
-                      if (!isSelected) {
-                        _switchPart(index);
-                      }
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        );
+      pages: _pages,
+      currentPartIndex: _currentPartIndex,
+      onSelectPart: (index) {
+        if (index != _currentPartIndex) {
+          _switchPart(index);
+        }
       },
+      isFullscreen: _isFullscreen,
     );
   }
 

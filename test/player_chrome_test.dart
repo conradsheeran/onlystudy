@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
 import 'package:onlystudy/widgets/player_chrome.dart';
+import 'package:onlystudy/models/bili_models.dart';
 
 Widget _buildTestablePlayerChrome({
   required PlayerChromeState state,
@@ -505,6 +506,101 @@ void main() {
       await tester.dragFrom(center, const Offset(0, -100));
       await tester.pumpAndSettle();
       expect(volumeCalled, isFalse);
+    });
+
+    testWidgets('分集列表在竖屏与横屏下均可滚动到最后一集并触发回调，且配色遵循主题令牌', (tester) async {
+      final pages = List.generate(
+        50,
+        (i) => VideoPage(
+          cid: 1000 + i,
+          page: i + 1,
+          part: '第${i + 1}讲：课程内容',
+          duration: 360,
+        ),
+      );
+
+      int? selectedPart;
+
+      // 1. 竖屏形态测试
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFF00E5FF),
+              surfaceContainer: Color(0xFF1E1E1E),
+            ),
+          ),
+          home: Scaffold(
+            body: VideoPartsSheet(
+              pages: pages,
+              currentPartIndex: 0,
+              onSelectPart: (i) => selectedPart = i,
+              isFullscreen: false,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 验证标题样式采用 titleMedium
+      expect(find.text('分集列表 (50)'), findsOneWidget);
+      // 滚动到最后一集
+      final lastPartFinder = find.text('第50讲：课程内容');
+      await tester.scrollUntilVisible(lastPartFinder, 500);
+      await tester.pumpAndSettle();
+      expect(lastPartFinder, findsOneWidget);
+
+      await tester.tap(lastPartFinder);
+      expect(selectedPart, equals(49));
+
+      // 2. 横屏形态测试（约半屏宽）
+      selectedPart = null;
+      tester.view.physicalSize = const Size(2400, 1080);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFF00E5FF),
+              surfaceContainer: Color(0xFF1E1E1E),
+            ),
+          ),
+          home: Scaffold(
+            body: VideoPartsSheet(
+              pages: pages,
+              currentPartIndex: 0,
+              onSelectPart: (i) => selectedPart = i,
+              isFullscreen: true,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 验证横屏下容器宽度约为全屏的一半 (1200 / 2 = 600)
+      final sheetFinder = find.byKey(const Key('video_parts_sheet_content'));
+      expect(sheetFinder, findsOneWidget);
+      final sheetWidth = tester.getSize(sheetFinder).width;
+      expect(sheetWidth, closeTo(600, 10));
+
+      final lastPartLandscape = find.text('第50讲：课程内容');
+      await tester.scrollUntilVisible(lastPartLandscape, 500);
+      await tester.pumpAndSettle();
+      expect(lastPartLandscape, findsOneWidget);
+
+      await tester.tap(lastPartLandscape);
+      expect(selectedPart, equals(49));
     });
   });
 }
