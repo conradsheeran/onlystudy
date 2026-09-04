@@ -53,6 +53,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   StreamSubscription<bool>? _playingSubscription;
   StreamSubscription<bool>? _bufferingSubscription;
   bool _isFullscreen = false;
+  bool _isLocked = false;
   Duration _currentPosition = Duration.zero;
   Duration _currentDuration = Duration.zero;
   Duration _currentBuffered = Duration.zero;
@@ -789,6 +790,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       qualityLabel: _getCurrentQualityDesc(),
       hasParts: _pages.isNotEmpty && _pages.length > 1,
       isFullscreen: _isFullscreen,
+      isLocked: _isLocked,
       hud: _activeHud,
       availableSpeeds: const [0.5, 0.75, 1.0, 1.25, 1.5, 2.0],
       availableQualities: _supportQualities,
@@ -828,6 +830,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       if (mounted) {
         setState(() {
           _isFullscreen = false;
+          _isLocked = false;
         });
       }
     }
@@ -842,7 +845,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   }
 
   Future<void> _handleBack() async {
-    if (_isFullscreen) {
+    if (_isLocked) {
+      setState(() => _isLocked = false);
+    } else if (_isFullscreen) {
       await _exitFullscreen();
     } else {
       if (mounted) {
@@ -865,6 +870,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         PlaybackSession.instance.seek(target);
       },
       onToggleFullscreen: _toggleFullscreen,
+      onToggleLock: () => setState(() => _isLocked = !_isLocked),
       onShowParts: _showPartsList,
       onSelectSpeed: _setPlaybackSpeed,
       onSelectQuality: _switchQuality,
@@ -949,10 +955,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               );
 
     return PopScope(
-      canPop: !_isFullscreen,
+      canPop: !_isFullscreen && !_isLocked,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        if (_isFullscreen) {
+        if (_isLocked) {
+          setState(() => _isLocked = false);
+        } else if (_isFullscreen) {
           await _exitFullscreen();
         }
       },

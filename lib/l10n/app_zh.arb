@@ -44,6 +44,8 @@
   "brightness": "亮度",
   "seekForward": "快进",
   "seekBackward": "后退",
+  "lockControls": "锁定",
+  "unlockControls": "解锁",
   "defaultPlaybackSpeed": "默认播放倍速",
   "backgroundPlayback": "后台播放",
   "backgroundPlaybackDescription": "应用切到后台时继续播放音频，并显示系统媒体控制",

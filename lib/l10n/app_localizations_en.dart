@@ -149,6 +149,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get seekBackward => 'Backward';
 
   @override
+  String get lockControls => 'Lock';
+
+  @override
+  String get unlockControls => 'Unlock';
+
+  @override
   String get defaultPlaybackSpeed => 'Default Playback Speed';
 
   @override

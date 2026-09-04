@@ -350,6 +350,18 @@ abstract class AppLocalizations {
   /// **'后退'**
   String get seekBackward;
 
+  /// No description provided for @lockControls.
+  ///
+  /// In zh, this message translates to:
+  /// **'锁定'**
+  String get lockControls;
+
+  /// No description provided for @unlockControls.
+  ///
+  /// In zh, this message translates to:
+  /// **'解锁'**
+  String get unlockControls;
+
   /// No description provided for @defaultPlaybackSpeed.
   ///
   /// In zh, this message translates to:

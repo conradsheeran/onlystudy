@@ -417,5 +417,94 @@ void main() {
       expect(find.text('Backward 02:00'), findsOneWidget);
       expect(find.byIcon(Icons.fast_rewind), findsOneWidget);
     });
+
+    testWidgets('竖屏无锁定按钮，全屏渲染锁定按钮', (tester) async {
+      // 竖屏：不出现锁定按钮
+      await tester.pumpWidget(
+        _buildTestablePlayerChrome(
+          state: testState.copyWith(isFullscreen: false),
+          callbacks: const PlayerChromeCallbacks(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('player_chrome_lock_button')), findsNothing);
+
+      // 全屏：出现锁定按钮
+      await tester.pumpWidget(
+        _buildTestablePlayerChrome(
+          state: testState.copyWith(isFullscreen: true),
+          callbacks: const PlayerChromeCallbacks(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('player_chrome_lock_button')), findsOneWidget);
+      expect(find.byTooltip('锁定'), findsOneWidget);
+    });
+
+    testWidgets('锁定态只渲染解锁按钮，点击触发 onToggleLock', (tester) async {
+      bool toggleLockCalled = false;
+      await tester.pumpWidget(
+        _buildTestablePlayerChrome(
+          state: testState.copyWith(
+            isFullscreen: true,
+            isLocked: true,
+            controlsVisible: true,
+          ),
+          callbacks: PlayerChromeCallbacks(
+            onToggleLock: () => toggleLockCalled = true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 顶栏按钮与底栏按钮在锁定下不可见
+      final controls = tester.widget<AnimatedOpacity>(
+        find.byKey(const Key('player_chrome_controls')),
+      );
+      expect(controls.opacity, 0.0);
+
+      // 仅解锁按钮可见
+      final unlockBtn = find.byKey(const Key('player_chrome_lock_button'));
+      expect(unlockBtn, findsOneWidget);
+      expect(find.byTooltip('解锁'), findsOneWidget);
+
+      await tester.tap(unlockBtn);
+      expect(toggleLockCalled, isTrue);
+    });
+
+    testWidgets('锁定态屏蔽所有手势', (tester) async {
+      bool playPauseCalled = false;
+      bool seekCalled = false;
+      bool volumeCalled = false;
+
+      await tester.pumpWidget(
+        _buildTestablePlayerChrome(
+          state: testState.copyWith(
+            isFullscreen: true,
+            isLocked: true,
+          ),
+          callbacks: PlayerChromeCallbacks(
+            onPlayPause: () => playPauseCalled = true,
+            onSeek: (_) => seekCalled = true,
+            onVolumeDelta: (_) => volumeCalled = true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 双击画面中心
+      final center = tester.getCenter(find.byKey(const Key('player_chrome_gesture_detector')));
+      await tester.tapAt(center);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tapAt(center);
+      await tester.pumpAndSettle();
+      expect(playPauseCalled, isFalse);
+      expect(seekCalled, isFalse);
+
+      // 滑动
+      await tester.dragFrom(center, const Offset(0, -100));
+      await tester.pumpAndSettle();
+      expect(volumeCalled, isFalse);
+    });
   });
 }

@@ -44,6 +44,8 @@
   "brightness": "Brightness",
   "seekForward": "Forward",
   "seekBackward": "Backward",
+  "lockControls": "Lock",
+  "unlockControls": "Unlock",
   "defaultPlaybackSpeed": "Default Playback Speed",
   "backgroundPlayback": "Background Playback",
   "backgroundPlaybackDescription": "Keep audio playing and expose lock screen controls when the app goes to the background",

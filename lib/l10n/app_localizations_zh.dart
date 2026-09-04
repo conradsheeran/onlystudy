@@ -149,6 +149,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get seekBackward => '后退';
 
   @override
+  String get lockControls => '锁定';
+
+  @override
+  String get unlockControls => '解锁';
+
+  @override
   String get defaultPlaybackSpeed => '默认播放倍速';
 
   @override

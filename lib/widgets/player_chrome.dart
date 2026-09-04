@@ -405,129 +405,146 @@ class _PlayerChromeState extends State<PlayerChrome> {
                 key: const Key('player_chrome_gesture_detector'),
                 behavior: HitTestBehavior.translucent,
                 onTap: _toggleControls,
-                onDoubleTapDown: (details) {
-                  final action = PlaybackMediaStrategy.decideDoubleTapAction(
-                    details.localPosition.dx,
-                    size.width,
-                  );
-                  switch (action) {
-                    case DoubleTapAction.playPause:
-                      _doubleTapDebounceTimer?.cancel();
-                      _accumulatedSeekSeconds = 0;
-                      if (widget.state.position >= widget.state.duration &&
-                          widget.state.duration > Duration.zero) {
-                        widget.callbacks.onSeek?.call(Duration.zero);
-                      }
-                      widget.callbacks.onPlayPause?.call();
-                    case DoubleTapAction.backward:
-                      _accumulatedSeekSeconds -= 10;
-                      _triggerDoubleTapSeek(durationSeconds);
-                    case DoubleTapAction.forward:
-                      _accumulatedSeekSeconds += 10;
-                      _triggerDoubleTapSeek(durationSeconds);
-                  }
-                },
-                onDoubleTap: () {},
-                onLongPressStart: (_) {
-                  if (widget.state.isPlaying && !widget.state.isLocked) {
-                    widget.callbacks.onSelectSpeed?.call(2.0);
-                    _setLocalHud(const SpeedHud(2.0),
-                        duration: const Duration(days: 1));
-                  }
-                },
-                onLongPressEnd: (_) {
-                  if (widget.state.isPlaying && !widget.state.isLocked) {
-                    final prevSpeed = double.tryParse(
-                          widget.state.speedLabel.replaceAll('x', ''),
-                        ) ??
-                        1.0;
-                    widget.callbacks.onSelectSpeed?.call(prevSpeed);
-                    _setLocalHud(null);
-                  }
-                },
-                onPanStart: (details) {
-                  _panIgnored = PlaybackMediaStrategy.isWithinEdgeDeadZone(
-                    details.localPosition,
-                    size,
-                  );
-                  if (_panIgnored) return;
-                  _panStart = details.localPosition;
-                  _lockedDragDirection = DragDirection.none;
-                  _verticalZone = VerticalDragZone.none;
-                  _panDeltaX = 0.0;
-                  _panDeltaY = 0.0;
-                  _panSeekTargetMs = null;
-                },
-                onPanUpdate: (details) {
-                  if (_panIgnored || _panStart == null) return;
-                  _panDeltaX += details.delta.dx;
-                  _panDeltaY += details.delta.dy;
+                onDoubleTapDown: widget.state.isLocked
+                    ? null
+                    : (details) {
+                        final action =
+                            PlaybackMediaStrategy.decideDoubleTapAction(
+                          details.localPosition.dx,
+                          size.width,
+                        );
+                        switch (action) {
+                          case DoubleTapAction.playPause:
+                            _doubleTapDebounceTimer?.cancel();
+                            _accumulatedSeekSeconds = 0;
+                            if (widget.state.position >=
+                                    widget.state.duration &&
+                                widget.state.duration > Duration.zero) {
+                              widget.callbacks.onSeek?.call(Duration.zero);
+                            }
+                            widget.callbacks.onPlayPause?.call();
+                          case DoubleTapAction.backward:
+                            _accumulatedSeekSeconds -= 10;
+                            _triggerDoubleTapSeek(durationSeconds);
+                          case DoubleTapAction.forward:
+                            _accumulatedSeekSeconds += 10;
+                            _triggerDoubleTapSeek(durationSeconds);
+                        }
+                      },
+                onDoubleTap: widget.state.isLocked ? null : () {},
+                onLongPressStart: widget.state.isLocked
+                    ? null
+                    : (_) {
+                        if (widget.state.isPlaying) {
+                          widget.callbacks.onSelectSpeed?.call(2.0);
+                          _setLocalHud(const SpeedHud(2.0),
+                              duration: const Duration(days: 1));
+                        }
+                      },
+                onLongPressEnd: widget.state.isLocked
+                    ? null
+                    : (_) {
+                        if (widget.state.isPlaying) {
+                          final prevSpeed = double.tryParse(
+                                widget.state.speedLabel.replaceAll('x', ''),
+                              ) ??
+                              1.0;
+                          widget.callbacks.onSelectSpeed?.call(prevSpeed);
+                          _setLocalHud(null);
+                        }
+                      },
+                onPanStart: widget.state.isLocked
+                    ? null
+                    : (details) {
+                        _panIgnored =
+                            PlaybackMediaStrategy.isWithinEdgeDeadZone(
+                          details.localPosition,
+                          size,
+                        );
+                        if (_panIgnored) return;
+                        _panStart = details.localPosition;
+                        _lockedDragDirection = DragDirection.none;
+                        _verticalZone = VerticalDragZone.none;
+                        _panDeltaX = 0.0;
+                        _panDeltaY = 0.0;
+                        _panSeekTargetMs = null;
+                      },
+                onPanUpdate: widget.state.isLocked
+                    ? null
+                    : (details) {
+                        if (_panIgnored || _panStart == null) return;
+                        _panDeltaX += details.delta.dx;
+                        _panDeltaY += details.delta.dy;
 
-                  if (_lockedDragDirection == DragDirection.none) {
-                    _lockedDragDirection =
-                        PlaybackMediaStrategy.decideDragDirection(
-                      _panDeltaX,
-                      _panDeltaY,
-                    );
-                    if (_lockedDragDirection == DragDirection.vertical) {
-                      _verticalZone =
-                          PlaybackMediaStrategy.decideVerticalDragZone(
-                        _panStart!.dx,
-                        size.width,
-                      );
-                    }
-                  }
+                        if (_lockedDragDirection == DragDirection.none) {
+                          _lockedDragDirection =
+                              PlaybackMediaStrategy.decideDragDirection(
+                            _panDeltaX,
+                            _panDeltaY,
+                          );
+                          if (_lockedDragDirection == DragDirection.vertical) {
+                            _verticalZone =
+                                PlaybackMediaStrategy.decideVerticalDragZone(
+                              _panStart!.dx,
+                              size.width,
+                            );
+                          }
+                        }
 
-                  if (_lockedDragDirection == DragDirection.horizontal) {
-                    final currentMs = _panSeekTargetMs ??
-                        widget.state.position.inMilliseconds;
-                    final targetMs = PlaybackMediaStrategy.seekTargetMs(
-                      currentMs: currentMs,
-                      deltaPixels: details.delta.dx,
-                      durationMs: widget.state.duration.inMilliseconds,
-                      screenWidth: size.width,
-                    );
-                    _panSeekTargetMs = targetMs;
-                    final target = Duration(milliseconds: targetMs);
-                    final isForward = details.delta.dx >= 0;
-                    _setLocalHud(
-                      SeekPreviewHud(target: target, isForward: isForward),
-                      duration: const Duration(days: 1),
-                    );
-                    widget.callbacks.onSeekPreview?.call(target);
-                  } else if (_lockedDragDirection == DragDirection.vertical) {
-                    if (_verticalZone == VerticalDragZone.volume) {
-                      final delta = PlaybackMediaStrategy.calculateVolumeDelta(
-                        details.delta.dy,
-                        size.height,
-                      );
-                      widget.callbacks.onVolumeDelta?.call(delta);
-                    } else if (_verticalZone == VerticalDragZone.brightness) {
-                      final delta =
-                          PlaybackMediaStrategy.calculateBrightnessDelta(
-                        details.delta.dy,
-                        size.height,
-                      );
-                      widget.callbacks.onBrightnessDelta?.call(delta);
-                    }
-                  }
-                },
-                onPanEnd: (details) {
-                  if (_panIgnored) return;
-                  if (_lockedDragDirection == DragDirection.horizontal &&
-                      _panSeekTargetMs != null) {
-                    widget.callbacks.onSeek?.call(
-                      Duration(milliseconds: _panSeekTargetMs!),
-                    );
-                  }
-                  _panStart = null;
-                  _lockedDragDirection = DragDirection.none;
-                  _panSeekTargetMs = null;
-                  _localHudTimer?.cancel();
-                  _localHudTimer = Timer(const Duration(milliseconds: 600), () {
-                    if (mounted) setState(() => _localHud = null);
-                  });
-                },
+                        if (_lockedDragDirection == DragDirection.horizontal) {
+                          final currentMs = _panSeekTargetMs ??
+                              widget.state.position.inMilliseconds;
+                          final targetMs = PlaybackMediaStrategy.seekTargetMs(
+                            currentMs: currentMs,
+                            deltaPixels: details.delta.dx,
+                            durationMs: widget.state.duration.inMilliseconds,
+                            screenWidth: size.width,
+                          );
+                          _panSeekTargetMs = targetMs;
+                          final target = Duration(milliseconds: targetMs);
+                          final isForward = details.delta.dx >= 0;
+                          _setLocalHud(
+                            SeekPreviewHud(target: target, isForward: isForward),
+                            duration: const Duration(days: 1),
+                          );
+                          widget.callbacks.onSeekPreview?.call(target);
+                        } else if (_lockedDragDirection == DragDirection.vertical) {
+                          if (_verticalZone == VerticalDragZone.volume) {
+                            final delta =
+                                PlaybackMediaStrategy.calculateVolumeDelta(
+                              details.delta.dy,
+                              size.height,
+                            );
+                            widget.callbacks.onVolumeDelta?.call(delta);
+                          } else if (_verticalZone == VerticalDragZone.brightness) {
+                            final delta =
+                                PlaybackMediaStrategy.calculateBrightnessDelta(
+                              details.delta.dy,
+                              size.height,
+                            );
+                            widget.callbacks.onBrightnessDelta?.call(delta);
+                          }
+                        }
+                      },
+                onPanEnd: widget.state.isLocked
+                    ? null
+                    : (details) {
+                        if (_panIgnored) return;
+                        if (_lockedDragDirection == DragDirection.horizontal &&
+                            _panSeekTargetMs != null) {
+                          widget.callbacks.onSeek?.call(
+                            Duration(milliseconds: _panSeekTargetMs!),
+                          );
+                        }
+                        _panStart = null;
+                        _lockedDragDirection = DragDirection.none;
+                        _panSeekTargetMs = null;
+                        _localHudTimer?.cancel();
+                        _localHudTimer =
+                            Timer(const Duration(milliseconds: 600), () {
+                          if (mounted) setState(() => _localHud = null);
+                        });
+                      },
               );
             },
           ),
@@ -542,11 +559,11 @@ class _PlayerChromeState extends State<PlayerChrome> {
         // 3. 控件层（带动画显示/隐藏）
         AnimatedOpacity(
           key: const Key('player_chrome_controls'),
-          opacity: _controlsVisible ? 1.0 : 0.0,
+          opacity: (_controlsVisible && !widget.state.isLocked) ? 1.0 : 0.0,
           duration: const Duration(milliseconds: 150),
           curve: Curves.easeInOut,
           child: IgnorePointer(
-            ignoring: !_controlsVisible,
+            ignoring: !(_controlsVisible && !widget.state.isLocked),
             child: Padding(
               padding: horizontalSafePadding,
               child: Stack(
@@ -820,6 +837,41 @@ class _PlayerChromeState extends State<PlayerChrome> {
 
         // 5. HUD 提示胶囊
         _buildHudCapsule(widget.state.hud ?? _localHud, l10n),
+
+        // 6. 全屏锁定 / 解锁按钮（仅全屏时挂载，居左垂直居中）
+        if (widget.state.isFullscreen)
+          Positioned(
+            left: 20 + horizontalSafePadding.left,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: AnimatedOpacity(
+                opacity: _controlsVisible ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 150),
+                child: IgnorePointer(
+                  ignoring: !_controlsVisible,
+                  child: Material(
+                    color: const Color(0x45000000),
+                    borderRadius: BorderRadius.circular(8),
+                    child: IconButton(
+                      key: const Key('player_chrome_lock_button'),
+                      icon: Icon(
+                        widget.state.isLocked ? Icons.lock : Icons.lock_open,
+                        color: Colors.white,
+                      ),
+                      tooltip: widget.state.isLocked
+                          ? (l10n?.unlockControls ?? '解锁')
+                          : (l10n?.lockControls ?? '锁定'),
+                      onPressed: () {
+                        _resetHideTimer();
+                        widget.callbacks.onToggleLock?.call();
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
