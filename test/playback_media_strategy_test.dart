@@ -115,4 +115,77 @@ void main() {
       isNot(isEmpty),
     );
   });
+
+  test('双击四分区判定：<25%后退，25%-75%播放暂停，>75%快进', () {
+    expect(
+      PlaybackMediaStrategy.decideDoubleTapAction(24, 100),
+      DoubleTapAction.backward,
+    );
+    expect(
+      PlaybackMediaStrategy.decideDoubleTapAction(50, 100),
+      DoubleTapAction.playPause,
+    );
+    expect(
+      PlaybackMediaStrategy.decideDoubleTapAction(76, 100),
+      DoubleTapAction.forward,
+    );
+  });
+
+  test('25px 边缘死区：落入四边 25px 内返回 true', () {
+    const size = Size(1000, 500);
+    // 左边缘
+    expect(PlaybackMediaStrategy.isWithinEdgeDeadZone(const Offset(10, 250), size), isTrue);
+    // 右边缘
+    expect(PlaybackMediaStrategy.isWithinEdgeDeadZone(const Offset(985, 250), size), isTrue);
+    // 顶边缘
+    expect(PlaybackMediaStrategy.isWithinEdgeDeadZone(const Offset(500, 15), size), isTrue);
+    // 底边缘
+    expect(PlaybackMediaStrategy.isWithinEdgeDeadZone(const Offset(500, 485), size), isTrue);
+    // 内部安全区
+    expect(PlaybackMediaStrategy.isWithinEdgeDeadZone(const Offset(500, 250), size), isFalse);
+  });
+
+  test('3:1 方向锁判定：主轴需超过副轴 3 倍，斜向不触发', () {
+    // 水平明确 (dx=35, dy=10)
+    expect(
+      PlaybackMediaStrategy.decideDragDirection(35, 10),
+      DragDirection.horizontal,
+    );
+    // 垂直明确 (dx=10, dy=35)
+    expect(
+      PlaybackMediaStrategy.decideDragDirection(10, 35),
+      DragDirection.vertical,
+    );
+    // 斜向 (dx=30, dy=25) -> none
+    expect(
+      PlaybackMediaStrategy.decideDragDirection(30, 25),
+      DragDirection.none,
+    );
+    // 微小位移 -> none
+    expect(
+      PlaybackMediaStrategy.decideDragDirection(5, 1),
+      DragDirection.none,
+    );
+  });
+
+  test('竖向三分区判定与灵敏度：左1/3亮度，右1/3音量，亮度显著钝于音量', () {
+    expect(
+      PlaybackMediaStrategy.decideVerticalDragZone(200, 900),
+      VerticalDragZone.brightness,
+    );
+    expect(
+      PlaybackMediaStrategy.decideVerticalDragZone(450, 900),
+      VerticalDragZone.none,
+    );
+    expect(
+      PlaybackMediaStrategy.decideVerticalDragZone(700, 900),
+      VerticalDragZone.volume,
+    );
+
+    // 灵敏度比较：相同 dy 下音量变化率是亮度的 6 倍 (3.0 / 0.5)
+    final volDelta = PlaybackMediaStrategy.calculateVolumeDelta(-50, 500);
+    final briDelta = PlaybackMediaStrategy.calculateBrightnessDelta(-50, 500);
+    expect(volDelta, greaterThan(briDelta));
+    expect(volDelta / briDelta, closeTo(6.0, 0.001));
+  });
 }

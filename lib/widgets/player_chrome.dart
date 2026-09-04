@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:onlystudy/l10n/app_localizations.dart';
+import '../services/playback_media_strategy.dart';
 
 /// HUD 显示类型
 sealed class PlayerChromeHud {
@@ -172,6 +173,17 @@ class _PlayerChromeState extends State<PlayerChrome> {
   Timer? _hideTimer;
   late bool _controlsVisible;
   double? _dragPositionSeconds;
+  PlayerChromeHud? _localHud;
+  Timer? _localHudTimer;
+  int _accumulatedSeekSeconds = 0;
+  Timer? _doubleTapDebounceTimer;
+  Offset? _panStart;
+  bool _panIgnored = false;
+  DragDirection _lockedDragDirection = DragDirection.none;
+  VerticalDragZone _verticalZone = VerticalDragZone.none;
+  double _panDeltaX = 0.0;
+  double _panDeltaY = 0.0;
+  int? _panSeekTargetMs;
 
   @override
   void initState() {
@@ -194,6 +206,8 @@ class _PlayerChromeState extends State<PlayerChrome> {
   @override
   void dispose() {
     _hideTimer?.cancel();
+    _localHudTimer?.cancel();
+    _doubleTapDebounceTimer?.cancel();
     super.dispose();
   }
 
@@ -215,6 +229,22 @@ class _PlayerChromeState extends State<PlayerChrome> {
     });
     _resetHideTimer();
     widget.callbacks.onToggleControls?.call();
+  }
+
+  void _triggerDoubleTapSeek(double durationSeconds) {
+    final targetSec = (widget.state.position.inSeconds + _accumulatedSeekSeconds)
+        .clamp(0, durationSeconds.round());
+    final target = Duration(seconds: targetSec);
+    final isForward = _accumulatedSeekSeconds > 0;
+    _setLocalHud(
+      SeekPreviewHud(target: target, isForward: isForward),
+      duration: const Duration(milliseconds: 1000),
+    );
+    _doubleTapDebounceTimer?.cancel();
+    _doubleTapDebounceTimer = Timer(const Duration(milliseconds: 400), () {
+      widget.callbacks.onSeek?.call(target);
+      _accumulatedSeekSeconds = 0;
+    });
   }
 
   String _formatDuration(Duration duration) {
@@ -253,6 +283,92 @@ class _PlayerChromeState extends State<PlayerChrome> {
       ),
     );
   }
+  void _setLocalHud(PlayerChromeHud? hud, {Duration duration = const Duration(milliseconds: 1000)}) {
+    _localHudTimer?.cancel();
+    setState(() {
+      _localHud = hud;
+    });
+    if (hud != null) {
+      _localHudTimer = Timer(duration, () {
+        if (mounted) {
+          setState(() {
+            _localHud = null;
+          });
+        }
+      });
+    }
+  }
+
+  Widget _buildHudCapsule(PlayerChromeHud? hud, AppLocalizations? l10n) {
+    if (hud == null) return const SizedBox.shrink();
+
+    IconData icon;
+    String text;
+    double radius = 64.0;
+
+    switch (hud) {
+      case VolumeHud(:final volume):
+        final percent = (volume * 100).toInt();
+        icon = volume <= 0
+            ? Icons.volume_off
+            : (volume < 0.5 ? Icons.volume_down : Icons.volume_up);
+        text = '${l10n?.volume ?? '音量'} $percent%';
+        radius = 64.0;
+      case BrightnessHud(:final brightness):
+        final percent = (brightness * 100).toInt();
+        icon = brightness < 1.0 / 3.0
+            ? Icons.brightness_low
+            : (brightness < 2.0 / 3.0
+                ? Icons.brightness_medium
+                : Icons.brightness_high);
+        text = '${l10n?.brightness ?? '亮度'} $percent%';
+        radius = 64.0;
+      case SpeedHud(:final speed):
+        icon = Icons.speed;
+        text = '${l10n?.speed ?? '倍速'} ${speed}x';
+        radius = 16.0;
+      case SeekPreviewHud(:final target, :final isForward):
+        icon = isForward ? Icons.fast_forward : Icons.fast_rewind;
+        final label = isForward
+            ? (l10n?.seekForward ?? '快进')
+            : (l10n?.seekBackward ?? '后退');
+        text = '$label ${_formatDuration(target)}';
+        radius = 64.0;
+    }
+
+    return Center(
+      child: IgnorePointer(
+        child: AnimatedOpacity(
+          key: const Key('player_chrome_hud_capsule'),
+          opacity: 1.0,
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeInOut,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0x88000000),
+              borderRadius: BorderRadius.circular(radius),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: Colors.white, size: 20),
+                const SizedBox(width: 6),
+                Text(
+                  text,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -282,10 +398,138 @@ class _PlayerChromeState extends State<PlayerChrome> {
       children: [
         // 1. 全局手势层（单击切换显示）
         Positioned.fill(
-          child: GestureDetector(
-            key: const Key('player_chrome_gesture_detector'),
-            behavior: HitTestBehavior.translucent,
-            onTap: _toggleControls,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final size = Size(constraints.maxWidth, constraints.maxHeight);
+              return GestureDetector(
+                key: const Key('player_chrome_gesture_detector'),
+                behavior: HitTestBehavior.translucent,
+                onTap: _toggleControls,
+                onDoubleTapDown: (details) {
+                  final action = PlaybackMediaStrategy.decideDoubleTapAction(
+                    details.localPosition.dx,
+                    size.width,
+                  );
+                  switch (action) {
+                    case DoubleTapAction.playPause:
+                      _doubleTapDebounceTimer?.cancel();
+                      _accumulatedSeekSeconds = 0;
+                      if (widget.state.position >= widget.state.duration &&
+                          widget.state.duration > Duration.zero) {
+                        widget.callbacks.onSeek?.call(Duration.zero);
+                      }
+                      widget.callbacks.onPlayPause?.call();
+                    case DoubleTapAction.backward:
+                      _accumulatedSeekSeconds -= 10;
+                      _triggerDoubleTapSeek(durationSeconds);
+                    case DoubleTapAction.forward:
+                      _accumulatedSeekSeconds += 10;
+                      _triggerDoubleTapSeek(durationSeconds);
+                  }
+                },
+                onDoubleTap: () {},
+                onLongPressStart: (_) {
+                  if (widget.state.isPlaying && !widget.state.isLocked) {
+                    widget.callbacks.onSelectSpeed?.call(2.0);
+                    _setLocalHud(const SpeedHud(2.0),
+                        duration: const Duration(days: 1));
+                  }
+                },
+                onLongPressEnd: (_) {
+                  if (widget.state.isPlaying && !widget.state.isLocked) {
+                    final prevSpeed = double.tryParse(
+                          widget.state.speedLabel.replaceAll('x', ''),
+                        ) ??
+                        1.0;
+                    widget.callbacks.onSelectSpeed?.call(prevSpeed);
+                    _setLocalHud(null);
+                  }
+                },
+                onPanStart: (details) {
+                  _panIgnored = PlaybackMediaStrategy.isWithinEdgeDeadZone(
+                    details.localPosition,
+                    size,
+                  );
+                  if (_panIgnored) return;
+                  _panStart = details.localPosition;
+                  _lockedDragDirection = DragDirection.none;
+                  _verticalZone = VerticalDragZone.none;
+                  _panDeltaX = 0.0;
+                  _panDeltaY = 0.0;
+                  _panSeekTargetMs = null;
+                },
+                onPanUpdate: (details) {
+                  if (_panIgnored || _panStart == null) return;
+                  _panDeltaX += details.delta.dx;
+                  _panDeltaY += details.delta.dy;
+
+                  if (_lockedDragDirection == DragDirection.none) {
+                    _lockedDragDirection =
+                        PlaybackMediaStrategy.decideDragDirection(
+                      _panDeltaX,
+                      _panDeltaY,
+                    );
+                    if (_lockedDragDirection == DragDirection.vertical) {
+                      _verticalZone =
+                          PlaybackMediaStrategy.decideVerticalDragZone(
+                        _panStart!.dx,
+                        size.width,
+                      );
+                    }
+                  }
+
+                  if (_lockedDragDirection == DragDirection.horizontal) {
+                    final currentMs = _panSeekTargetMs ??
+                        widget.state.position.inMilliseconds;
+                    final targetMs = PlaybackMediaStrategy.seekTargetMs(
+                      currentMs: currentMs,
+                      deltaPixels: details.delta.dx,
+                      durationMs: widget.state.duration.inMilliseconds,
+                      screenWidth: size.width,
+                    );
+                    _panSeekTargetMs = targetMs;
+                    final target = Duration(milliseconds: targetMs);
+                    final isForward = details.delta.dx >= 0;
+                    _setLocalHud(
+                      SeekPreviewHud(target: target, isForward: isForward),
+                      duration: const Duration(days: 1),
+                    );
+                    widget.callbacks.onSeekPreview?.call(target);
+                  } else if (_lockedDragDirection == DragDirection.vertical) {
+                    if (_verticalZone == VerticalDragZone.volume) {
+                      final delta = PlaybackMediaStrategy.calculateVolumeDelta(
+                        details.delta.dy,
+                        size.height,
+                      );
+                      widget.callbacks.onVolumeDelta?.call(delta);
+                    } else if (_verticalZone == VerticalDragZone.brightness) {
+                      final delta =
+                          PlaybackMediaStrategy.calculateBrightnessDelta(
+                        details.delta.dy,
+                        size.height,
+                      );
+                      widget.callbacks.onBrightnessDelta?.call(delta);
+                    }
+                  }
+                },
+                onPanEnd: (details) {
+                  if (_panIgnored) return;
+                  if (_lockedDragDirection == DragDirection.horizontal &&
+                      _panSeekTargetMs != null) {
+                    widget.callbacks.onSeek?.call(
+                      Duration(milliseconds: _panSeekTargetMs!),
+                    );
+                  }
+                  _panStart = null;
+                  _lockedDragDirection = DragDirection.none;
+                  _panSeekTargetMs = null;
+                  _localHudTimer?.cancel();
+                  _localHudTimer = Timer(const Duration(milliseconds: 600), () {
+                    if (mounted) setState(() => _localHud = null);
+                  });
+                },
+              );
+            },
           ),
         ),
 
@@ -573,6 +817,9 @@ class _PlayerChromeState extends State<PlayerChrome> {
             ),
           ),
         ),
+
+        // 5. HUD 提示胶囊
+        _buildHudCapsule(widget.state.hud ?? _localHud, l10n),
       ],
     );
   }

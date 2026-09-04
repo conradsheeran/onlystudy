@@ -4,6 +4,8 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart' as mkv;
 import 'package:onlystudy/l10n/app_localizations.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:flutter_volume_controller/flutter_volume_controller.dart';
+import 'package:screen_brightness/screen_brightness.dart';
 
 import '../models/bili_models.dart';
 import '../models/history_entry.dart';
@@ -58,6 +60,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   bool _isBuffering = false;
   bool _fsProcessing = false;
   final GlobalKey _videoKey = GlobalKey();
+  PlayerChromeHud? _activeHud;
+  Timer? _hudTimer;
   late final Future<void> _playerBootstrap;
   bool _disposed = false;
   final PlaybackGateway _playback = PlaybackGateway();
@@ -235,6 +239,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _playbackSpeedNotifier.dispose();
     _qualityNotifier.dispose();
     _saveHistoryTimer?.cancel();
+    _hudTimer?.cancel();
     _completedSubscription?.cancel();
     _positionSubscription?.cancel();
     _durationSubscription?.cancel();
@@ -784,6 +789,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       qualityLabel: _getCurrentQualityDesc(),
       hasParts: _pages.isNotEmpty && _pages.length > 1,
       isFullscreen: _isFullscreen,
+      hud: _activeHud,
       availableSpeeds: const [0.5, 0.75, 1.0, 1.25, 1.5, 2.0],
       availableQualities: _supportQualities,
       availableQualityDescs: _supportQualityDescs,
@@ -876,6 +882,36 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             ),
           );
         }
+      },
+      onVolumeDelta: (delta) async {
+        final currentVol = await FlutterVolumeController.getVolume() ?? 0.5;
+        final newVol = (currentVol + delta).clamp(0.0, 1.0);
+        await FlutterVolumeController.setVolume(newVol);
+        if (mounted) {
+          setState(() {
+            _activeHud = VolumeHud(newVol);
+          });
+          _hudTimer?.cancel();
+          _hudTimer = Timer(const Duration(seconds: 1), () {
+            if (mounted) setState(() => _activeHud = null);
+          });
+        }
+      },
+      onBrightnessDelta: (delta) async {
+        try {
+          final currentB = await ScreenBrightness().application;
+          final newB = (currentB + delta).clamp(0.0, 1.0);
+          await ScreenBrightness().setApplicationScreenBrightness(newB);
+          if (mounted) {
+            setState(() {
+              _activeHud = BrightnessHud(newB);
+            });
+            _hudTimer?.cancel();
+            _hudTimer = Timer(const Duration(seconds: 1), () {
+              if (mounted) setState(() => _activeHud = null);
+            });
+          }
+        } catch (_) {}
       },
     );
   }

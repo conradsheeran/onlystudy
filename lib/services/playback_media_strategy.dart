@@ -3,6 +3,14 @@ import 'package:flutter/services.dart';
 
 import '../models/bili_models.dart';
 
+/// 双击画面动作类型
+enum DoubleTapAction { backward, playPause, forward }
+
+/// 滑动手势认定的方向
+enum DragDirection { none, horizontal, vertical }
+
+/// 竖向滑动的屏幕分区
+enum VerticalDragZone { brightness, none, volume }
 /// Builds stable media sources for the native media_kit/mpv player.
 class PlaybackMediaStrategy {
   static const Map<String, dynamic> _remoteMediaExtras = {
@@ -115,5 +123,56 @@ class PlaybackMediaStrategy {
   /// 退出全屏时恢复的方向（明确为 portraitUp，避免解锁为任意方向）
   static List<DeviceOrientation> decideExitFullscreenOrientations() {
     return const [DeviceOrientation.portraitUp];
+  }
+
+  /// 双击四分区判定：<25%后退，25%-75%播放暂停，>75%快进
+  static DoubleTapAction decideDoubleTapAction(double x, double totalWidth) {
+    if (totalWidth <= 0) return DoubleTapAction.playPause;
+    final fraction = x / totalWidth;
+    if (fraction < 0.25) return DoubleTapAction.backward;
+    if (fraction > 0.75) return DoubleTapAction.forward;
+    return DoubleTapAction.playPause;
+  }
+
+  /// 25px 边缘死区：落入四边指定死区内返回 true
+  static bool isWithinEdgeDeadZone(Offset point, Size size, {double deadZone = 25.0}) {
+    return point.dx < deadZone ||
+        point.dx > size.width - deadZone ||
+        point.dy < deadZone ||
+        point.dy > size.height - deadZone;
+  }
+
+  /// 3:1 比例方向锁：累计位移主轴必须超过副轴 3 倍才认定方向；斜滑或位移过小返回 none
+  static DragDirection decideDragDirection(double totalDx, double totalDy, {double minDistance = 10.0}) {
+    final absDx = totalDx.abs();
+    final absDy = totalDy.abs();
+    if (absDx >= 3 * absDy && absDx >= minDistance) {
+      return DragDirection.horizontal;
+    }
+    if (absDy >= 3 * absDx && absDy >= minDistance) {
+      return DragDirection.vertical;
+    }
+    return DragDirection.none;
+  }
+
+  /// 竖向三分区判定：左1/3亮度，右1/3音量，中间1/3留空
+  static VerticalDragZone decideVerticalDragZone(double x, double totalWidth) {
+    if (totalWidth <= 0) return VerticalDragZone.none;
+    final fraction = x / totalWidth;
+    if (fraction < 1.0 / 3.0) return VerticalDragZone.brightness;
+    if (fraction > 2.0 / 3.0) return VerticalDragZone.volume;
+    return VerticalDragZone.none;
+  }
+
+  /// 计算音量调节变化量（灵敏度 maxHeight * 0.5）
+  static double calculateVolumeDelta(double deltaDy, double maxHeight) {
+    if (maxHeight <= 0) return 0.0;
+    return -deltaDy / (maxHeight * 0.5);
+  }
+
+  /// 计算亮度调节变化量（灵敏度 maxHeight * 3.0，更钝）
+  static double calculateBrightnessDelta(double deltaDy, double maxHeight) {
+    if (maxHeight <= 0) return 0.0;
+    return -deltaDy / (maxHeight * 3.0);
   }
 }

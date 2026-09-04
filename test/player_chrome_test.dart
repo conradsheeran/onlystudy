@@ -188,7 +188,7 @@ void main() {
 
       // 点击屏幕重新显示
       await tester.tap(find.byKey(const Key('player_chrome_gesture_detector')));
-      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 500));
       final backButtonVisible = tester.widget<AnimatedOpacity>(
         find.byKey(const Key('player_chrome_controls')),
       );
@@ -329,7 +329,93 @@ void main() {
       // 点击屏幕最底部细进度条位置，手势仍能穿透到全局背景触发切换
       final bottomCenter = tester.getCenter(tinyBarFinder);
       await tester.tapAt(bottomCenter);
+      await tester.pump(const Duration(milliseconds: 500));
       expect(backgroundTapped, isTrue);
+    });
+
+    testWidgets('HUD 胶囊文案与图标在 zh 与 en 下正确', (tester) async {
+      // 1. 中文：音量 80%
+      await tester.pumpWidget(
+        _buildTestablePlayerChrome(
+          state: testState.copyWith(hud: const VolumeHud(0.8)),
+          callbacks: const PlayerChromeCallbacks(),
+          locale: const Locale('zh'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('player_chrome_hud_capsule')), findsOneWidget);
+      expect(find.text('音量 80%'), findsOneWidget);
+      expect(find.byIcon(Icons.volume_up), findsOneWidget);
+
+      // 2. 英文：Volume 0% (静音图标)
+      await tester.pumpWidget(
+        _buildTestablePlayerChrome(
+          state: testState.copyWith(hud: const VolumeHud(0.0)),
+          callbacks: const PlayerChromeCallbacks(),
+          locale: const Locale('en'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Volume 0%'), findsOneWidget);
+      expect(find.byIcon(Icons.volume_off), findsOneWidget);
+
+      // 3. 中文：亮度 20% (低档图标)
+      await tester.pumpWidget(
+        _buildTestablePlayerChrome(
+          state: testState.copyWith(hud: const BrightnessHud(0.2)),
+          callbacks: const PlayerChromeCallbacks(),
+          locale: const Locale('zh'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('亮度 20%'), findsOneWidget);
+      expect(find.byIcon(Icons.brightness_low), findsOneWidget);
+
+      // 4. 英文：Brightness 50% (中档图标)
+      await tester.pumpWidget(
+        _buildTestablePlayerChrome(
+          state: testState.copyWith(hud: const BrightnessHud(0.5)),
+          callbacks: const PlayerChromeCallbacks(),
+          locale: const Locale('en'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Brightness 50%'), findsOneWidget);
+      expect(find.byIcon(Icons.brightness_medium), findsOneWidget);
+
+      // 5. 快进 / 后退
+      await tester.pumpWidget(
+        _buildTestablePlayerChrome(
+          state: testState.copyWith(
+            hud: const SeekPreviewHud(
+              target: Duration(minutes: 5),
+              isForward: true,
+            ),
+          ),
+          callbacks: const PlayerChromeCallbacks(),
+          locale: const Locale('zh'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('快进 05:00'), findsOneWidget);
+      expect(find.byIcon(Icons.fast_forward), findsOneWidget);
+
+      // 6. 英文后退
+      await tester.pumpWidget(
+        _buildTestablePlayerChrome(
+          state: testState.copyWith(
+            hud: const SeekPreviewHud(
+              target: Duration(minutes: 2),
+              isForward: false,
+            ),
+          ),
+          callbacks: const PlayerChromeCallbacks(),
+          locale: const Locale('en'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Backward 02:00'), findsOneWidget);
+      expect(find.byIcon(Icons.fast_rewind), findsOneWidget);
     });
   });
 }
