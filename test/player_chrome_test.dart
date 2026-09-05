@@ -78,10 +78,22 @@ void main() {
       expect(find.text('1.0x'), findsOneWidget);
       expect(find.text('1080P'), findsOneWidget);
 
-      // 验证没有鲜红色 (0xFFFF0000)
-      final allElements = find.byType(PlayerChrome);
-      expect(allElements, findsOneWidget);
+      // 验证进度条为 primary 颜色而不是鲜红色 (0xFFFF0000)
+      final mainProgressBar = tester.widget<PlayerProgressBar>(
+        find.byKey(const Key('player_chrome_main_progress_bar')),
+      );
+      expect(mainProgressBar.primaryColor, const Color(0xFF00E5FF));
+      expect(mainProgressBar.primaryColor, isNot(const Color(0xFFFF0000)));
 
+      final tinyBar = tester.widget<CustomPaint>(find.descendant(
+        of: find.byKey(const Key('player_chrome_tiny_progress_bar')),
+        matching: find.byType(CustomPaint),
+      ));
+      final painter = tinyBar.painter as dynamic;
+      expect(painter.thumbRadius, 2.5);
+      expect(painter.trackHeight, 3.5);
+      expect(painter.primaryColor, const Color(0xFF00E5FF));
+      expect(painter.primaryColor, isNot(const Color(0xFFFF0000)));
       // 2. 横屏测试
       tester.view.physicalSize = const Size(2400, 1080);
       await tester.pumpWidget(
@@ -601,6 +613,115 @@ void main() {
 
       await tester.tap(lastPartLandscape);
       expect(selectedPart, equals(49));
+    });
+
+    testWidgets('长按倍速临时加速到 2.0x，松手精准恢复至长按前的用户倍速', (tester) async {
+      double? selectedSpeed;
+      final speedHistory = <double>[];
+
+      await tester.pumpWidget(
+        _buildTestablePlayerChrome(
+          state: testState.copyWith(speedLabel: '1.25x'),
+          callbacks: PlayerChromeCallbacks(
+            onSelectSpeed: (s) {
+              selectedSpeed = s;
+              speedHistory.add(s);
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final center = tester.getCenter(find.byKey(const Key('player_chrome_gesture_detector')));
+      final tapTarget = center + const Offset(160, 0); // 避开中央播放键
+      final gesture = await tester.startGesture(tapTarget);
+      // 触发长按 (默认 500ms)
+      await tester.pump(const Duration(milliseconds: 800));
+
+      expect(selectedSpeed, 2.0);
+
+      // 松手
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(selectedSpeed, 1.25);
+      expect(speedHistory, [2.0, 1.25]);
+    });
+
+    testWidgets('控件隐藏后解锁，控件自动恢复可见并重置隐藏计时', (tester) async {
+      final stateController = ValueNotifier<PlayerChromeState>(
+        testState.copyWith(
+          isLocked: true,
+          controlsVisible: false,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ValueListenableBuilder<PlayerChromeState>(
+              valueListenable: stateController,
+              builder: (context, state, _) {
+                return PlayerChrome(
+                  state: state,
+                  callbacks: const PlayerChromeCallbacks(),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 控件当前隐藏
+      final controlsHidden = tester.widget<AnimatedOpacity>(
+        find.byKey(const Key('player_chrome_controls')),
+      );
+      expect(controlsHidden.opacity, 0.0);
+
+      // 模拟返回键解锁：更新状态为 isLocked: false
+      stateController.value = stateController.value.copyWith(isLocked: false);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // 解锁后控件恢复可见
+      final controlsVisible = tester.widget<AnimatedOpacity>(
+        find.byKey(const Key('player_chrome_controls')),
+      );
+      expect(controlsVisible.opacity, 1.0);
+    });
+
+    testWidgets('横向滑动 seek 时抑制控件自动隐藏', (tester) async {
+      await tester.pumpWidget(
+        _buildTestablePlayerChrome(
+          state: testState.copyWith(controlsVisible: true),
+          callbacks: const PlayerChromeCallbacks(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final center = tester.getCenter(find.byKey(const Key('player_chrome_gesture_detector')));
+      final dragTarget = center + const Offset(160, 0); // 避开中央播放键
+      // 开启手势横向滑动
+      final gesture = await tester.startGesture(dragTarget);
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // 沿横轴多步平滑滑动，确保超出 touch slop 并确立水平方向锁定
+      for (var i = 0; i < 5; i++) {
+        await gesture.moveBy(const Offset(20, 0));
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      // 维持拖动状态并等待超过 3 秒 (3.5s)
+      await tester.pump(const Duration(milliseconds: 3500));
+
+      final controls = tester.widget<AnimatedOpacity>(
+        find.byKey(const Key('player_chrome_controls')),
+      );
+      expect(controls.opacity, 1.0);
+
+      // 结束滑动
+      await gesture.up();
+      await tester.pumpAndSettle();
     });
   });
 }

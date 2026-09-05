@@ -107,12 +107,21 @@ class PlaybackMediaStrategy {
 
   /// 根据视频宽高比决策进入全屏时的目标方向：
   /// 宽高比 < 1.0 为竖屏视频，保持竖屏；否则锁定横屏。宽高未知或异常按横屏处理。
+  /// Android 上按当前重力方向锁定单一横屏（规避 Flutter #73651 / #183708 方向抖动），其他平台默认左右均可。
   static List<DeviceOrientation> decideFullscreenOrientations({
     int? width,
     int? height,
+    DeviceOrientation? currentOrientation,
+    bool isAndroid = false,
   }) {
     if (width != null && height != null && height > 0 && (width / height < 1.0)) {
       return const [DeviceOrientation.portraitUp];
+    }
+    if (isAndroid) {
+      if (currentOrientation == DeviceOrientation.landscapeRight) {
+        return const [DeviceOrientation.landscapeRight];
+      }
+      return const [DeviceOrientation.landscapeLeft];
     }
     return const [
       DeviceOrientation.landscapeLeft,

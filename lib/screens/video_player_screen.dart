@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart' as mkv;
@@ -54,6 +57,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   StreamSubscription<bool>? _bufferingSubscription;
   bool _isFullscreen = false;
   bool _isLocked = false;
+  bool _isSeeking = false;
+  double? _slidingVolume;
+  double? _slidingBrightness;
   Duration _currentPosition = Duration.zero;
   Duration _currentDuration = Duration.zero;
   Duration _currentBuffered = Duration.zero;
@@ -730,6 +736,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       buffered: _currentBuffered,
       isPlaying: _isPlaying,
       isBuffering: _isBuffering,
+      isSeeking: _isSeeking,
       title: _currentVideo.title,
       partLabel: partLabel,
       speedLabel: '${_playbackSpeed}x',
@@ -751,9 +758,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     try {
       final width = _playerInstance?.state.width;
       final height = _playerInstance?.state.height;
+      final isLandscape =
+          MediaQuery.of(context).orientation == Orientation.landscape;
       final orientations = PlaybackMediaStrategy.decideFullscreenOrientations(
         width: width,
         height: height,
+        currentOrientation:
+            isLandscape ? DeviceOrientation.landscapeRight : null,
+        isAndroid: !kIsWeb && Platform.isAndroid,
       );
       await ScreenModeService().enterFullscreen(orientations);
     } finally {
@@ -812,7 +824,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           PlaybackSession.instance.play();
         }
       },
+      onSeekPreview: (target) {
+        if (!_isSeeking) {
+          setState(() {
+            _isSeeking = true;
+          });
+        }
+      },
       onSeek: (target) {
+        if (_isSeeking) {
+          setState(() {
+            _isSeeking = false;
+          });
+        }
         PlaybackSession.instance.seek(target);
       },
       onToggleFullscreen: _toggleFullscreen,
@@ -836,8 +860,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         }
       },
       onVolumeDelta: (delta) async {
-        final currentVol = await FlutterVolumeController.getVolume() ?? 0.5;
-        final newVol = (currentVol + delta).clamp(0.0, 1.0);
+        _slidingVolume ??= await FlutterVolumeController.getVolume() ?? 0.5;
+        final newVol = (_slidingVolume! + delta).clamp(0.0, 1.0);
+        _slidingVolume = newVol;
         await FlutterVolumeController.setVolume(newVol);
         if (mounted) {
           setState(() {
@@ -845,14 +870,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           });
           _hudTimer?.cancel();
           _hudTimer = Timer(const Duration(seconds: 1), () {
-            if (mounted) setState(() => _activeHud = null);
+            if (mounted) {
+              setState(() => _activeHud = null);
+              _slidingVolume = null;
+            }
           });
         }
       },
       onBrightnessDelta: (delta) async {
         try {
-          final currentB = await ScreenBrightness().application;
-          final newB = (currentB + delta).clamp(0.0, 1.0);
+          _slidingBrightness ??= await ScreenBrightness().application;
+          final newB = (_slidingBrightness! + delta).clamp(0.0, 1.0);
+          _slidingBrightness = newB;
           await ScreenBrightness().setApplicationScreenBrightness(newB);
           if (mounted) {
             setState(() {
@@ -860,7 +889,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             });
             _hudTimer?.cancel();
             _hudTimer = Timer(const Duration(seconds: 1), () {
-              if (mounted) setState(() => _activeHud = null);
+              if (mounted) {
+                setState(() => _activeHud = null);
+                _slidingBrightness = null;
+              }
             });
           }
         } catch (_) {}

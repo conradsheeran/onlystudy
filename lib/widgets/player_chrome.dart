@@ -175,7 +175,14 @@ class _PlayerChromeState extends State<PlayerChrome> {
   late bool _controlsVisible;
   double? _dragPositionSeconds;
   PlayerChromeHud? _localHud;
+  PlayerChromeHud? _displayedHud;
+  bool _hudVisible = false;
   Timer? _localHudTimer;
+  Timer? _hudFadeTimer;
+  double? _speedBeforeLongPress;
+  bool _isPanSeeking = false;
+  DateTime? _lastVolumeThrottleTime;
+  double _accumulatedVolumeDelta = 0.0;
   int _accumulatedSeekSeconds = 0;
   Timer? _doubleTapDebounceTimer;
   Offset? _panStart;
@@ -190,6 +197,10 @@ class _PlayerChromeState extends State<PlayerChrome> {
   void initState() {
     super.initState();
     _controlsVisible = widget.state.controlsVisible;
+    if (widget.state.hud != null) {
+      _displayedHud = widget.state.hud;
+      _hudVisible = true;
+    }
     _resetHideTimer();
   }
 
@@ -201,6 +212,22 @@ class _PlayerChromeState extends State<PlayerChrome> {
       _resetHideTimer();
     } else if (widget.state.isSeeking != extendsWidget.state.isSeeking) {
       _resetHideTimer();
+    } else if (extendsWidget.state.isLocked && !widget.state.isLocked) {
+      // 锁定状态解除（如返回键解锁）：恢复控件显示并重置自动隐藏计时
+      _controlsVisible = true;
+      _resetHideTimer();
+    }
+
+    if (widget.state.hud != extendsWidget.state.hud) {
+      if (widget.state.hud != null) {
+        _hudFadeTimer?.cancel();
+        setState(() {
+          _displayedHud = widget.state.hud;
+          _hudVisible = true;
+        });
+      } else if (_localHud == null) {
+        _startHudFadeOut();
+      }
     }
   }
 
@@ -208,13 +235,30 @@ class _PlayerChromeState extends State<PlayerChrome> {
   void dispose() {
     _hideTimer?.cancel();
     _localHudTimer?.cancel();
+    _hudFadeTimer?.cancel();
     _doubleTapDebounceTimer?.cancel();
     super.dispose();
   }
 
+  void _startHudFadeOut() {
+    _hudFadeTimer?.cancel();
+    if (_hudVisible) {
+      setState(() {
+        _hudVisible = false;
+      });
+      _hudFadeTimer = Timer(const Duration(milliseconds: 150), () {
+        if (mounted && !_hudVisible) {
+          setState(() {
+            _displayedHud = null;
+          });
+        }
+      });
+    }
+  }
+
   void _resetHideTimer() {
     _hideTimer?.cancel();
-    if (!_controlsVisible || widget.state.isSeeking) return;
+    if (!_controlsVisible || widget.state.isSeeking || _isPanSeeking || _dragPositionSeconds != null) return;
     _hideTimer = Timer(const Duration(seconds: 3), () {
       if (!mounted) return;
       setState(() {
@@ -286,28 +330,33 @@ class _PlayerChromeState extends State<PlayerChrome> {
   }
   void _setLocalHud(PlayerChromeHud? hud, {Duration duration = const Duration(milliseconds: 1000)}) {
     _localHudTimer?.cancel();
-    setState(() {
-      _localHud = hud;
-    });
+    _hudFadeTimer?.cancel();
+    _localHud = hud;
     if (hud != null) {
+      setState(() {
+        _displayedHud = hud;
+        _hudVisible = true;
+      });
       _localHudTimer = Timer(duration, () {
         if (mounted) {
-          setState(() {
-            _localHud = null;
-          });
+          _localHud = null;
+          _startHudFadeOut();
         }
       });
+    } else {
+      _startHudFadeOut();
     }
   }
 
   Widget _buildHudCapsule(PlayerChromeHud? hud, AppLocalizations? l10n) {
-    if (hud == null) return const SizedBox.shrink();
+    final activeHud = hud ?? _displayedHud;
+    if (activeHud == null) return const SizedBox.shrink();
 
     IconData icon;
     String text;
     double radius = 64.0;
 
-    switch (hud) {
+    switch (activeHud) {
       case VolumeHud(:final volume):
         final percent = (volume * 100).toInt();
         icon = volume <= 0
@@ -341,7 +390,7 @@ class _PlayerChromeState extends State<PlayerChrome> {
       child: IgnorePointer(
         child: AnimatedOpacity(
           key: const Key('player_chrome_hud_capsule'),
-          opacity: 1.0,
+          opacity: _hudVisible ? 1.0 : 0.0,
           duration: const Duration(milliseconds: 150),
           curve: Curves.easeInOut,
           child: Container(
@@ -437,6 +486,10 @@ class _PlayerChromeState extends State<PlayerChrome> {
                     ? null
                     : (_) {
                         if (widget.state.isPlaying) {
+                          _speedBeforeLongPress = double.tryParse(
+                                widget.state.speedLabel.replaceAll('x', ''),
+                              ) ??
+                              1.0;
                           widget.callbacks.onSelectSpeed?.call(2.0);
                           _setLocalHud(const SpeedHud(2.0),
                               duration: const Duration(days: 1));
@@ -445,11 +498,19 @@ class _PlayerChromeState extends State<PlayerChrome> {
                 onLongPressEnd: widget.state.isLocked
                     ? null
                     : (_) {
-                        if (widget.state.isPlaying) {
-                          final prevSpeed = double.tryParse(
-                                widget.state.speedLabel.replaceAll('x', ''),
-                              ) ??
-                              1.0;
+                        if (widget.state.isPlaying && _speedBeforeLongPress != null) {
+                          final prevSpeed = _speedBeforeLongPress!;
+                          _speedBeforeLongPress = null;
+                          widget.callbacks.onSelectSpeed?.call(prevSpeed);
+                          _setLocalHud(null);
+                        }
+                      },
+                onLongPressCancel: widget.state.isLocked
+                    ? null
+                    : () {
+                        if (_speedBeforeLongPress != null) {
+                          final prevSpeed = _speedBeforeLongPress!;
+                          _speedBeforeLongPress = null;
                           widget.callbacks.onSelectSpeed?.call(prevSpeed);
                           _setLocalHud(null);
                         }
@@ -469,6 +530,9 @@ class _PlayerChromeState extends State<PlayerChrome> {
                         _panDeltaX = 0.0;
                         _panDeltaY = 0.0;
                         _panSeekTargetMs = null;
+                        _isPanSeeking = false;
+                        _accumulatedVolumeDelta = 0.0;
+                        _lastVolumeThrottleTime = null;
                       },
                 onPanUpdate: widget.state.isLocked
                     ? null
@@ -493,6 +557,10 @@ class _PlayerChromeState extends State<PlayerChrome> {
                         }
 
                         if (_lockedDragDirection == DragDirection.horizontal) {
+                          if (!_isPanSeeking) {
+                            _isPanSeeking = true;
+                            _hideTimer?.cancel();
+                          }
                           final currentMs = _panSeekTargetMs ??
                               widget.state.position.inMilliseconds;
                           final targetMs = PlaybackMediaStrategy.seekTargetMs(
@@ -516,7 +584,14 @@ class _PlayerChromeState extends State<PlayerChrome> {
                               details.delta.dy,
                               size.height,
                             );
-                            widget.callbacks.onVolumeDelta?.call(delta);
+                            _accumulatedVolumeDelta += delta;
+                            final now = DateTime.now();
+                            if (_lastVolumeThrottleTime == null ||
+                                now.difference(_lastVolumeThrottleTime!).inMilliseconds >= 20) {
+                              _lastVolumeThrottleTime = now;
+                              widget.callbacks.onVolumeDelta?.call(_accumulatedVolumeDelta);
+                              _accumulatedVolumeDelta = 0.0;
+                            }
                           } else if (_verticalZone == VerticalDragZone.brightness) {
                             final delta =
                                 PlaybackMediaStrategy.calculateBrightnessDelta(
@@ -531,20 +606,41 @@ class _PlayerChromeState extends State<PlayerChrome> {
                     ? null
                     : (details) {
                         if (_panIgnored) return;
+                        if (_accumulatedVolumeDelta != 0.0) {
+                          widget.callbacks.onVolumeDelta?.call(_accumulatedVolumeDelta);
+                          _accumulatedVolumeDelta = 0.0;
+                        }
+                        _lastVolumeThrottleTime = null;
                         if (_lockedDragDirection == DragDirection.horizontal &&
                             _panSeekTargetMs != null) {
                           widget.callbacks.onSeek?.call(
                             Duration(milliseconds: _panSeekTargetMs!),
                           );
                         }
+                        _isPanSeeking = false;
                         _panStart = null;
                         _lockedDragDirection = DragDirection.none;
                         _panSeekTargetMs = null;
+                        _resetHideTimer();
                         _localHudTimer?.cancel();
                         _localHudTimer =
                             Timer(const Duration(milliseconds: 600), () {
-                          if (mounted) setState(() => _localHud = null);
+                          if (mounted) _setLocalHud(null);
                         });
+                      },
+                onPanCancel: widget.state.isLocked
+                    ? null
+                    : () {
+                        if (_accumulatedVolumeDelta != 0.0) {
+                          widget.callbacks.onVolumeDelta?.call(_accumulatedVolumeDelta);
+                          _accumulatedVolumeDelta = 0.0;
+                        }
+                        _lastVolumeThrottleTime = null;
+                        _isPanSeeking = false;
+                        _panStart = null;
+                        _lockedDragDirection = DragDirection.none;
+                        _panSeekTargetMs = null;
+                        _resetHideTimer();
                       },
               );
             },
@@ -635,7 +731,7 @@ class _PlayerChromeState extends State<PlayerChrome> {
                                   style: TextStyle(
                                     color: (widget.state.speedLabel == '${s}x')
                                         ? primaryColor
-                                        : Colors.white,
+                                        : theme.colorScheme.onSurface,
                                   ),
                                 ),
                               );
@@ -690,7 +786,7 @@ class _PlayerChromeState extends State<PlayerChrome> {
                                       style: TextStyle(
                                         color: isSelected
                                             ? primaryColor
-                                            : Colors.white,
+                                            : theme.colorScheme.onSurface,
                                       ),
                                     ),
                                   );
@@ -821,13 +917,13 @@ class _PlayerChromeState extends State<PlayerChrome> {
               duration: const Duration(milliseconds: 150),
               child: SizedBox(
                 key: const Key('player_chrome_tiny_progress_bar'),
-                height: 2.5,
+                height: 3.5,
                 child: CustomPaint(
                   painter: _ProgressBarPainter(
                     progressFraction: progressFraction,
                     bufferFraction: bufferFraction,
-                    trackHeight: 2.5,
-                    thumbRadius: 0.0,
+                    trackHeight: 3.5,
+                    thumbRadius: 2.5,
                     primaryColor: primaryColor,
                   ),
                 ),
@@ -837,7 +933,7 @@ class _PlayerChromeState extends State<PlayerChrome> {
         ),
 
         // 5. HUD 提示胶囊
-        _buildHudCapsule(widget.state.hud ?? _localHud, l10n),
+        _buildHudCapsule(widget.state.hud, l10n),
 
         // 6. 全屏锁定 / 解锁按钮（仅全屏时挂载，居左垂直居中）
         if (widget.state.isFullscreen)
@@ -1066,12 +1162,12 @@ class VideoPartsSheet extends StatelessWidget {
           child: Text(
             '${l10n?.partsList ?? "分集列表"} (${pages.length})',
             style: theme.textTheme.titleMedium?.copyWith(
-              color: Colors.white,
+              color: theme.colorScheme.onSurface,
               fontWeight: FontWeight.bold,
             ),
           ),
         ),
-        const Divider(height: 1, color: Colors.white12),
+        Divider(height: 1, color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2)),
         Expanded(
           child: ListView.builder(
             itemCount: pages.length,
@@ -1094,7 +1190,7 @@ class VideoPartsSheet extends StatelessWidget {
                 title: Text(
                   page.part,
                   style: TextStyle(
-                    color: isSelected ? primaryColor : Colors.white,
+                    color: isSelected ? primaryColor : theme.colorScheme.onSurface,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                   maxLines: 1,
@@ -1125,7 +1221,7 @@ class VideoPartsSheet extends StatelessWidget {
           height: double.infinity,
           decoration: BoxDecoration(
             color: theme.colorScheme.surfaceContainer,
-            border: const Border(left: BorderSide(color: Colors.white12)),
+            border: Border(left: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2))),
           ),
           child: SafeArea(
             left: false,
@@ -1157,8 +1253,8 @@ void showVideoPartsSheet({
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
-      barrierLabel: 'Dismiss',
-      barrierColor: Colors.black54,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.54),
       transitionDuration: const Duration(milliseconds: 350),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         final curved = CurvedAnimation(

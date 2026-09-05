@@ -103,6 +103,24 @@ void main() {
       PlaybackMediaStrategy.decideFullscreenOrientations(width: 0, height: 0),
       [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight],
     );
+    // Android 平台规避抖动单侧锁定
+    expect(
+      PlaybackMediaStrategy.decideFullscreenOrientations(
+        width: 1920,
+        height: 1080,
+        isAndroid: true,
+      ),
+      [DeviceOrientation.landscapeLeft],
+    );
+    expect(
+      PlaybackMediaStrategy.decideFullscreenOrientations(
+        width: 1920,
+        height: 1080,
+        currentOrientation: DeviceOrientation.landscapeRight,
+        isAndroid: true,
+      ),
+      [DeviceOrientation.landscapeRight],
+    );
   });
 
   test('退出全屏方向决策：明确恢复 portraitUp 而不是空列表', () {
